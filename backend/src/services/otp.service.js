@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import Verification from '../models/verification.model';
+import Verification from '../models/verification.model.js';
 
 // generate a random 6-digit OTP
 

@@ -4,30 +4,31 @@ import * as userService from '../services/user.service.js';
 export const protect = async (req, res, next) => {
   let token;
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+  if (req.headers?.authorization?.startsWith('Bearer')) {
     try {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Attach user to request object (excluding password)
-      req.user = await userService.findUserById(decoded.id);
       
+      req.user = await userService.findUserById(decoded.id);
+
       if (!req.user) {
-        res.status(401);
-        throw new Error('Not authorized, user not found');
+        const error = new Error('Not authorized, user not found');
+        error.statusCode = 401; // Attach status
+        return next(error);
       }
 
-      next();
-    } catch (error) {
-      res.status(401);
-      next(new Error('Not authorized, token failed'));
+      return next();
+    } catch (err) {
+      const error = new Error('Not authorized, token failed');
+      error.statusCode = 401;
+      return next(error);
     }
   }
 
-  if (!token) {
-    res.status(401);
-    next(new Error('Not authorized, no token'));
-  }
+  // If no token at all
+  const error = new Error('Not authorized, no token');
+  error.statusCode = 401;
+  return next(error);
 };
 
 // Middleware to restrict access based on roles

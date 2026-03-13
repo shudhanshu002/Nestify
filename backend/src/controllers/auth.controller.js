@@ -1,5 +1,5 @@
-import User from "../models/user.model";
-import generateToken from "../utils/generateToken";
+import User from "../models/user.model.js";
+import generateToken from "../utils/generateToken.js";
 import * as userService from '../services/user.service.js';
 import * as otpService from '../services/otp.service.js';
 

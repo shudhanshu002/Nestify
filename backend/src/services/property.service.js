@@ -1,4 +1,4 @@
-import Property from "../models/property.model";
+import Property from "../models/property.model.js";
 
 export const createNewProperty = async (propertyData) => {
   return await Property.create(propertyData);

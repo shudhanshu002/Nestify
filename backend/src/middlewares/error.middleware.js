@@ -1,6 +1,16 @@
 export const errorHandler = (err, req, res, next) => {
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  // If the error has a statusCode property (set in middleware), use it.
+  // Otherwise, check if the response already has a status code.
+  // Default to 500.
+  let statusCode = err.statusCode || res.statusCode;
+  
+  if (statusCode === 200) statusCode = 500;
+
+  // Log the error for debugging
+  console.error(`[Error Handler] ${err.message} | Status: ${statusCode}`);
+
   res.status(statusCode).json({
+    success: false,
     message: err.message,
     stack: process.env.NODE_ENV === 'production' ? null : err.stack,
   });
