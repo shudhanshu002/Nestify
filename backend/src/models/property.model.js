@@ -25,8 +25,16 @@ const propertySchema = new mongoose.Schema({
     city: { type: String, required: true },
     state: { type: String, required: true },
     coordinates: {
-      type: { type: String, default: 'Point' },
-      coordinates: [Number], // [longitude, latitude]
+      type: {
+        type: String,
+        enum: ['Point'],
+        required: true,
+        default: 'Point',
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true,
+      },
     }
   },
 
