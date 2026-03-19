@@ -47,13 +47,18 @@ const propertySchema = new mongoose.Schema({
   
   // High-Grade Features from ER
   isVerified: { type: Boolean, default: false },
+  verificationBadge: { type: String, enum: ['NONE', 'BRONZE', 'SILVER', 'GOLD'], default: 'NONE' },
   safetyMetrics: {
     noiseLevel: { type: String, default: 'Low' },
     internetSpeed: { type: String, default: 'High' },
-    powerBackup: { type: Boolean, default: true }
+    powerBackup: { type: Boolean, default: true },
+    cctv: { type: Boolean, default: false }
   },
   basePrice: { type: Number, required: true },
-  images: [String],
+  images: [{
+    url: String,
+    public_id: String // For deleting from Cloudinary
+  }],
   
   // AI & Ranking
   smartMatchScore: { type: Number, default: 0 },

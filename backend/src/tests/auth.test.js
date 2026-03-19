@@ -7,18 +7,22 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 describe('Auth System Integration', () => {
-    // Setup: Clear database before tests
+    // We store the token here to pass it between tests
+    let token = '';
+
     beforeAll(async () => {
         if (mongoose.connection.readyState === 0) {
             await mongoose.connect(process.env.MONGODB_URI);
         }
+        // 🚨 CRITICAL: Remove the user if they already exist from manual testing
+        await User.deleteMany({ email: 'tester@example.com' });
     });
 
     afterAll(async () => {
+        // Clean up after the test finishes
+        await User.deleteMany({ email: 'tester@example.com' });
         await mongoose.connection.close();
     });
-
-    let token = '';
 
     it('should register a new user successfully', async () => {
         const res = await request(app).post('/api/v1/auth/register').send({
@@ -31,7 +35,7 @@ describe('Auth System Integration', () => {
 
         expect(res.statusCode).toBe(201);
         expect(res.body).toHaveProperty('token');
-        token = res.body.token;
+        token = res.body.token; // Save the token for the last test
     });
 
     it('should login the registered user', async () => {
@@ -50,7 +54,10 @@ describe('Auth System Integration', () => {
     });
 
     it('should allow access to private profile with valid token', async () => {
-        const res = await request(app).get('/api/v1/users/profile').set('Authorization', `Bearer ${token}`);
+        // This test only works if the first test passed and 'token' is set
+        const res = await request(app)
+            .get('/api/v1/users/profile')
+            .set('Authorization', `Bearer ${token}`);
 
         expect(res.statusCode).toBe(200);
         expect(res.body.email).toBe('tester@example.com');

@@ -64,9 +64,14 @@ const userSchema = new mongoose.Schema({
     // kyc status
     kycStatus: {
         type: String,
-        enum: ['PENDING', 'SUBMITTED', 'VERIFIED', 'REJECTED'], 
-        default: 'PENDING'
+        enum: ['NOT_STARTED', 'PENDING', 'VERIFIED', 'REJECTED'],
+        default: 'NOT_STARTED'
     },
+    kycDocuments: [{
+        docType: { type: String, enum: ['AADHAAR', 'PAN', 'PASSPORT'] },
+        fileUrl: String,
+        verifiedAt: Date
+    }],
 
     // metadata
     profile: profileSchema,
