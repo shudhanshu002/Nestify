@@ -1,56 +1,149 @@
 import Conversation from '../models/conversation.model.js';
 import Message from '../models/message.model.js';
+import User from '../models/user.model.js'; // 󾠮 IMPORTANT
+import Property from '../models/property.model.js'; // 󾠯 IMPORTANT
+import mongoose from 'mongoose';
 
-const privacyEngineCheck = (text) => {
-  const phoneRegex = /(\+?\d{1,4}[\s-]?)?(\(?\d{3}\)?[\s-]?)?[\d\s-]{7,10}/g;
-  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-  return phoneRegex.test(text) || emailRegex.test(text);
-};
+export const createOrAccessChat = async (senderId, receiverId, propertyId) => {
+  let targetId = receiverId;
 
-export const sendMessage = async (senderId, propertyId, receiverId, text) => {
-  // Sort IDs so the conversation key is always consistent
-  const sortedParticipants = [senderId.toString(), receiverId.toString()].sort();
-
-  // 1. Find or Create Conversation
-  let conversation = await Conversation.findOne({
-    property: propertyId,
-    participants: sortedParticipants
-  });
-
-  if (!conversation) {
-    conversation = await Conversation.create({
-      property: propertyId,
-      participants: sortedParticipants
-    });
+  // 1. Resolve Admin ID
+  if (receiverId === "ADMIN_ROLE_ID") {
+    const admin = await User.findOne({ role: 'ADMIN' });
+    if (!admin) throw new Error("ADMIN_NOT_FOUND");
+    targetId = admin._id;
   }
 
-  // 2. Safety Check
-  const containsContactInfo = privacyEngineCheck(text);
+  // 2. Validate Target
+  if (!mongoose.Types.ObjectId.isValid(targetId)) throw new Error("INVALID_ID");
+  if (senderId.toString() === targetId.toString()) throw new Error("SELF_CHAT");
 
-  // 3. Create Message
+  // 3. 󾠮 THE FIX: Sort IDs so [A, B] is the same as [B, A]
+  const sortedParticipants = [senderId.toString(), targetId.toString()].sort();
+
+  // 4. Use $all and $size to find the exact pair
+  let chat = await Conversation.findOne({
+    participants: { $all: sortedParticipants, $size: 2 },
+    property: propertyId || null 
+  }).populate('participants', 'firstName lastName role avatar');
+
+  if (!chat) {
+    // 5. Create if not found
+    chat = await Conversation.create({
+      participants: sortedParticipants,
+      property: propertyId || null,
+    });
+    chat = await chat.populate('participants', 'firstName lastName role avatar');
+  }
+
+  return chat;
+};
+
+export const saveNewMessage = async (senderId, conversationId, text, status = 'SENT') => {
   const message = await Message.create({
-    conversation: conversation._id,
+    conversation: conversationId,
     sender: senderId,
-    text,
-    containsContactInfo
+    text: text.trim(),
+    status,
+    deliveredAt: status === 'DELIVERED' ? new Date() : null
   });
 
-  // 4. Update Conversation metadata
-  conversation.lastMessage = text;
-  conversation.lastMessageAt = Date.now();
-  
-  // Update unread count for the receiver
-  const currentCount = conversation.unreadCount.get(receiverId.toString()) || 0;
-  conversation.unreadCount.set(receiverId.toString(), currentCount + 1);
-  
-  await conversation.save();
+  // Update conversation lastMessage, lastMessageAt, and increment unreadCount for receiver
+  const conv = await Conversation.findById(conversationId);
+  if (conv) {
+    conv.lastMessage = text.trim();
+    conv.lastMessageAt = Date.now();
+
+    if (!conv.unreadCount) {
+      conv.unreadCount = new Map();
+    }
+
+    conv.participants.forEach(p => {
+      const pId = p.toString();
+      if (pId !== senderId.toString()) {
+        const currentCount = (conv.unreadCount.get ? conv.unreadCount.get(pId) : conv.unreadCount[pId]) || 0;
+        if (conv.unreadCount.set) {
+          conv.unreadCount.set(pId, currentCount + 1);
+        } else {
+          conv.unreadCount[pId] = currentCount + 1;
+        }
+      }
+    });
+
+    await conv.save();
+  }
 
   return message;
 };
 
-export const getConversationsForUser = async (userId) => {
-  return await Conversation.find({ participants: userId })
-    .populate('participants', 'firstName lastName')
-    .populate('property', 'title images')
-    .sort({ lastMessageAt: -1 });
+export const markMessagesAsRead = async (conversationId, userId) => {
+  const uId = userId.toString();
+
+  // 1. Mark messages from other participants as READ
+  await Message.updateMany(
+    {
+      conversation: conversationId,
+      sender: { $ne: userId },
+      status: { $ne: 'READ' }
+    },
+    {
+      $set: {
+        status: 'READ',
+        isRead: true,
+        readAt: new Date()
+      }
+    }
+  );
+
+  // 2. Reset unreadCount for this user in the conversation
+  const conv = await Conversation.findById(conversationId);
+  if (conv && conv.unreadCount) {
+    if (conv.unreadCount.set) {
+      conv.unreadCount.set(uId, 0);
+    } else {
+      conv.unreadCount[uId] = 0;
+    }
+    await conv.save();
+  }
+
+  return { success: true };
+};
+
+export const markMessagesAsDelivered = async (userId, conversationId = null) => {
+  const filter = {
+    sender: { $ne: userId },
+    status: 'SENT'
+  };
+
+  if (conversationId) {
+    filter.conversation = conversationId;
+  } else {
+    const convs = await Conversation.find({ participants: userId });
+    filter.conversation = { $in: convs.map(c => c._id) };
+  }
+
+  await Message.updateMany(
+    filter,
+    {
+      $set: {
+        status: 'DELIVERED',
+        deliveredAt: new Date()
+      }
+    }
+  );
+};
+
+export const getTotalUnreadCount = async (userId) => {
+  const uId = userId.toString();
+  const convs = await Conversation.find({ participants: userId });
+  let total = 0;
+
+  for (const c of convs) {
+    if (c.unreadCount) {
+      const count = (c.unreadCount.get ? c.unreadCount.get(uId) : c.unreadCount[uId]) || 0;
+      total += count;
+    }
+  }
+
+  return total;
 };
