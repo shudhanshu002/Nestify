@@ -1,55 +1,35 @@
-import { ShieldCheck, Star, MapPin, Wifi, Zap } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Heart, MapPin, Star, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const PropertyCard = ({ pg }) => {
+const PropertyCard = ({ property }) => {
+  const navigate = useNavigate();
+
   return (
-    <div className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300">
-      <div className="relative h-56">
-        <img 
-          src={pg.images?.[0]?.url || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80'} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          alt={pg.title}
-        />
-        {pg.isVerified && (
-          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1.5 shadow-sm">
-            <ShieldCheck size={14} className="text-secondary" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-800">Verified</span>
+    <div onClick={() => navigate(`/property/${property._id}`)} className="cursor-pointer group bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 hover:shadow-2xl transition-all duration-500">
+      <div className="relative h-64">
+        <img src={property.images?.[0]?.url || 'https://via.placeholder.com/500'} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+        
+        {/* 󾠮 VERIFIED BADGE */}
+        {property.verificationStatus === 'VERIFIED' && (
+          <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm border border-green-100">
+            <ShieldCheck size={14} className="text-green-500 fill-green-50" />
+            <span className="text-[9px] font-black uppercase text-green-700 tracking-tighter">Verified PG</span>
           </div>
         )}
-        <div className="absolute bottom-4 right-4 bg-gray-900/80 text-white px-3 py-1 rounded-lg text-sm font-bold">
-          ₹{pg.basePrice} <span className="text-[10px] font-normal opacity-80">/mo</span>
-        </div>
       </div>
 
-      <div className="p-5">
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold text-lg text-gray-900 leading-tight">{pg.title}</h3>
-          <div className="flex items-center gap-1 bg-yellow-50 px-2 py-0.5 rounded text-yellow-700 font-bold text-xs">
-            <Star size={12} fill="currentColor" /> {pg.averageRating || 'New'}
-          </div>
+      <div className="p-6 space-y-3">
+        <div className="flex justify-between items-center">
+          <h3 className="font-black text-xl text-gray-900 truncate">{property.title}</h3>
+          <span className="flex items-center gap-1 text-sm font-bold"><Star size={14} className="fill-orange-400 text-orange-400" /> 4.8</span>
         </div>
-
-        <p className="flex items-center gap-1 text-gray-500 text-sm mb-4">
-          <MapPin size={14} /> {pg.location.city}, {pg.location.state}
-        </p>
-
-        <div className="flex items-center gap-4 border-t pt-4">
-          <div className="flex items-center gap-1.5 text-gray-600 text-xs">
-            <Wifi size={14} className={pg.safetyMetrics?.internetSpeed ? 'text-primary' : 'text-gray-300'} />
-            <span>High Speed</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-gray-600 text-xs">
-            <Zap size={14} className={pg.safetyMetrics?.powerBackup ? 'text-accent' : 'text-gray-300'} />
-            <span>24/7 Power</span>
-          </div>
+        <p className="text-gray-400 text-sm flex items-center gap-1 font-medium"><MapPin size={14} /> {property.location?.city}</p>
+        <div className="pt-4 border-t border-gray-50 flex justify-between items-center">
+          <p className="text-2xl font-black text-gray-900">₹{property.basePrice || 'N/A'}</p>
+          <span className="text-[10px] font-black text-primary uppercase tracking-widest">
+            {property.verificationStatus === 'VERIFIED' ? 'Live on Matrix' : 'Under Review'}
+          </span>
         </div>
-
-        <Link 
-          to={`/property/${pg._id}`}
-          className="block w-full text-center mt-5 bg-gray-50 text-gray-800 py-2.5 rounded-xl font-bold hover:bg-primary hover:text-white transition-colors"
-        >
-          View Details
-        </Link>
       </div>
     </div>
   );

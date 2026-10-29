@@ -10,15 +10,16 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const { data } = await API.get('/auth/profile');
-        setUser(data.data);
+        const { data } = await API.get('/users/profile'); 
+        setUser(data.data || data); 
       } catch (err) {
         localStorage.removeItem('token');
+        setUser(null);
       } finally {
         setLoading(false);
       }
     };
-    
+
     if (localStorage.getItem('token')) checkUser();
     else setLoading(false);
   }, []);
@@ -26,8 +27,8 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const { data } = await API.post('/auth/login', { email, password });
     localStorage.setItem('token', data.token);
-    setUser(data.user);
-    return data.user;
+    setUser(data.user || data);
+    return data;
   };
 
   const logout = () => {
@@ -36,7 +37,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    // 󾠮 ADDED setUser HERE
+    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
