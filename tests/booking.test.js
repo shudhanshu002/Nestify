@@ -20,7 +20,7 @@ describe('Booking Logic & Race Conditions', () => {
 
         // 2. Clean Database to prevent 'already locked' errors
         await User.deleteMany({ email: 'tenant-test@example.com' });
-        await Room.deleteMany({}); 
+        await Room.deleteMany({ roomNumber: 'TEST-ROOM-101' }); 
 
         // 3. Setup Tenant
         const tenant = await User.create({
@@ -39,7 +39,8 @@ describe('Booking Logic & Race Conditions', () => {
             basePrice: 2000,
             capacity: 1,
             availableInventory: 1,
-            isLocked: false
+            isLocked: false,
+            roomNumber: 'TEST-ROOM-101'
         });
         roomId = room._id;
     });
@@ -47,7 +48,7 @@ describe('Booking Logic & Race Conditions', () => {
     afterAll(async () => {
         // Cleanup
         await User.deleteMany({ email: 'tenant-test@example.com' });
-        await Room.deleteMany({});
+        await Room.deleteMany({ roomNumber: 'TEST-ROOM-101' });
         await mongoose.connection.close();
     });
 

@@ -17,8 +17,8 @@ describe('Property & Search API', () => {
             await mongoose.connect(process.env.MONGODB_URI);
         }
 
-        // Clean database to ensure a fresh search
-        await Property.deleteMany({});
+        // Clean only the test property to ensure a fresh search without wiping dev DB
+        await Property.deleteMany({ title: 'Sunset PG' });
         await User.deleteMany({ email: 'owner@test.com' });
 
         const owner = await User.create({
