@@ -35,7 +35,9 @@ const bookingSchema = new mongoose.Schema({
   // Trust & Intelligence Signals from ER
   moveInGuarantee: { type: Boolean, default: false },
   agreementSigned: { type: Boolean, default: false },
-  fraudScore: { type: Number, default: 0 }
+  fraudScore: { type: Number, default: 0 },
+  actualCheckInDate: { type: Date },
+  actualCheckOutDate: { type: Date },
 }, { 
   timestamps: true 
 });

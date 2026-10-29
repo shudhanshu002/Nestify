@@ -1,30 +1,33 @@
 import mongoose from 'mongoose';
 
 const disputeSchema = new mongoose.Schema({
-  raisedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  targetUser: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Owner or Tenant
-  booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true },
-  payment: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
+  ticketId: { type: String, unique: true, default: () => `DS-${Math.floor(100000 + Math.random() * 900000)}` },
+  raisedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }, // Tenant
+  property: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
+  company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company' }, // If it's a chain
   
-  reason: { 
+  issueType: { 
     type: String, 
-    enum: ['SECURITY_DEPOSIT', 'MAINTENANCE_ISSUE', 'MISLEADING_LISTING', 'PAYMENT_FAILURE'], 
+    enum: ['REFUND', 'MAINTENANCE', 'SECURITY', 'MISCONDUCT', 'OTHER'], 
     required: true 
   },
   description: { type: String, required: true },
-  evidence: [String], // URLs to photos/videos
-  
+  evidenceImages: [String],
+
+  // 󾠮 ESCALATION LOGIC
   status: { 
     type: String, 
-    enum: ['OPEN', 'UNDER_INVESTIGATION', 'RESOLVED', 'CLOSED'], 
+    enum: ['OPEN', 'RESOLVED', 'ESCALATED_TO_COMPANY', 'ESCALATED_TO_PLATFORM'], 
     default: 'OPEN' 
   },
-  resolution: { type: String }, // Admin's final decision
-  resolvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Admin ID
   
-  // SLA tracking from ER
-  slaDeadline: { type: Date, default: () => new Date(Date.now() + 48 * 60 * 60 * 1000) } // 48-hour resolution goal
+  resolutionLevel: { 
+    type: String, 
+    enum: ['MANAGER', 'COMPANY_ADMIN', 'PLATFORM_ADMIN'], 
+    default: 'MANAGER' 
+  },
+
+  finalVerdict: { type: String }, // Written by the Admin who closes it
 }, { timestamps: true });
 
-const Dispute = mongoose.model('Dispute', disputeSchema);
-export default Dispute;
+export default mongoose.model('Dispute', disputeSchema);

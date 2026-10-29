@@ -41,3 +41,16 @@ export const authorize = (...roles) => {
     next();
   };
 };
+
+export const isAdmin = (req, res, next) => {
+  // 1. Check if user exists (attached by 'protect' middleware)
+  // 2. Check if the role is exactly 'ADMIN'
+  if (req.user && req.user.role === 'ADMIN') {
+    next(); // Identity confirmed. Proceed to the controller.
+  } else {
+    // Access Denied
+    res.status(403);
+    const error = new Error('Not authorized as an Admin. Matrix access denied.');
+    next(error);
+  }
+};

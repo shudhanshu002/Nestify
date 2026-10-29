@@ -5,70 +5,52 @@ const propertySchema = new mongoose.Schema({
   description: { type: String, required: true },
   category: { 
     type: String, 
-    enum: ['PG', 'HOSTEL', 'MOTEL', 'HOTEL'], 
+    enum: ['PG', 'Hotel', 'Motel', 'Hostel', 'Guest House'], 
     required: true 
   },
-  owner: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
-  },
-  company: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Company', 
-    default: null 
-  },
+  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  company: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', default: null },
+  manager: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   
-  // Location with GeoJSON for "Near Me" searches
   location: {
     address: { type: String, required: true },
     city: { type: String, required: true },
     state: { type: String, required: true },
     coordinates: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        required: true,
-        default: 'Point',
-      },
-      coordinates: {
-        type: [Number], // [longitude, latitude]
-        required: true,
-      },
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], required: true } // [longitude, latitude]
     }
   },
 
   amenities: [String],
-  genderPreference: { 
-    type: String, 
-    enum: ['MALE', 'FEMALE', 'UNISEX'], 
-    default: 'UNISEX' 
-  },
-  
-  // High-Grade Features from ER
+  genderPreference: { type: String, enum: ['MALE', 'FEMALE', 'UNISEX'], default: 'UNISEX' },
   isVerified: { type: Boolean, default: false },
-  verificationBadge: { type: String, enum: ['NONE', 'BRONZE', 'SILVER', 'GOLD'], default: 'NONE' },
+  
   safetyMetrics: {
     noiseLevel: { type: String, default: 'Low' },
     internetSpeed: { type: String, default: 'High' },
     powerBackup: { type: Boolean, default: true },
     cctv: { type: Boolean, default: false }
   },
-  basePrice: { type: Number, required: true },
-  images: [{
-    url: String,
-    public_id: String // For deleting from Cloudinary
-  }],
-  
-  // AI & Ranking
-  smartMatchScore: { type: Number, default: 0 },
-  averageRating: { type: Number, default: 0 }
-}, { 
-  timestamps: true 
-});
 
-// Index for proximity searches
+  // Add these to your propertySchema
+verificationStatus: { 
+  type: String, 
+  enum: ['PENDING', 'VERIFIED', 'REJECTED'], 
+  default: 'PENDING' 
+},
+legalDocuments: [{
+  docType: { type: String, default: 'OWNERSHIP_DEED' }, // e.g., Tax Receipt, Sale Deed
+  fileUrl: String,
+  uploadedAt: { type: Date, default: Date.now }
+}],
+rejectionReason: { type: String, default: '' },
+
+  images: [{ url: String, public_id: String }],
+  basePrice: { type: Number, default: 0 },
+  averageRating: { type: Number, default: 0 }
+}, { timestamps: true });
+
 propertySchema.index({ "location.coordinates": "2dsphere" });
 
-const Property = mongoose.model('Property', propertySchema);
-export default Property;
+export default mongoose.model('Property', propertySchema);
