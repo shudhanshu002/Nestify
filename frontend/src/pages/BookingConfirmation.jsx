@@ -1,145 +1,87 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ShieldCheck, Calendar, Loader2, CheckCircle, Home, ArrowLeft } from 'lucide-react';
 import API from '../api/client';
-import { ShieldCheck, Calendar, Clock, CreditCard, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 
 const BookingConfirmation = () => {
-  const { bookingId } = useParams();
+  const { propertyId } = useParams(); // 󾠮 Matches the :propertyId in App.jsx
+  const { state } = useLocation();
   const navigate = useNavigate();
-  
-  const [booking, setBooking] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [acceptedRules, setAcceptedRules] = useState(false);
-  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    const fetchBooking = async () => {
-      try {
-        const { data } = await API.get(`/bookings/${bookingId}`);
-        setBooking(data.data);
-      } catch (err) {
-        console.error("Booking session expired");
-        navigate('/');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBooking();
-  }, [bookingId, navigate]);
+  // 󾠯 Safety check for direct URL access
+  if (!state || !state.room) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center space-y-4">
+        <p className="font-black text-gray-400 uppercase tracking-widest">Session Expired</p>
+        <button onClick={() => navigate(`/property/${propertyId}`)} className="bg-gray-900 text-white px-8 py-3 rounded-2xl font-bold">
+          Return to Property
+        </button>
+      </div>
+    );
+  }
 
-  const handleFinalize = async () => {
-    if (!acceptedRules) return alert("Please accept the House Rules to proceed.");
-    
-    setIsFinalizing(true);
+  const { property, room, checkIn, checkOut, days } = state;
+  const grandTotal = (room.basePrice * days) + 149;
+
+  const handleFinalizeBooking = async () => {
+    setIsProcessing(true);
     try {
-      // Calls Backend: router.post('/:bookingId/confirm', protect, confirmBooking)
-      await API.post(`/bookings/${bookingId}/confirm`);
-      navigate('/my-bookings', { state: { success: true } });
+      // Final POST to create the legit booking
+      await API.post('/bookings', {
+        property: property._id,
+        room: room._id,
+        checkInDate: checkIn,
+        checkOutDate: checkOut,
+        totalAmount: grandTotal
+      });
+      
+      navigate('/booking/success'); // Moves to the success page in your App.jsx
     } catch (err) {
-      alert(err.response?.data?.message || "Transaction failed. Please try again.");
+      alert(err.response?.data?.message || "Booking failed.");
     } finally {
-      setIsFinalizing(false);
+      setIsProcessing(false);
     }
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary" size={40} /></div>;
-
-  const serviceFee = booking.totalPrice * 0.05; // 5% platform fee
-  const finalTotal = booking.totalPrice + serviceFee;
-
   return (
-    <div className="max-w-4xl mx-auto py-10 px-4">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900">Confirm Your Stay</h1>
-          <p className="text-gray-500 mt-1">Review details and complete your booking</p>
-        </div>
-        <div className="bg-orange-50 text-orange-700 px-4 py-2 rounded-xl flex items-center gap-2 border border-orange-100">
-          <Clock size={18} />
-          <span className="text-sm font-bold">Expires in 10:00</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Booking Details */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-              <CheckCircle2 className="text-primary" size={20} /> Booking Summary
-            </h3>
-            <div className="flex gap-4 p-4 bg-gray-50 rounded-xl">
-              <img 
-                src={booking.property?.images?.[0]?.url || 'https://via.placeholder.com/150'} 
-                className="w-24 h-24 object-cover rounded-lg" 
-                alt="Property" 
-              />
-              <div>
-                <h4 className="font-bold text-gray-900">{booking.property?.title}</h4>
-                <p className="text-sm text-gray-500">{booking.room?.roomType} Unit</p>
-                <div className="flex items-center gap-4 mt-2 text-xs font-medium text-gray-600">
-                  <span className="flex items-center gap-1"><Calendar size={12}/> 1 Month Min.</span>
-                  <span className="flex items-center gap-1"><ShieldCheck size={12}/> Secured</span>
-                </div>
+    <div className="max-w-5xl mx-auto py-12 px-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr,1fr] gap-12">
+        <div className="space-y-6">
+          <h1 className="text-4xl font-black italic tracking-tighter">Review Stay.</h1>
+          <div className="bg-white p-8 rounded-[3rem] border border-gray-100 shadow-xl flex gap-6">
+            <img src={property.images?.[0]?.url} className="w-40 h-40 rounded-[2rem] object-cover" />
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black text-gray-900">{property.title}</h3>
+              <p className="text-gray-400 font-bold">{room.roomType} • {days} Days</p>
+              <div className="mt-4 p-4 bg-primary/5 rounded-2xl border border-primary/10 flex gap-3">
+                 <ShieldCheck className="text-primary" size={20}/>
+                 <p className="text-[10px] text-gray-500 font-bold leading-tight">Your payment is protected by our Move-in Guarantee.</p>
               </div>
             </div>
           </div>
-
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-            <h3 className="font-bold text-lg mb-4">House Rules & Agreement</h3>
-            <div className="space-y-3 max-h-40 overflow-y-auto p-4 bg-gray-50 rounded-xl text-sm text-gray-600 border border-gray-100">
-              <p>1. No noise after 10:00 PM.</p>
-              <p>2. Visitors allowed only in common areas.</p>
-              <p>3. Maintain cleanliness in shared spaces.</p>
-              <p>4. 30-day notice period required before move-out.</p>
-            </div>
-            <label className="flex items-center gap-3 mt-6 cursor-pointer group">
-              <input 
-                type="checkbox" 
-                className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
-                onChange={(e) => setAcceptedRules(e.target.checked)}
-              />
-              <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition">
-                I agree to the House Rules and Tenant Agreement.
-              </span>
-            </label>
-          </div>
         </div>
 
-        {/* Right: Payment Sidebar */}
-        <div className="lg:col-span-1">
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg sticky top-8">
-            <h3 className="font-bold text-lg mb-6">Price Breakdown</h3>
-            <div className="space-y-4 mb-6">
-              <div className="flex justify-between text-gray-600">
-                <span>Monthly Rent</span>
-                <span>₹{booking.totalPrice}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Service Fee (5%)</span>
-                <span>₹{serviceFee}</span>
-              </div>
-              <div className="border-t pt-4 flex justify-between font-black text-xl text-gray-900">
-                <span>Total</span>
-                <span>₹{finalTotal}</span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleFinalize}
-              disabled={isFinalizing || !acceptedRules}
-              className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-lg ${
-                acceptedRules 
-                ? 'bg-primary text-white hover:bg-blue-700 shadow-blue-200' 
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              {isFinalizing ? <Loader2 className="animate-spin" /> : <CreditCard size={20} />}
-              Confirm & Pay
-            </button>
-            <p className="text-[10px] text-gray-400 text-center mt-4 uppercase font-bold tracking-widest">
-              Secure SSL Encryption Active
-            </p>
+        {/* BILLING SIDEBAR */}
+        <div className="bg-white p-10 rounded-[3.5rem] border border-gray-50 shadow-2xl space-y-8">
+          <h4 className="font-black text-xl">Final Billing</h4>
+          <div className="space-y-4 border-b pb-8">
+             <div className="flex justify-between text-gray-500 font-bold"><span>Stay Cost</span><span>₹{room.basePrice * days}</span></div>
+             <div className="flex justify-between text-gray-500 font-bold"><span>Service Fee</span><span>₹149</span></div>
           </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-400 font-black uppercase text-xs tracking-widest">Grand Total</span>
+            <span className="text-4xl font-black text-primary tracking-tighter italic">₹{grandTotal}</span>
+          </div>
+
+          <button 
+            disabled={isProcessing}
+            onClick={handleFinalizeBooking}
+            className="w-full bg-gray-900 text-white py-6 rounded-[2rem] font-black text-xl hover:bg-primary transition shadow-2xl flex items-center justify-center gap-3 active:scale-95"
+          >
+            {isProcessing ? <Loader2 className="animate-spin"/> : <CheckCircle />}
+            {isProcessing ? 'Verifying...' : 'Pay & Confirm'}
+          </button>
         </div>
       </div>
     </div>
