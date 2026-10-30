@@ -115,12 +115,13 @@ export const getMyBookings = async (req, res, next) => {
     const bookings = await Booking.find({ tenant: req.user._id })
       .populate({
         path: 'property', // 1. Populate the property first
-        select: 'title owner images',
+        select: 'title owner images location address',
         populate: { 
           path: 'owner', // 2. Then populate the owner INSIDE the property
           select: '_id firstName lastName role' 
         }
       })
+      .populate('room', 'roomType basePrice')
       .sort('-createdAt');
 
     res.status(200).json({ success: true, data: bookings });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import API from '../api/client';
+import { useChat } from '../context/ChatContext';
 import { 
   Calendar, MapPin, Loader2, Wrench, Star, 
   X, Send, ShieldCheck, Wifi, Volume2, Zap, Search, MessageSquare,
@@ -7,6 +8,9 @@ import {
 } from 'lucide-react';
 
 const MyBookings = () => {
+  const { setSelectedChat, setIsChatOpen } = useChat();
+  const [chatLoadingId, setChatLoadingId] = useState(null);
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -26,6 +30,29 @@ const MyBookings = () => {
     comment: '',
     safetySignals: { noiseLevel: 'Moderate', internetSpeed: 'Good', powerBackupReliability: true }
   });
+
+  // Start chat with the PG or Hotel owner
+  const handleChatWithLandlord = async (book) => {
+    const ownerId = book.property?.owner?._id || book.property?.owner;
+    if (!ownerId) {
+      alert("Landlord / Owner details are not available for this property.");
+      return;
+    }
+
+    try {
+      setChatLoadingId(book._id);
+      const { data } = await API.post('/chat/access', { 
+        receiverId: ownerId.toString(), 
+        propertyId: book.property?._id 
+      });
+      setSelectedChat(data.data);
+      setIsChatOpen(true);
+    } catch (err) {
+      alert(err.response?.data?.message || "Could not open chat with landlord.");
+    } finally {
+      setChatLoadingId(null);
+    }
+  };
 
   // 󾠮 Fetch user's booking history
   const fetchMyStays = async () => {
@@ -154,7 +181,25 @@ const MyBookings = () => {
               </div>
 
               {/* ACTION BUTTONS */}
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3">
+                {/* 󾠯 CHAT WITH PG / HOTEL OWNER */}
+                <button 
+                  onClick={() => handleChatWithLandlord(book)}
+                  disabled={chatLoadingId === book._id}
+                  className="w-full bg-blue-50/80 hover:bg-primary text-primary hover:text-white border border-blue-200/60 py-3.5 rounded-[1.5rem] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all duration-300 shadow-sm hover:shadow-md hover:shadow-primary/20 active:scale-[0.99] disabled:opacity-50"
+                >
+                  {chatLoadingId === book._id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <MessageSquare size={16} />
+                  )}
+                  <span>
+                    {book.property?.owner?.firstName 
+                      ? `Chat with ${book.property.owner.firstName} (Owner)`
+                      : 'Chat with Owner / Landlord'}
+                  </span>
+                </button>
+
                 {book.status === 'CHECKED_IN' && (
                   <div className="flex gap-3">
                     <button 

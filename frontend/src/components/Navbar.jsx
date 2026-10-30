@@ -1,14 +1,20 @@
 import { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { User, LogOut, LayoutDashboard, Home, Heart, ShieldCheck, HelpCircle, ChevronDown, Bell } from 'lucide-react';
+import { useChat } from '../context/ChatContext';
+import { 
+  User, LogOut, LayoutDashboard, Home, Heart, ShieldCheck, 
+  HelpCircle, ChevronDown, Bell, Headphones, Loader2 
+} from 'lucide-react';
 import API from '../api/client';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
+  const { setSelectedChat, setIsChatOpen } = useChat();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [adminChatLoading, setAdminChatLoading] = useState(false);
 
   // 󾠮 Notification Logic
   useEffect(() => {
@@ -20,6 +26,23 @@ const Navbar = () => {
     };
     if (user) fetchNotifs();
   }, [user]);
+
+  // 󾠯 Chat with Admin support handler (for Tenant and Owner)
+  const handleChatWithAdmin = async () => {
+    setIsOpen(false);
+    try {
+      setAdminChatLoading(true);
+      const { data } = await API.post('/chat/access', { 
+        receiverId: 'ADMIN_ROLE_ID' 
+      });
+      setSelectedChat(data.data);
+      setIsChatOpen(true);
+    } catch (err) {
+      alert(err.response?.data?.message || "Official Support is currently offline.");
+    } finally {
+      setAdminChatLoading(false);
+    }
+  };
 
   return (
     <nav className="bg-white border-b border-gray-100 py-4 px-6 flex justify-between items-center sticky top-0 z-50">
@@ -55,24 +78,36 @@ const Navbar = () => {
             </button>
 
             {isOpen && (
-              <div className="absolute right-0 top-12 w-56 bg-white rounded-3xl shadow-2xl border border-gray-50 p-2 overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="absolute right-0 top-12 w-60 bg-white rounded-3xl shadow-2xl border border-gray-100 p-2 overflow-hidden animate-in fade-in zoom-in duration-200 z-50">
                 <div className="px-4 py-3 border-b border-gray-50 mb-2">
                   <p className="text-[10px] font-black uppercase text-gray-400">Signed in as</p>
                   <p className="text-sm font-bold text-primary truncate">{user.email}</p>
                 </div>
 
                 {/* --- SHARED --- */}
-                <Link to="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition">
+                <Link 
+                  to="/profile" 
+                  onClick={() => setIsOpen(false)} 
+                  className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition"
+                >
                   <User size={18} /> My Profile
                 </Link>
 
                 {/* --- TENANT ONLY --- */}
                 {user.role === 'TENANT' && (
                   <>
-                    <Link to="/my-bookings" className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition">
+                    <Link 
+                      to="/my-bookings" 
+                      onClick={() => setIsOpen(false)} 
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition"
+                    >
                       <Home size={18} /> My Bookings
                     </Link>
-                    <Link to="/profile?tab=wishlist" className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition">
+                    <Link 
+                      to="/profile?tab=wishlist" 
+                      onClick={() => setIsOpen(false)} 
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition"
+                    >
                       <Heart size={18} /> Wishlist
                     </Link>
                   </>
@@ -81,40 +116,68 @@ const Navbar = () => {
                 {/* --- OWNER ONLY --- */}
                 {user.role === 'OWNER' && (
                   <>
-                    <Link to="/owner/dashboard" className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition">
+                    <Link 
+                      to="/owner/dashboard" 
+                      onClick={() => setIsOpen(false)} 
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition"
+                    >
                       <LayoutDashboard size={18} /> Dashboard
                     </Link>
-                    <Link to="/verify-identity" className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition">
+                    <Link 
+                      to="/verify-identity" 
+                      onClick={() => setIsOpen(false)} 
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition"
+                    >
                       <ShieldCheck size={18} className="text-secondary" /> Verification
                     </Link>
                   </>
                 )}
 
+                {/* --- CHAT WITH ADMIN (TENANT & OWNER) --- */}
+                {user.role !== 'ADMIN' && (
+                  <button 
+                    onClick={handleChatWithAdmin}
+                    disabled={adminChatLoading}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-primary/10 hover:text-primary rounded-xl transition text-left group"
+                  >
+                    {adminChatLoading ? (
+                      <Loader2 size={18} className="animate-spin text-primary" />
+                    ) : (
+                      <Headphones size={18} className="text-primary group-hover:scale-110 transition-transform" />
+                    )}
+                    <span>Chat with Admin</span>
+                  </button>
+                )}
+
                 {/* --- ADMIN ONLY SECTION --- */}
-{user.role === 'ADMIN' && (
-  <>
-    <div className="px-4 py-2 border-b border-gray-50 mb-2 bg-primary/5 rounded-xl">
-      <p className="text-[10px] font-black uppercase text-primary">Admin Matrix</p>
-    </div>
-    <Link 
-      to="/admin/verify-users" 
-      className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-900 hover:bg-primary hover:text-white rounded-xl transition"
-      onClick={() => setIsOpen(false)}
-    >
-      <ShieldCheck size={18} /> KYC Approval Queue
-    </Link>
-    <Link 
-      to="/admin/dashboard" 
-      className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition"
-      onClick={() => setIsOpen(false)}
-    >
-      <LayoutDashboard size={18} /> Platform Analytics
-    </Link>
-  </>
-)}
+                {user.role === 'ADMIN' && (
+                  <>
+                    <div className="px-4 py-2 border-b border-gray-50 mb-2 bg-primary/5 rounded-xl">
+                      <p className="text-[10px] font-black uppercase text-primary">Admin Matrix</p>
+                    </div>
+                    <Link 
+                      to="/admin/verify-users" 
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-900 hover:bg-primary hover:text-white rounded-xl transition"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <ShieldCheck size={18} /> KYC Approval Queue
+                    </Link>
+                    <Link 
+                      to="/admin/dashboard" 
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <LayoutDashboard size={18} /> Platform Analytics
+                    </Link>
+                  </>
+                )}
 
                 <div className="border-t border-gray-50 mt-2 pt-2">
-                  <Link to="/help" className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition">
+                  <Link 
+                    to="/help" 
+                    onClick={() => setIsOpen(false)} 
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition"
+                  >
                     <HelpCircle size={18} /> Help Center
                   </Link>
                   <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-accent hover:bg-red-50 rounded-xl transition">
