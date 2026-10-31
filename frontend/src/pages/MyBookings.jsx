@@ -4,9 +4,10 @@ import { useChat } from '../context/ChatContext';
 import { 
   Calendar, MapPin, Loader2, Wrench, Star, 
   X, Send, ShieldCheck, Wifi, Volume2, Zap, Search, MessageSquare,
-  Clock, ChevronRight, CheckCircle2, Lock, Check, Receipt
+  Clock, ChevronRight, CheckCircle2, Lock, Check, Receipt, CalendarPlus
 } from 'lucide-react';
 import ReceiptModal from '../components/modals/ReceiptModal';
+import ExtendStayModal from '../components/modals/ExtendStayModal';
 
 const MyBookings = () => {
   const { setSelectedChat, setIsChatOpen, socket } = useChat();
@@ -20,6 +21,7 @@ const MyBookings = () => {
   const [showReviewModal, setShowReviewModal] = useState(null); 
   const [showTracker, setShowTracker] = useState(false); 
   const [selectedReceiptBooking, setSelectedReceiptBooking] = useState(null);
+  const [selectedExtendBooking, setSelectedExtendBooking] = useState(null);
   
   // Data States
   const [activeTickets, setActiveTickets] = useState([]); 
@@ -253,22 +255,32 @@ const MyBookings = () => {
                   </span>
                 </button>
 
-                {/* TICKET ACTIONS BASED ACCORDINGLY ON RESIDENCY / CHECK-IN / CHECK-OUT STATUS */}
+                {/* TICKET & EXTENSION ACTIONS BASED ACCORDINGLY ON RESIDENCY / CHECK-IN / CHECK-OUT STATUS */}
                 {book.status === 'CHECKED_IN' ? (
-                  /* 1. CURRENTLY CHECKED IN: User can raise & track active tickets */
-                  <div className="flex gap-3">
+                  /* 1. CURRENTLY CHECKED IN: User can extend stay, and raise & track active tickets */
+                  <div className="space-y-3">
+                    {/* EXTEND STAY / EXTEND RENT BUTTON */}
                     <button 
-                      onClick={() => { setShowIssueModal(book); setIssueData({ type: 'WIFI', desc: '', priority: 'MEDIUM' }); }}
-                      className="flex-1 bg-red-50 text-red-500 py-4 rounded-[1.5rem] font-black text-[11px] uppercase flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition shadow-sm active:scale-95"
+                      onClick={() => setSelectedExtendBooking(book)}
+                      className="w-full bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200/80 py-3.5 rounded-[1.5rem] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-300 shadow-sm hover:shadow-md hover:shadow-emerald-600/20 active:scale-[0.99]"
                     >
-                      <Wrench size={16}/> Raise Ticket
+                      <CalendarPlus size={16} /> Extend Rent / Extend Stay
                     </button>
-                    <button 
-                      onClick={() => fetchAndShowTickets(book)} 
-                      className="flex-1 bg-blue-50 text-blue-600 py-4 rounded-[1.5rem] font-black text-[11px] uppercase border-2 border-blue-100 flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition active:scale-95"
-                    >
-                      <Search size={16}/> Track Issues
-                    </button>
+
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => { setShowIssueModal(book); setIssueData({ type: 'WIFI', desc: '', priority: 'MEDIUM' }); }}
+                        className="flex-1 bg-red-50 text-red-500 py-3.5 rounded-[1.5rem] font-black text-[11px] uppercase flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition shadow-sm active:scale-95"
+                      >
+                        <Wrench size={15}/> Raise Ticket
+                      </button>
+                      <button 
+                        onClick={() => fetchAndShowTickets(book)} 
+                        className="flex-1 bg-blue-50 text-blue-600 py-3.5 rounded-[1.5rem] font-black text-[11px] uppercase border-2 border-blue-100 flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition active:scale-95"
+                      >
+                        <Search size={15}/> Track Issues
+                      </button>
+                    </div>
                   </div>
                 ) : book.status === 'COMPLETED' ? (
                   /* 2. CHECKED OUT: Stay is completed, show checked-out status and allow reviewing past tickets */
@@ -520,6 +532,19 @@ const MyBookings = () => {
         <ReceiptModal 
           booking={selectedReceiptBooking} 
           onClose={() => setSelectedReceiptBooking(null)} 
+        />
+      )}
+
+      {/* MODAL: EXTEND STAY / RENT */}
+      {selectedExtendBooking && (
+        <ExtendStayModal
+          booking={selectedExtendBooking}
+          onClose={() => setSelectedExtendBooking(null)}
+          onSuccess={(updatedBooking) => {
+            setBookings(prev =>
+              prev.map(b => (b._id === updatedBooking._id ? { ...b, ...updatedBooking } : b))
+            );
+          }}
         />
       )}
     </div>

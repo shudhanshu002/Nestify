@@ -168,7 +168,7 @@ const PropertyDetail = () => {
                             </span>
                           ) : (
                             <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${room.availableUnitsForDates < 3 ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                                {room.availableUnitsForDates} Units Left
+                                {room.availableUnitsForDates} of {room.totalInventory || 1} Units Available
                             </span>
                           )}
                         </div>
