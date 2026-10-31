@@ -238,56 +238,70 @@ const MyBookings = () => {
         </div>
       ) : (
         <div className="space-y-5">
-          {bookings.map(book => (
-            <div 
-              key={book._id} 
-              className="bg-[#181818] rounded-3xl border border-[#2a2a2a] shadow-xl overflow-hidden hover:border-[#383838] transition-all duration-300 flex flex-col md:flex-row group"
-            >
-              {/* 1. SMALL LANDSCAPE PICTURE ON THE LEFT */}
-              <div className="relative w-full md:w-64 lg:w-72 h-48 md:h-auto min-h-[190px] shrink-0 bg-[#121212] overflow-hidden">
-                <img 
-                  src={book.property?.images?.[0]?.url || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600'} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                  alt={book.property?.title || 'Property'} 
-                />
-                
-                {/* Dark Gradient Overlay for Mobile */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none md:hidden"></div>
+          {bookings.map(book => {
+            const propertyId = book.property?._id || book.property;
+            const propertyLink = propertyId ? `/property/${propertyId}` : '#';
 
-                {/* Status Badge */}
-                <div className="absolute top-3 left-3">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${
-                    book.status === 'CONFIRMED' ? 'bg-primary text-white' : 
-                    book.status === 'CHECKED_IN' ? 'bg-emerald-600 text-white' : 
-                    book.status === 'COMPLETED' ? 'bg-[#222222]/90 text-gray-300 border border-[#444]' : 'bg-[#181818] text-white'
-                  }`}>
-                    {book.status === 'COMPLETED' ? 'CHECKED OUT' : book.status.replace('_', ' ')}
-                  </span>
-                </div>
+            return (
+              <div 
+                key={book._id} 
+                className="bg-[#181818] rounded-3xl border border-[#2a2a2a] shadow-xl overflow-hidden hover:border-[#383838] transition-all duration-300 flex flex-col md:flex-row group"
+              >
+                {/* 1. SMALL LANDSCAPE PICTURE ON THE LEFT (CLICKABLE TO OPEN PG) */}
+                <Link 
+                  to={propertyLink}
+                  className="block relative w-full md:w-64 lg:w-72 h-48 md:h-auto min-h-[190px] shrink-0 bg-[#121212] overflow-hidden cursor-pointer"
+                  title="Click to view property details"
+                >
+                  <img 
+                    src={book.property?.images?.[0]?.url || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600'} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    alt={book.property?.title || 'Property'} 
+                  />
+                  
+                  {/* Dark Gradient Overlay for Mobile */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none md:hidden"></div>
 
-                {/* Booking Reference Pill */}
-                <div className="absolute bottom-3 left-3 hidden md:block">
-                  <span className="text-[10px] font-mono text-gray-300 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 font-bold">
-                    #{book._id.slice(-6).toUpperCase()}
-                  </span>
-                </div>
-              </div>
+                  {/* Status Badge */}
+                  <div className="absolute top-3 left-3 z-10">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${
+                      book.status === 'CONFIRMED' ? 'bg-primary text-white' : 
+                      book.status === 'CHECKED_IN' ? 'bg-emerald-600 text-white' : 
+                      book.status === 'COMPLETED' ? 'bg-[#222222]/90 text-gray-300 border border-[#444]' : 'bg-[#181818] text-white'
+                    }`}>
+                      {book.status === 'COMPLETED' ? 'CHECKED OUT' : book.status.replace('_', ' ')}
+                    </span>
+                  </div>
 
-              {/* 2. DETAILS & OPTIONS ON THE SIDE */}
-              <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
-                
-                {/* Header Information: Title, City, and Total Rent */}
-                <div>
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-xl sm:text-2xl font-black italic tracking-tight text-white group-hover:text-primary transition line-clamp-1">
-                        {book.property?.title || 'Audited Stay'}
-                      </h3>
-                      <p className="text-gray-400 font-medium flex items-center gap-1.5 text-xs mt-1">
-                        <MapPin size={14} className="text-primary shrink-0" /> 
-                        <span>{book.property?.location?.city || 'City'}, {book.property?.location?.state || 'State'}</span>
-                      </p>
-                    </div>
+                  {/* Booking Reference Pill */}
+                  <div className="absolute bottom-3 left-3 hidden md:block z-10">
+                    <span className="text-[10px] font-mono text-gray-300 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 font-bold">
+                      #{book._id.slice(-6).toUpperCase()}
+                    </span>
+                  </div>
+                </Link>
+
+                {/* 2. DETAILS & OPTIONS ON THE SIDE */}
+                <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
+                  
+                  {/* Header Information: Title, City, and Total Rent */}
+                  <div>
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <Link 
+                          to={propertyLink}
+                          className="inline-block group/link"
+                          title="Click to view property details"
+                        >
+                          <h3 className="text-xl sm:text-2xl font-black italic tracking-tight text-white group-hover/link:text-primary transition line-clamp-1 cursor-pointer">
+                            {book.property?.title || 'Audited Stay'}
+                          </h3>
+                        </Link>
+                        <p className="text-gray-400 font-medium flex items-center gap-1.5 text-xs mt-1">
+                          <MapPin size={14} className="text-primary shrink-0" /> 
+                          <span>{book.property?.location?.city || 'City'}, {book.property?.location?.state || 'State'}</span>
+                        </p>
+                      </div>
 
                     {/* Total Rent Paid */}
                     <div className="sm:text-right shrink-0">
@@ -404,7 +418,8 @@ const MyBookings = () => {
                 </div>
               </div>
             </div>
-          ))}
+          );
+        })}
         </div>
       )}
 
