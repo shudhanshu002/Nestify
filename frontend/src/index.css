@@ -1,7 +1,101 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #2563eb;
+  --color-primary: #E50914;
+  --color-primary-hover: #F40612;
+  --color-primary-dark: #B81D24;
+  --color-netflix-red: #E50914;
+  --color-netflix-black: #141414;
+  --color-netflix-dark: #0B0B0B;
+  --color-netflix-card: #181818;
+  --color-netflix-card-hover: #222222;
+  --color-netflix-border: #2A2A2A;
   --color-secondary: #10b981;
-  --color-accent: #f59e0b;
+  --color-accent: #E50914;
+}
+
+/* Netflix Inspired Design System */
+@layer utilities {
+  /* Primary Netflix Red Button with Ambient Glow & Tactile Scaling */
+  .btn-netflix {
+    background-color: #E50914;
+    color: #ffffff;
+    font-weight: 800;
+    transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+    box-shadow: 0 4px 18px rgba(229, 9, 20, 0.4);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  
+  .btn-netflix:hover {
+    background-color: #F40612;
+    transform: scale(1.025) translateY(-1px);
+    box-shadow: 0 8px 26px rgba(229, 9, 20, 0.55);
+  }
+
+  .btn-netflix:active {
+    transform: scale(0.97);
+  }
+
+  /* Secondary Netflix Frosted Dark Glass Button */
+  .btn-netflix-secondary {
+    background-color: rgba(35, 35, 35, 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-weight: 700;
+    transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .btn-netflix-secondary:hover {
+    background-color: rgba(55, 55, 55, 0.95);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: scale(1.02);
+  }
+
+  .btn-netflix-secondary:active {
+    transform: scale(0.97);
+  }
+
+  /* Netflix Zoom & Red Edge Ambient Glow Card */
+  .netflix-card {
+    transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+
+  .netflix-card:hover {
+    transform: scale(1.025) translateY(-4px);
+    box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.4), 0 0 25px -5px rgba(229, 9, 20, 0.25);
+    border-color: rgba(229, 9, 20, 0.4) !important;
+  }
+
+  /* Netflix Ambient Red Glow Backlight */
+  .netflix-glow {
+    box-shadow: 0 0 35px rgba(229, 9, 20, 0.35);
+  }
+
+  .netflix-glow-lg {
+    box-shadow: 0 0 60px rgba(229, 9, 20, 0.45);
+  }
+}
+
+/* Keyframes for subtle cinematic glow */
+@keyframes netflixPulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.03);
+  }
+}
+
+.animate-netflix-pulse {
+  animation: netflixPulse 4s infinite ease-in-out;
 }

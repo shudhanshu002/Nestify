@@ -89,9 +89,9 @@ const Home = () => {
             {/* 1. OYO-STYLE HERO SECTION WITH SEARCH WIDGET */}
             <section className="relative rounded-[3.5rem] bg-gray-950 text-white p-6 sm:p-12 md:p-16 overflow-hidden shadow-2xl border border-gray-800">
                 {/* Background glow and subtle image overlay */}
-                <div className="absolute inset-0 opacity-25 bg-[radial-gradient(#3B82F6_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
-                <div className="absolute right-[-80px] top-[-80px] w-[500px] h-[500px] bg-rose-600/15 rounded-full blur-[140px] pointer-events-none"></div>
-                <div className="absolute left-[-80px] bottom-[-80px] w-[400px] h-[400px] bg-blue-600/15 rounded-full blur-[120px] pointer-events-none"></div>
+                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#E50914_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
+                <div className="absolute right-[-80px] top-[-80px] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[140px] pointer-events-none animate-netflix-pulse"></div>
+                <div className="absolute left-[-80px] bottom-[-80px] w-[400px] h-[400px] bg-primary/15 rounded-full blur-[120px] pointer-events-none"></div>
 
                 <div className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
                     <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest text-primary border border-white/10">
@@ -147,7 +147,7 @@ const Home = () => {
                         {/* Submit Button */}
                         <button 
                             type="submit" 
-                            className="w-full md:w-auto bg-primary hover:bg-rose-600 text-white px-8 py-4 rounded-[2rem] font-black text-sm uppercase tracking-wider transition shadow-xl active:scale-95 shrink-0 flex items-center justify-center gap-2"
+                            className="w-full md:w-auto btn-netflix px-8 py-4 rounded-[2rem] font-black text-sm uppercase tracking-wider transition shadow-xl shrink-0 flex items-center justify-center gap-2 cursor-pointer"
                         >
                             Find Stay <ArrowRight size={16} />
                         </button>
@@ -404,7 +404,7 @@ const Home = () => {
                                 <div
                                     key={hub.city}
                                     onClick={() => navigate(`/search?city=${encodeURIComponent(hub.city)}`)}
-                                    className="group relative h-48 rounded-[2rem] overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl transition-all duration-300"
+                                    className="group relative h-48 rounded-[2rem] overflow-hidden cursor-pointer shadow-lg netflix-card"
                                 >
                                     <img 
                                         src={hub.image} 

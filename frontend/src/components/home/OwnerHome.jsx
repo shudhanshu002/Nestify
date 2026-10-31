@@ -74,13 +74,13 @@ const OwnerHome = ({ user }) => {
           <div className="flex flex-wrap gap-3 pt-4">
             <Link 
               to="/owner/add-property" 
-              className="bg-primary hover:bg-white hover:text-primary text-white px-7 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl shadow-primary/20 transition active:scale-95"
+              className="btn-netflix px-7 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl active:scale-95"
             >
               <Plus size={18} /> List New PG
             </Link>
             <Link 
               to="/owner/dashboard" 
-              className="bg-white/10 hover:bg-white hover:text-gray-950 text-white px-7 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 border border-white/10"
+              className="btn-netflix-secondary px-7 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95"
             >
               <LayoutDashboard size={18} /> Occupancy & Ledger
             </Link>

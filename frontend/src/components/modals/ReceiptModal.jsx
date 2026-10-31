@@ -136,11 +136,11 @@ const ReceiptModal = ({ booking, onClose }) => {
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-3xl font-black tracking-tighter text-primary">PG.FINDER</span>
+                  <span className="text-3xl font-black tracking-tighter text-primary">NESTIFY</span>
                   <span className="bg-primary/10 text-primary text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-widest">Verified</span>
                 </div>
                 <p className="text-xs text-gray-400 font-medium mt-1">Nestify Living & Housing Platform Pvt. Ltd.</p>
-                <p className="text-[11px] text-gray-400">GSTIN: 07AABCN8934L1Z1 • Support: care@pgfinder.com</p>
+                <p className="text-[11px] text-gray-400">GSTIN: 07AABCN8934L1Z1 • Support: care@nestify.com</p>
               </div>
 
               <div className="text-left md:text-right">
@@ -264,7 +264,7 @@ const ReceiptModal = ({ booking, onClose }) => {
                 </tr>
                 <tr>
                   <td className="py-4 px-2">
-                    <p className="font-bold text-gray-900">PG.FINDER Move-In Guarantee Protection</p>
+                    <p className="font-bold text-gray-900">Nestify Move-In Guarantee Protection</p>
                     <p className="text-[10px] text-gray-400">Escrow verification and tenant protection cover</p>
                   </td>
                   <td className="py-4 px-2 text-center text-gray-500 font-mono">997133</td>
@@ -321,7 +321,7 @@ const ReceiptModal = ({ booking, onClose }) => {
           <div className="border-t border-gray-100 pt-6 text-[10px] text-gray-400 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-center md:text-left leading-relaxed">
               This is an electronically generated Tax Invoice and Accommodation Voucher.<br/>
-              Valid across all properties in the PG Finder network. No physical signature required.
+              Valid across all properties in the Nestify network. No physical signature required.
             </p>
             <div className="text-center md:text-right shrink-0">
               <div className="inline-block border-2 border-dashed border-gray-200 rounded-xl px-4 py-2 font-mono text-[9px] uppercase tracking-widest text-gray-500 bg-gray-50">

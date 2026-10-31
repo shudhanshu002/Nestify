@@ -220,7 +220,7 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
         <button
           disabled={checking || submitting || !availabilityData?.available}
           onClick={handleConfirmExtension}
-          className="w-full bg-primary hover:bg-rose-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-wider transition shadow-xl shadow-primary/20 flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none active:scale-95"
+          className="w-full btn-netflix py-4 rounded-2xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none active:scale-95 cursor-pointer"
         >
           {submitting ? (
             <>
@@ -243,3 +243,4 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
 };
 
 export default ExtendStayModal;
+

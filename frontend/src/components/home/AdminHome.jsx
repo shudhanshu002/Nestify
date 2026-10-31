@@ -100,7 +100,7 @@ const AdminHome = ({ user }) => {
       
       {/* 1. ADMIN PLATFORM HERO */}
       <section className="relative rounded-[3.5rem] bg-gray-950 text-white p-8 md:p-14 overflow-hidden shadow-2xl border border-gray-800">
-        <div className="absolute right-[-40px] top-[-40px] w-96 h-96 bg-blue-600/20 rounded-full blur-[100px] pointer-events-none"></div>
+        <div className="absolute right-[-40px] top-[-40px] w-96 h-96 bg-primary/20 rounded-full blur-[100px] pointer-events-none animate-netflix-pulse"></div>
 
         <div className="relative z-10 max-w-3xl space-y-4">
           <div className="inline-flex items-center gap-2 bg-blue-500/10 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest text-blue-400 border border-blue-500/20">
@@ -116,13 +116,13 @@ const AdminHome = ({ user }) => {
           <div className="flex flex-wrap gap-3 pt-4">
             <Link 
               to="/admin/verify-users" 
-              className="bg-primary hover:bg-white hover:text-primary text-white px-7 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl shadow-primary/20 transition active:scale-95"
+              className="btn-netflix px-7 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl active:scale-95"
             >
               <ShieldCheck size={18} /> KYC Approval Queue ({totalPendingKyc})
             </Link>
             <Link 
               to="/admin/dashboard" 
-              className="bg-white/10 hover:bg-white hover:text-gray-950 text-white px-7 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95 border border-white/10"
+              className="btn-netflix-secondary px-7 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition active:scale-95"
             >
               <ShieldAlert size={18} /> Platform Analytics
             </Link>

@@ -70,7 +70,7 @@ const PropertyHorizontalCard = ({ property }) => {
   return (
     <div 
       onClick={() => navigate(`/property/${property._id}`)}
-      className="group bg-white rounded-[2.5rem] p-4 sm:p-5 border border-gray-100 flex flex-col md:flex-row gap-6 hover:shadow-2xl transition-all duration-300 hover:border-primary/20 cursor-pointer relative"
+      className="group bg-white rounded-[2.5rem] p-4 sm:p-5 border border-gray-100 flex flex-col md:flex-row gap-6 netflix-card hover:border-primary/40 cursor-pointer relative"
     >
       {/* 1. IMAGE GALLERY CONTAINER */}
       <div className="relative w-full md:w-80 h-64 md:h-68 shrink-0 overflow-hidden rounded-[2rem] bg-gray-100">
@@ -222,7 +222,7 @@ const PropertyHorizontalCard = ({ property }) => {
           <div className="flex gap-2">
             <Link 
               to={`/property/${property._id}`}
-              className="bg-gray-900 hover:bg-primary text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-gray-900/10 transition active:scale-95 flex items-center gap-1.5"
+              className="btn-netflix px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg transition active:scale-95 flex items-center gap-1.5"
             >
               Book Now <ArrowRight size={14} />
             </Link>

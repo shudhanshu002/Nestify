@@ -29,7 +29,7 @@ const PropertyCard = ({ property }) => {
   return (
     <div 
       onClick={() => navigate(`/property/${property._id}`)} 
-      className="cursor-pointer group bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 hover:shadow-2xl transition-all duration-300 flex flex-col justify-between"
+      className="cursor-pointer group bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 netflix-card flex flex-col justify-between"
     >
       {/* 1. IMAGE & BADGES */}
       <div className="relative h-60 bg-gray-100 overflow-hidden">
