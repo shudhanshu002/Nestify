@@ -5,6 +5,7 @@ import {
   MapPin, Hash, CreditCard, Sparkles, FileText
 } from 'lucide-react';
 import API from '../../api/client';
+import Logo from '../Logo';
 
 const ReceiptModal = ({ booking, onClose }) => {
   const [copied, setCopied] = useState(false);
@@ -136,7 +137,7 @@ const ReceiptModal = ({ booking, onClose }) => {
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-3xl font-black tracking-tighter text-primary">NESTIFY</span>
+                  <Logo size="sm" to={null} />
                   <span className="bg-primary/10 text-primary text-[10px] font-black px-2.5 py-0.5 rounded-md uppercase tracking-widest">Verified</span>
                 </div>
                 <p className="text-xs text-gray-400 font-medium mt-1">Nestify Living & Housing Platform Pvt. Ltd.</p>
