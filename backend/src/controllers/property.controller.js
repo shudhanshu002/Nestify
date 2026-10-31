@@ -145,13 +145,20 @@ export const searchProperties = async (req, res, next) => {
 // @access  Private/Owner
 export const getMyProperties = async (req, res, next) => {
   try {
-    // We filter by 'owner' field using req.user._id from the protect middleware
-    const properties = await Property.find({ owner: req.user._id });
+    const properties = await Property.find({ owner: req.user._id }).sort('-createdAt');
+    const propIds = properties.map(p => p._id);
+    const rooms = await Room.find({ property: { $in: propIds } });
+
+    const data = properties.map(p => {
+      const pObj = p.toObject();
+      pObj.rooms = rooms.filter(r => r.property.toString() === p._id.toString());
+      return pObj;
+    });
 
     res.status(200).json({
       success: true,
-      count: properties.length,
-      data: properties
+      count: data.length,
+      data
     });
   } catch (error) {
     console.error("Fetch My Listings Error:", error);
