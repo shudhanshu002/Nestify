@@ -98,8 +98,6 @@ export const createBooking = async (req, res, next) => {
     });
 
     // 󾠳 5. UPDATE SNAPSHOT (Optional)
-    // We update the field just for a 'quick look' on the dashboard, 
-    // but our logic above is what actually protects the calendar.
     roomDoc.availableInventory = availableUnits - 1;
     await roomDoc.save();
 
@@ -115,13 +113,14 @@ export const getMyBookings = async (req, res, next) => {
     const bookings = await Booking.find({ tenant: req.user._id })
       .populate({
         path: 'property', // 1. Populate the property first
-        select: 'title owner images location address',
+        select: 'title owner images location address category',
         populate: { 
           path: 'owner', // 2. Then populate the owner INSIDE the property
-          select: '_id firstName lastName role' 
+          select: '_id firstName lastName role email phone' 
         }
       })
-      .populate('room', 'roomType basePrice')
+      .populate('room', 'roomType roomNumber basePrice')
+      .populate('tenant', 'firstName lastName email phone avatar')
       .sort('-createdAt');
 
     res.status(200).json({ success: true, data: bookings });
@@ -140,9 +139,16 @@ export const getOwnerBookings = async (req, res, next) => {
 
     // 2. Find all bookings for these properties
     const bookings = await Booking.find({ property: { $in: propertyIds } })
-      .populate('property', 'title location')
-      .populate('room', 'roomType basePrice')
-      .populate('tenant', 'firstName lastName email avatar')
+      .populate({
+        path: 'property',
+        select: 'title location address images owner category',
+        populate: {
+          path: 'owner',
+          select: 'firstName lastName email phone'
+        }
+      })
+      .populate('room', 'roomType roomNumber basePrice')
+      .populate('tenant', 'firstName lastName email avatar phone')
       .sort('-checkInDate'); // Show upcoming/current stays first
 
     res.status(200).json({
@@ -198,3 +204,74 @@ export const updateBookingStatus = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// @desc    Get detailed official receipt for a booking
+// @route   GET /api/v1/bookings/:id/receipt
+export const getBookingReceipt = async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id)
+      .populate({
+        path: 'property',
+        select: 'title location address images owner category',
+        populate: {
+          path: 'owner',
+          select: 'firstName lastName email phone'
+        }
+      })
+      .populate('room', 'roomType roomNumber basePrice')
+      .populate('tenant', 'firstName lastName email avatar phone');
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: 'Booking not found' });
+    }
+
+    // Security check: tenant of the booking, owner of the property, or admin
+    const isTenant = booking.tenant?._id?.toString() === req.user._id.toString();
+    const isOwner = booking.property?.owner?._id?.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'ADMIN';
+
+    if (!isTenant && !isOwner && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Unauthorized to access this receipt' });
+    }
+
+    // Calculate nights / duration
+    const checkIn = new Date(booking.checkInDate);
+    const checkOut = new Date(booking.checkOutDate);
+    const diffTime = Math.abs(checkOut - checkIn);
+    const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+    // Total and itemized financial breakdown
+    const totalAmount = booking.totalAmount || 0;
+    const baseTariff = Math.round((totalAmount * 0.88) * 100) / 100;
+    const totalTax = Math.round((totalAmount - baseTariff) * 100) / 100;
+    const cgst = Math.round((totalTax / 2) * 100) / 100;
+    const sgst = Math.round((totalTax - cgst) * 100) / 100;
+
+    const receiptNumber = `RCP-${booking._id.toString().slice(-8).toUpperCase()}`;
+    const transactionId = `TXN-${booking._id.toString().slice(-6).toUpperCase()}-${new Date(booking.createdAt).getTime().toString().slice(-6)}`;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        booking,
+        receiptNumber,
+        transactionId,
+        issuedAt: booking.createdAt,
+        paymentStatus: booking.paymentStatus || 'PAID',
+        paymentMethod: 'PREPAID_ONLINE_GATEWAY',
+        stayDurationDays: diffDays,
+        pricing: {
+          baseTariff,
+          taxesAndFees: totalTax,
+          cgst,
+          sgst,
+          totalAmount,
+          currency: 'INR',
+          amountPaid: totalAmount,
+          balanceDue: 0
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
