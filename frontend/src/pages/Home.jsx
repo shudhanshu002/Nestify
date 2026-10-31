@@ -1,11 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import API from '../api/client';
 import PropertyCard from '../components/PropertyCard';
 import CategoryFilter from '../components/CategoryFilter';
 import { Search, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+import OwnerHome from '../components/home/OwnerHome';
+import AdminHome from '../components/home/AdminHome';
 
 const Home = () => {
+    const { user } = useContext(AuthContext);
+
+    // 1. OWNER ROLE: Render customized Owner Home Page
+    if (user?.role === 'OWNER') {
+        return <OwnerHome user={user} />;
+    }
+
+    // 2. ADMIN ROLE: Render customized Admin Home Page with all owners and verified PGs
+    if (user?.role === 'ADMIN') {
+        return <AdminHome user={user} />;
+    }
+
+    // 3. TENANT / GUEST ROLE: Standard Tenant Discovery Home Page
     const [properties, setProperties] = useState([]);
     const [category, setCategory] = useState('all');
     const [loading, setLoading] = useState(true);
@@ -23,7 +39,7 @@ const Home = () => {
             setLoading(true);
             try {
                 const propRes = await API.get(category === 'all' ? '/properties/search' : `/properties/search?category=${category}`);
-                setProperties(propRes.data.data);
+                setProperties(propRes.data.data || []);
             } catch (err) {
                 console.error('Sync Error:', err);
             } finally {

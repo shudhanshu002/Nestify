@@ -154,8 +154,8 @@ const Navbar = () => {
                   </>
                 )}
 
-                {/* --- CHAT WITH ADMIN (TENANT & OWNER) --- */}
-                {user.role !== 'ADMIN' && (
+                {/* --- CHAT WITH ADMIN (TENANT ONLY) --- */}
+                {user.role === 'TENANT' && (
                   <button 
                     onClick={handleChatWithAdmin}
                     disabled={adminChatLoading}
