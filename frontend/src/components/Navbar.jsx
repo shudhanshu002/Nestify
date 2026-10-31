@@ -10,7 +10,7 @@ import API from '../api/client';
 import Logo from './Logo';
 
 const Navbar = () => {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, wishlistIds } = useContext(AuthContext);
   const { setSelectedChat, setIsChatOpen, socket } = useChat();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -175,9 +175,16 @@ const Navbar = () => {
                       <Link 
                         to="/profile?tab=wishlist" 
                         onClick={() => setIsOpen(false)} 
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
+                        className="flex items-center justify-between px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition group"
                       >
-                        <Heart size={18} className="text-gray-400" /> Wishlist
+                        <div className="flex items-center gap-3">
+                          <Heart size={18} className="text-gray-400 group-hover:text-primary transition-colors" /> Wishlist
+                        </div>
+                        {wishlistIds && wishlistIds.size > 0 && (
+                          <span className="text-[10px] font-black bg-primary text-white px-2 py-0.5 rounded-full shadow-sm">
+                            {wishlistIds.size}
+                          </span>
+                        )}
                       </Link>
                     </>
                   )}

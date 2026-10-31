@@ -473,7 +473,15 @@ const Profile = () => {
               ) : wishlistItems.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {wishlistItems.map(item => (
-                    <PropertyCard key={item._id} property={item.property} />
+                    <PropertyCard 
+                      key={item._id} 
+                      property={item.property} 
+                      onWishlistToggle={(propId) => {
+                        setWishlistItems(prev => 
+                          prev.filter(w => (w.property?._id || w.property).toString() !== propId.toString())
+                        );
+                      }}
+                    />
                   ))}
                 </div>
               ) : (

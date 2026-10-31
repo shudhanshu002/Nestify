@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useContext } from 'react';
 import { Heart, MapPin, Star, ShieldCheck, Sparkles, Check, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
-const PropertyCard = ({ property }) => {
+const PropertyCard = ({ property, onWishlistToggle }) => {
   const navigate = useNavigate();
-  const [isLiked, setIsLiked] = useState(false);
+  const { user, isWishlisted, toggleWishlist } = useContext(AuthContext);
+
+  if (!property) return null;
+
+  const isLiked = isWishlisted(property._id);
 
   const images = property.images && property.images.length > 0 
     ? property.images 
@@ -25,6 +30,18 @@ const PropertyCard = ({ property }) => {
       : { label: 'Flagship', bg: 'bg-primary', icon: '⭐' };
   };
   const tierBadge = getTierBadge();
+
+  const handleHeartClick = async (e) => {
+    e.stopPropagation();
+    if (!user) {
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
+    await toggleWishlist(property._id);
+    if (onWishlistToggle) {
+      onWishlistToggle(property._id);
+    }
+  };
 
   return (
     <div 
@@ -54,13 +71,11 @@ const PropertyCard = ({ property }) => {
 
         {/* Wishlist Heart */}
         <button 
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsLiked(!isLiked);
-          }}
-          className={`absolute top-3 right-3 p-2.5 rounded-2xl backdrop-blur-md transition-all shadow-md z-10 ${
-            isLiked ? 'bg-primary text-white' : 'bg-black/50 text-white hover:bg-white hover:text-primary'
+          onClick={handleHeartClick}
+          className={`absolute top-3 right-3 p-2.5 rounded-2xl backdrop-blur-md transition-all shadow-md z-10 cursor-pointer ${
+            isLiked ? 'bg-primary text-white scale-105 shadow-red-950/60' : 'bg-black/50 text-white hover:bg-white hover:text-primary'
           }`}
+          title={isLiked ? "Remove from Saved Stays" : "Save to Wishlist"}
         >
           <Heart size={14} fill={isLiked ? 'currentColor' : 'none'} />
         </button>

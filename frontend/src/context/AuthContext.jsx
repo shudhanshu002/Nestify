@@ -1,4 +1,4 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import API from '../api/client';
 
 export const AuthContext = createContext();
@@ -6,15 +6,37 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [wishlistIds, setWishlistIds] = useState(new Set());
+
+  // Fetch and sync user's wishlist IDs
+  const fetchWishlistIds = useCallback(async () => {
+    try {
+      const { data } = await API.get('/users/wishlist');
+      if (Array.isArray(data)) {
+        const ids = new Set(
+          data
+            .filter(item => item && item.property)
+            .map(item => (item.property._id || item.property).toString())
+        );
+        setWishlistIds(ids);
+      }
+    } catch (err) {
+      console.error('Failed to load wishlist:', err);
+    }
+  }, []);
 
   useEffect(() => {
     const checkUser = async () => {
       try {
         const { data } = await API.get('/users/profile'); 
-        setUser(data.data || data); 
+        const userData = data.data || data;
+        setUser(userData);
+        // Load wishlist for tenant/users
+        fetchWishlistIds();
       } catch (err) {
         localStorage.removeItem('token');
         setUser(null);
+        setWishlistIds(new Set());
       } finally {
         setLoading(false);
       }
@@ -22,23 +44,80 @@ export const AuthProvider = ({ children }) => {
 
     if (localStorage.getItem('token')) checkUser();
     else setLoading(false);
-  }, []);
+  }, [fetchWishlistIds]);
 
   const login = async (email, password) => {
     const { data } = await API.post('/auth/login', { email, password });
     localStorage.setItem('token', data.token);
-    setUser(data.user || data);
+    const userData = data.user || data;
+    setUser(userData);
+    fetchWishlistIds();
     return data;
   };
 
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
+    setWishlistIds(new Set());
+  };
+
+  // Central toggle wishlist with optimistic UI updates
+  const toggleWishlist = async (propertyId) => {
+    if (!user) {
+      return { success: false, requireLogin: true };
+    }
+    if (!propertyId) return { success: false };
+
+    const propIdStr = propertyId.toString();
+    const wasLiked = wishlistIds.has(propIdStr);
+
+    // 1. Optimistic update
+    setWishlistIds(prev => {
+      const updated = new Set(prev);
+      if (wasLiked) {
+        updated.delete(propIdStr);
+      } else {
+        updated.add(propIdStr);
+      }
+      return updated;
+    });
+
+    try {
+      const { data } = await API.post('/users/wishlist', { propertyId: propIdStr });
+      return { 
+        success: true, 
+        isLiked: data.isFavorite !== undefined ? data.isFavorite : !wasLiked 
+      };
+    } catch (err) {
+      // Rollback on error
+      setWishlistIds(prev => {
+        const rollback = new Set(prev);
+        if (wasLiked) rollback.add(propIdStr);
+        else rollback.delete(propIdStr);
+        return rollback;
+      });
+      console.error('Toggle Wishlist Error:', err);
+      return { success: false, error: err };
+    }
+  };
+
+  const isWishlisted = (propertyId) => {
+    if (!propertyId) return false;
+    return wishlistIds.has(propertyId.toString());
   };
 
   return (
-    // 󾠮 ADDED setUser HERE
-    <AuthContext.Provider value={{ user, setUser, login, logout, loading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      setUser, 
+      login, 
+      logout, 
+      loading,
+      wishlistIds,
+      toggleWishlist,
+      isWishlisted,
+      refreshWishlist: fetchWishlistIds
+    }}>
       {children}
     </AuthContext.Provider>
   );

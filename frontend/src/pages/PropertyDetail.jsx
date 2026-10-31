@@ -5,14 +5,14 @@ import { useChat } from '../context/ChatContext';
 import API from '../api/client';
 import { 
   Star, MapPin, Loader2, Info, Check, Users, Shield, 
-  Calendar, ArrowRight, ShieldCheck, Loader, AlertCircle,
+  Calendar, ArrowRight, ShieldCheck, Loader, AlertCircle, Heart,
   MessageSquare, Edit3, Wifi, Volume2, ShieldCheck as VerifiedIcon
 } from 'lucide-react';
 
 const PropertyDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, isWishlisted, toggleWishlist } = useContext(AuthContext);
   const { setSelectedChat, setIsChatOpen } = useChat();
   
   const [property, setProperty] = useState(null);
@@ -115,11 +115,27 @@ const PropertyDetail = () => {
       <section className="relative h-[60vh] pt-20 overflow-hidden rounded-[3rem] border border-[#262626] shadow-2xl">
         <img src={property.images?.[0]?.url || 'https://via.placeholder.com/1200x600'} className="w-full h-full object-cover" alt={property.title} />
         <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-black/50 to-black/30" />
-        <div className="absolute bottom-10 left-10 text-white">
-          <h1 className="text-4xl sm:text-6xl font-black italic tracking-tighter leading-none">{property.title}</h1>
-          <p className="flex items-center gap-2 font-bold mt-2 text-gray-300">
-            <MapPin size={18} className="text-primary"/> {property.location?.address}, {property.location?.city}
-          </p>
+        <div className="absolute bottom-10 left-6 right-6 sm:left-10 sm:right-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-white z-10">
+          <div>
+            <h1 className="text-4xl sm:text-6xl font-black italic tracking-tighter leading-none">{property.title}</h1>
+            <p className="flex items-center gap-2 font-bold mt-2 text-gray-300">
+              <MapPin size={18} className="text-primary"/> {property.location?.address}, {property.location?.city}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              if (!user) return navigate('/login', { state: { from: `/property/${id}` } });
+              toggleWishlist(property._id);
+            }}
+            className={`px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider backdrop-blur-md transition-all flex items-center gap-2 shadow-2xl shrink-0 cursor-pointer ${
+              isWishlisted(property._id)
+                ? 'btn-netflix shadow-red-950/60'
+                : 'bg-black/60 hover:bg-white hover:text-primary text-white border border-white/20'
+            }`}
+          >
+            <Heart size={16} fill={isWishlisted(property._id) ? 'currentColor' : 'none'} />
+            <span>{isWishlisted(property._id) ? 'Saved in Wishlist' : 'Save to Wishlist'}</span>
+          </button>
         </div>
       </section>
 

@@ -1,8 +1,8 @@
 import * as userService from '../services/user.service.js';
 import Wishlist from '../models/wishlist.model.js';
-// src/controllers/user.controller.js
 import User from '../models/user.model.js'; 
 import Notification from '../models/notification.model.js';
+import Property from '../models/property.model.js';
 
 // @desc    Get user profile
 // @route   GET /api/v1/users/profile
@@ -27,8 +27,6 @@ export const getUserProfile = async (req, res, next) => {
 export const updateKYC = async (req, res, next) => {
   try {
     const { kycData } = req.body; 
-    // Logic for document upload would go here
-    
     const user = await userService.findUserById(req.user._id);
     user.kycStatus = 'SUBMITTED';
     await user.save();
@@ -39,25 +37,15 @@ export const updateKYC = async (req, res, next) => {
   }
 };
 
-
-// import User from '../models/user.model.js'; 
-
 export const submitKYC = async (req, res, next) => {
-  console.log("󾟔 KYC Request Received for User:", req.user._id); // This MUST show in terminal
-  
   try {
     const docType = req.body.docType || req.body.documentType || 'AADHAAR';
     
     if (!req.file) {
-      console.log("󾭿 Upload Error: No file found in request");
       return res.status(400).json({ success: false, message: "File upload failed" });
     }
 
-    console.log("󾓿 File received:", req.file.path);
-
     const user = await User.findById(req.user._id);
-
-    // Initialize array if missing (safety for legacy users)
     if (!user.kycDocuments) user.kycDocuments = [];
 
     user.kycStatus = 'PENDING';
@@ -68,7 +56,6 @@ export const submitKYC = async (req, res, next) => {
     });
 
     await user.save();
-    console.log("󾓲 Database Updated Successfully");
 
     res.status(200).json({
       success: true,
@@ -76,26 +63,31 @@ export const submitKYC = async (req, res, next) => {
       data: user
     });
   } catch (error) { 
-    console.error("󾭿 KYC Submission Error:", error);
+    console.error("KYC Submission Error:", error);
     next(error); 
   }
 };
 
-// @desc    Add property to wishlist
+// @desc    Add or Remove property from wishlist
 export const toggleWishlist = async (req, res, next) => {
   try {
     const { propertyId } = req.body;
+    if (!propertyId) {
+      return res.status(400).json({ message: 'Property ID is required' });
+    }
     const userId = req.user._id;
 
     const existing = await Wishlist.findOne({ user: userId, property: propertyId });
 
     if (existing) {
       await Wishlist.deleteOne({ _id: existing._id });
-      return res.json({ message: 'Removed from favorites' });
+      await User.findByIdAndUpdate(userId, { $pull: { wishlist: propertyId } });
+      return res.json({ success: true, isFavorite: false, message: 'Removed from favorites' });
     }
 
     await Wishlist.create({ user: userId, property: propertyId });
-    res.status(201).json({ message: 'Added to favorites' });
+    await User.findByIdAndUpdate(userId, { $addToSet: { wishlist: propertyId } });
+    res.status(201).json({ success: true, isFavorite: true, message: 'Added to favorites' });
   } catch (error) {
     next(error);
   }
@@ -105,20 +97,21 @@ export const toggleWishlist = async (req, res, next) => {
 export const getMyWishlist = async (req, res, next) => {
   try {
     const favorites = await Wishlist.find({ user: req.user._id })
-      .populate('property', 'title location basePrice images averageRating');
-    res.json(favorites);
+      .populate('property')
+      .sort({ createdAt: -1 });
+
+    const validFavorites = favorites.filter(item => item && item.property);
+    res.json(validFavorites);
   } catch (error) {
     next(error);
   }
 };
-
 
 // @desc    Get all users waiting for KYC approval
 // @route   GET /api/v1/users/admin/kyc-queue
 // @access  Private/Admin
 export const getKYCQueue = async (req, res, next) => {
   try {
-    // Find all users where kycStatus is PENDING
     const queue = await User.find({ kycStatus: 'PENDING' })
       .select('firstName lastName email kycDocuments kycStatus createdAt')
       .sort('-createdAt');
@@ -132,7 +125,7 @@ export const getKYCQueue = async (req, res, next) => {
 // @access  Private/Admin
 export const verifyUser = async (req, res, next) => {
   try {
-    const { status, reason } = req.body; // status: 'VERIFIED' or 'REJECTED'
+    const { status, reason } = req.body;
     
     if (!['VERIFIED', 'REJECTED'].includes(status)) {
       return res.status(400).json({ message: "Invalid status update" });
@@ -151,9 +144,6 @@ export const verifyUser = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-
-
-
 export const verifyProperty = async (req, res, next) => {
   try {
     const { status, reason } = req.body;
@@ -168,7 +158,6 @@ export const verifyProperty = async (req, res, next) => {
     
     await property.save();
 
-    // 󾠮 CREATE NOTIFICATION
     await Notification.create({
       recipient: property.owner._id,
       title: status === 'VERIFIED' ? '🎉 Property Live!' : '⚠️ Action Required: Property Rejected',

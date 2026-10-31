@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { 
   Star, MapPin, ShieldCheck, Wifi, Zap, Heart, 
   Utensils, Droplets, Tv, Bed, ArrowRight, Sparkles, Check, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
 const AMENITY_ICONS = {
   'AC': '❄️',
@@ -25,7 +26,8 @@ const AMENITY_ICONS = {
 const PropertyHorizontalCard = ({ property }) => {
   const navigate = useNavigate();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
-  const [isLiked, setIsLiked] = useState(false);
+  const { user, isWishlisted, toggleWishlist } = useContext(AuthContext);
+  const isLiked = isWishlisted(property?._id);
 
   const images = property.images && property.images.length > 0 
     ? property.images 
@@ -94,13 +96,18 @@ const PropertyHorizontalCard = ({ property }) => {
 
         {/* Wishlist Button */}
         <button 
-          onClick={(e) => {
+          onClick={async (e) => {
             e.stopPropagation();
-            setIsLiked(!isLiked);
+            if (!user) {
+              navigate('/login', { state: { from: window.location.pathname } });
+              return;
+            }
+            await toggleWishlist(property._id);
           }}
-          className={`absolute top-3 right-3 p-2.5 rounded-2xl backdrop-blur-md transition-all shadow-md z-10 ${
-            isLiked ? 'bg-primary text-white' : 'bg-black/50 text-white hover:bg-white hover:text-primary'
+          className={`absolute top-3 right-3 p-2.5 rounded-2xl backdrop-blur-md transition-all shadow-md z-10 cursor-pointer ${
+            isLiked ? 'bg-primary text-white scale-105 shadow-red-950/60' : 'bg-black/50 text-white hover:bg-white hover:text-primary'
           }`}
+          title={isLiked ? "Remove from Saved Stays" : "Save to Wishlist"}
         >
           <Heart size={16} fill={isLiked ? 'currentColor' : 'none'} />
         </button>
