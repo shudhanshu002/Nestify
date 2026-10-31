@@ -18,6 +18,34 @@ import { AuthContext } from '../context/AuthContext';
 import OwnerHome from '../components/home/OwnerHome';
 import AdminHome from '../components/home/AdminHome';
 
+const CITY_VIDEOS = [
+  {
+    city: 'Gurugram',
+    tag: 'Cyber City & DLF Skylines',
+    url: 'https://videos.pexels.com/video-files/3195394/3195394-hd_1920_1080_25fps.mp4'
+  },
+  {
+    city: 'Bengaluru',
+    tag: 'Tech Hub Expressways',
+    url: 'https://videos.pexels.com/video-files/3015510/3015510-hd_1920_1080_24fps.mp4'
+  },
+  {
+    city: 'Delhi NCR',
+    tag: 'Capital Architecture',
+    url: 'https://videos.pexels.com/video-files/5752729/5752729-hd_1920_1080_30fps.mp4'
+  },
+  {
+    city: 'Noida',
+    tag: 'Expressway Corridors',
+    url: 'https://videos.pexels.com/video-files/10433645/10433645-hd_1920_1080_25fps.mp4'
+  },
+  {
+    city: 'Pune',
+    tag: 'Metropolitan Dusk',
+    url: 'https://videos.pexels.com/video-files/2098989/2098989-hd_1920_1080_30fps.mp4'
+  }
+];
+
 const POPULAR_HUBS = [
   { city: 'Noida', label: 'Sector 62, 125 & IT Hubs', avgPrice: '₹7,200', tag: 'Tech & Media', image: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=600' },
   { city: 'Delhi NCR', label: 'North & South Campuses', avgPrice: '₹8,500', tag: 'University Hub', image: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600' },
@@ -100,6 +128,26 @@ const Home = () => {
     const [homeView, setHomeView] = useState('collections'); // 'collections', 'grid', 'map'
     const [expandedFaq, setExpandedFaq] = useState(null);
     const navigate = useNavigate();
+    const [currentVideoIdx, setCurrentVideoIdx] = useState(0);
+
+    // Auto-cycle city background videos smoothly
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentVideoIdx((prev) => (prev + 1) % CITY_VIDEOS.length);
+        }, 8000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleQuickCity = (cityName) => {
+        setSearch(cityName);
+        const idx = CITY_VIDEOS.findIndex(v => 
+            v.city.toLowerCase().includes(cityName.toLowerCase()) || 
+            cityName.toLowerCase().includes(v.city.toLowerCase())
+        );
+        if (idx !== -1) {
+            setCurrentVideoIdx(idx);
+        }
+    };
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -145,35 +193,46 @@ const Home = () => {
     return (
         <div className="space-y-24 text-white">
             
-            {/* 1. CINEMATIC EDITORIAL HERO SECTION */}
-            <section className="relative rounded-[3rem] bg-gradient-to-b from-[#181818] via-[#121212] to-[#141414] text-white p-6 sm:p-12 md:p-16 overflow-hidden shadow-2xl border border-[#2a2a2a]">
+            {/* 1. CINEMATIC CITY VIDEO HERO SECTION */}
+            <section className="relative rounded-[2.5rem] overflow-hidden shadow-2xl border border-[#2a2a2a] min-h-[500px] sm:min-h-[540px] flex items-center justify-center p-6 sm:p-12 md:p-16">
                 
-                {/* Ambient Red Glows & Grid Background */}
-                <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#E50914_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
-                <div className="absolute right-[-100px] top-[-100px] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[140px] pointer-events-none animate-netflix-pulse"></div>
-                <div className="absolute left-[-100px] bottom-[-100px] w-[450px] h-[450px] bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
+                {/* Background Video of Changing Cities */}
+                <video
+                    key={CITY_VIDEOS[currentVideoIdx].url}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-cover scale-105 transition-all duration-1000"
+                >
+                    <source src={CITY_VIDEOS[currentVideoIdx].url} type="video/mp4" />
+                </video>
+
+                {/* Cinematic Overlays to keep text & search razor-sharp */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-[#141414]/75 to-[#141414]/50 pointer-events-none"></div>
+                <div className="absolute inset-0 bg-black/45 backdrop-blur-[0.5px] pointer-events-none"></div>
+                <div className="absolute right-[-100px] top-[-100px] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[140px] pointer-events-none"></div>
 
                 <div className="relative z-10 max-w-4xl mx-auto text-center space-y-6">
                     
-                    {/* Badge */}
-                    <div className="inline-flex items-center gap-2 bg-[#222222]/90 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest text-primary border border-[#333333] shadow-md">
+                    {/* Micro Badge */}
+                    <div className="inline-flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest text-primary border border-white/10 shadow-lg">
                         <Sparkles size={14} className="text-amber-400" />
-                        Verified Co-Living & Student Housing Network
+                        Curated Co-Living & Student Housing
                     </div>
 
-                    {/* Headline */}
-                    <h1 className="text-4xl sm:text-6xl md:text-7xl font-black italic tracking-tighter leading-none">
-                        Find Your Ideal Stay. <br />
-                        <span className="text-primary not-italic">Zero Brokerage. Pure Comfort.</span>
+                    {/* Simple & Modern Headline */}
+                    <h1 className="text-4xl sm:text-6xl md:text-7xl font-black italic tracking-tighter text-white drop-shadow-2xl">
+                        Find your next nest<span className="text-primary not-italic">.</span>
                     </h1>
 
-                    {/* Subtitle */}
-                    <p className="text-gray-300 text-sm sm:text-base font-medium max-w-2xl mx-auto leading-relaxed">
-                        Explore over 14,000+ audited rooms across Delhi NCR, Gurugram, Bengaluru, Noida, Pune & Kota. Direct landlord lease agreements, escrow move-in protection, and 24/7 in-app grievance resolution.
+                    {/* Clean Subtitle */}
+                    <p className="text-gray-300 text-sm sm:text-base font-medium max-w-xl mx-auto drop-shadow leading-relaxed">
+                        Audited rooms, zero brokerage, and direct owner booking across India's top cities.
                     </p>
 
                     {/* Professional Search Console */}
-                    <form onSubmit={handleSearch} className="bg-[#1a1a1a]/95 backdrop-blur-xl p-3 sm:p-3.5 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row items-center gap-2.5 max-w-3xl mx-auto border border-[#333333]">
+                    <form onSubmit={handleSearch} className="bg-[#181818]/90 backdrop-blur-xl p-3 sm:p-3.5 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row items-center gap-2.5 max-w-3xl mx-auto border border-white/15 hover:border-white/25 transition">
                         
                         {/* Search Input */}
                         <div className="flex-grow flex items-center gap-3 px-4 py-2 w-full">
@@ -188,7 +247,7 @@ const Home = () => {
                         </div>
 
                         {/* Resident Gender Pill Selector */}
-                        <div className="flex bg-[#242424] p-1 rounded-2xl w-full md:w-auto shrink-0 justify-center border border-[#333333]">
+                        <div className="flex bg-[#242424]/90 p-1 rounded-2xl w-full md:w-auto shrink-0 justify-center border border-[#333333]">
                             {[
                               { id: 'ALL', label: 'All' },
                               { id: 'MALE', label: 'Boys' },
@@ -210,7 +269,7 @@ const Home = () => {
                         </div>
 
                         {/* Budget Filter Quick Dropdown */}
-                        <div className="hidden sm:flex items-center bg-[#242424] px-3 py-2 rounded-2xl border border-[#333333] shrink-0">
+                        <div className="hidden sm:flex items-center bg-[#242424]/90 px-3 py-2 rounded-2xl border border-[#333333] shrink-0">
                             <select 
                               value={budgetFilter}
                               onChange={(e) => setBudgetFilter(e.target.value)}
@@ -232,42 +291,41 @@ const Home = () => {
                     </form>
 
                     {/* Quick City Hubs Bar */}
-                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                         <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Top Hubs:</span>
                         {['Noida', 'Delhi NCR', 'Gurugram', 'Bengaluru', 'Pune', 'Kota'].map(c => (
                             <button
                                 key={c}
-                                onClick={() => navigate(`/search?city=${encodeURIComponent(c)}`)}
-                                className="px-3 py-1 rounded-full bg-[#222222] hover:bg-primary text-gray-300 hover:text-white text-xs font-bold transition border border-[#333333] cursor-pointer"
+                                onClick={() => handleQuickCity(c)}
+                                className="px-3.5 py-1 rounded-full bg-black/60 hover:bg-primary text-gray-300 hover:text-white text-xs font-bold transition border border-white/10 hover:border-primary shadow-sm cursor-pointer"
                             >
                                 {c}
                             </button>
                         ))}
                     </div>
 
-                    {/* Live Platform Stats Strip */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-[#262626] max-w-3xl mx-auto">
-                        <div className="p-3 bg-[#1c1c1c] rounded-2xl border border-[#2e2e2e]">
-                            <p className="text-2xl font-black italic font-mono text-white">14,200+</p>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Audited Beds</span>
-                        </div>
-                        <div className="p-3 bg-[#1c1c1c] rounded-2xl border border-[#2e2e2e]">
-                            <p className="text-2xl font-black italic font-mono text-primary">₹0</p>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Brokerage Fees</span>
-                        </div>
-                        <div className="p-3 bg-[#1c1c1c] rounded-2xl border border-[#2e2e2e]">
-                            <p className="text-2xl font-black italic font-mono text-emerald-400">100%</p>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Escrow Safe</span>
-                        </div>
-                        <div className="p-3 bg-[#1c1c1c] rounded-2xl border border-[#2e2e2e]">
-                            <p className="text-2xl font-black italic font-mono text-amber-400 flex items-center justify-center gap-1">
-                                <Star size={18} fill="currentColor"/> 4.8
-                            </p>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Resident Rating</span>
-                        </div>
-                    </div>
-
                 </div>
+
+                {/* Bottom Live City Video Controller Pill */}
+                <div className="absolute bottom-5 right-6 z-20 hidden md:flex items-center gap-3 bg-black/70 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs text-gray-300 shadow-xl">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                    <span className="font-semibold text-white">{CITY_VIDEOS[currentVideoIdx].city}</span>
+                    <span className="text-gray-500">•</span>
+                    <span className="text-[11px] text-gray-400">{CITY_VIDEOS[currentVideoIdx].tag}</span>
+                    <div className="flex items-center gap-1.5 ml-1 border-l border-white/10 pl-2.5">
+                        {CITY_VIDEOS.map((v, i) => (
+                            <button
+                                key={v.city}
+                                onClick={() => setCurrentVideoIdx(i)}
+                                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                                    currentVideoIdx === i ? 'w-5 bg-primary' : 'w-1.5 bg-white/40 hover:bg-white/80'
+                                }`}
+                                title={`Switch background to ${v.city}`}
+                            />
+                        ))}
+                    </div>
+                </div>
+
             </section>
 
             {/* 2. CATEGORY SELECTOR & VIEW SWITCHER */}
