@@ -4,8 +4,9 @@ import { useChat } from '../context/ChatContext';
 import { 
   Calendar, MapPin, Loader2, Wrench, Star, 
   X, Send, ShieldCheck, Wifi, Volume2, Zap, Search, MessageSquare,
-  Clock, ChevronRight, CheckCircle2, Lock, Check
+  Clock, ChevronRight, CheckCircle2, Lock, Check, Receipt
 } from 'lucide-react';
+import ReceiptModal from '../components/modals/ReceiptModal';
 
 const MyBookings = () => {
   const { setSelectedChat, setIsChatOpen, socket } = useChat();
@@ -18,6 +19,7 @@ const MyBookings = () => {
   const [showIssueModal, setShowIssueModal] = useState(null); 
   const [showReviewModal, setShowReviewModal] = useState(null); 
   const [showTracker, setShowTracker] = useState(false); 
+  const [selectedReceiptBooking, setSelectedReceiptBooking] = useState(null);
   
   // Data States
   const [activeTickets, setActiveTickets] = useState([]); 
@@ -315,8 +317,12 @@ const MyBookings = () => {
                       <Star size={16} fill="currentColor"/> Rate Stay
                     </button>
                   )}
-                  <button className="flex-1 bg-gray-900 text-white py-4 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest hover:bg-primary transition shadow-xl">
-                    View Details
+                  {/* OFFICIAL RECEIPT GENERATION FOR USER */}
+                  <button 
+                    onClick={() => setSelectedReceiptBooking(book)}
+                    className="flex-1 bg-gray-900 text-white py-4 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest hover:bg-primary transition shadow-xl flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <Receipt size={16}/> View Receipt
                   </button>
                 </div>
               </div>
@@ -507,6 +513,14 @@ const MyBookings = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* MODAL: OFFICIAL INDUSTRY-GRADE TAX INVOICE & RECEIPT */}
+      {selectedReceiptBooking && (
+        <ReceiptModal 
+          booking={selectedReceiptBooking} 
+          onClose={() => setSelectedReceiptBooking(null)} 
+        />
       )}
     </div>
   );

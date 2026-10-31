@@ -6,9 +6,10 @@ import {
   CheckCircle2, LogOut, RefreshCcw, DollarSign, 
   CreditCard, Search, ArrowUpRight, ChevronRight,
   Wrench, Clock, MessageSquare, Star, Hash, AlertTriangle,
-  Inbox, CheckCheck, Send
+  Inbox, CheckCheck, Send, Receipt, FileText
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ReceiptModal from '../../components/modals/ReceiptModal';
 
 const OwnerDashboard = () => {
   const [activeTab, setActiveTab] = useState('live'); 
@@ -16,6 +17,7 @@ const OwnerDashboard = () => {
   const [tickets, setTickets] = useState([]); // Maintenance State
   const [loading, setLoading] = useState(true);
   const [actionBooking, setActionBooking] = useState(null); 
+  const [selectedReceiptBooking, setSelectedReceiptBooking] = useState(null);
   const [resolutionNotes, setResolutionNotes] = useState({}); // Per-ticket resolution note state
   const [resolvingId, setResolvingId] = useState(null);
   const [customDate, setCustomDate] = useState(new Date().toISOString().slice(0, 16));
@@ -223,16 +225,27 @@ const OwnerDashboard = () => {
                                 {new Date(booking.checkInDate).toLocaleDateString()} → {new Date(booking.checkOutDate).toLocaleDateString()}
                             </td>
                             <td className="p-10 text-right">
-                                {actionBooking === booking._id ? (
-                                    <div className="flex flex-col gap-2 items-end">
-                                        <input type="datetime-local" className="p-2 border rounded-xl text-[10px] font-bold border-primary outline-none" value={customDate} onChange={e => setCustomDate(e.target.value)} />
-                                        <button onClick={() => handleStatusUpdate(booking._id, booking.status === 'CONFIRMED' ? 'CHECKED_IN' : 'COMPLETED')} className="bg-primary text-white px-4 py-1 rounded-lg text-[9px] font-black uppercase">Confirm</button>
-                                    </div>
-                                ) : (
-                                    <button onClick={() => { setActionBooking(booking._id); setCustomDate(new Date().toISOString().slice(0, 16)); }} className="bg-gray-900 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-2">
-                                        {booking.status === 'CONFIRMED' ? 'Log Check-in' : 'Log Check-out'} <ChevronRight size={14}/>
-                                    </button>
-                                )}
+                                <div className="flex items-center justify-end gap-2">
+                                  {/* View Official Receipt / Voucher for this resident */}
+                                  <button
+                                    onClick={() => setSelectedReceiptBooking(booking)}
+                                    className="p-3 bg-gray-50 hover:bg-gray-900 hover:text-white rounded-2xl text-gray-500 transition shadow-sm"
+                                    title="View Guest Receipt & Voucher"
+                                  >
+                                    <Receipt size={16}/>
+                                  </button>
+
+                                  {actionBooking === booking._id ? (
+                                      <div className="flex flex-col gap-2 items-end">
+                                          <input type="datetime-local" className="p-2 border rounded-xl text-[10px] font-bold border-primary outline-none" value={customDate} onChange={e => setCustomDate(e.target.value)} />
+                                          <button onClick={() => handleStatusUpdate(booking._id, booking.status === 'CONFIRMED' ? 'CHECKED_IN' : 'COMPLETED')} className="bg-primary text-white px-4 py-1 rounded-lg text-[9px] font-black uppercase">Confirm</button>
+                                      </div>
+                                  ) : (
+                                      <button onClick={() => { setActionBooking(booking._id); setCustomDate(new Date().toISOString().slice(0, 16)); }} className="bg-gray-900 text-white px-5 py-3 rounded-2xl font-black text-[10px] uppercase flex items-center gap-1.5 hover:bg-primary transition shadow-md">
+                                          {booking.status === 'CONFIRMED' ? 'Log Check-in' : 'Log Check-out'} <ChevronRight size={14}/>
+                                      </button>
+                                  )}
+                                </div>
                             </td>
                         </tr>
                     ))}
@@ -242,7 +255,7 @@ const OwnerDashboard = () => {
         </div>
       )}
 
-      {/* 2. TAB: TRANSACTION LEDGER */}
+      {/* 2. TAB: TRANSACTION LEDGER (Client / Owner Side Receipt Generation) */}
       {activeTab === 'ledger' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="bg-white rounded-[4rem] shadow-2xl border border-gray-50 overflow-hidden">
@@ -252,7 +265,7 @@ const OwnerDashboard = () => {
                         <th className="p-10">Date</th>
                         <th className="p-10">Tenant</th>
                         <th className="p-10">Amount</th>
-                        <th className="p-10 text-right">Receipt</th>
+                        <th className="p-10 text-right">Tax Invoice / Receipt</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -262,8 +275,13 @@ const OwnerDashboard = () => {
                             <td className="p-10 font-black text-gray-900">{b.tenant?.firstName} {b.tenant?.lastName}</td>
                             <td className="p-10 font-black text-gray-900 text-lg">₹{b.totalAmount}</td>
                             <td className="p-10 text-right">
-                                <button className="p-3 bg-gray-100 rounded-xl text-gray-400 hover:bg-gray-900 hover:text-white transition">
-                                    <CreditCard size={18}/>
+                                <button 
+                                  onClick={() => setSelectedReceiptBooking(b)}
+                                  className="p-3 bg-blue-50/80 hover:bg-primary text-primary hover:text-white rounded-2xl font-black text-xs transition flex items-center gap-2 ml-auto active:scale-95 shadow-sm border border-blue-100"
+                                  title="Generate Official Industry Receipt"
+                                >
+                                    <Receipt size={16}/>
+                                    <span>Generate Receipt</span>
                                 </button>
                             </td>
                         </tr>
@@ -448,6 +466,14 @@ const OwnerDashboard = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* OFFICIAL INDUSTRY-GRADE TAX INVOICE & RECEIPT (CLIENT / OWNER SIDE) */}
+      {selectedReceiptBooking && (
+        <ReceiptModal 
+          booking={selectedReceiptBooking} 
+          onClose={() => setSelectedReceiptBooking(null)} 
+        />
       )}
     </div>
   );
