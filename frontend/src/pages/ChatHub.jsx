@@ -244,6 +244,7 @@ const ChatHub = () => {
 
     try {
       const { data } = await API.post('/chat/send', {
+        conversationId: selectedChat._id,
         propertyId: selectedChat.property?._id || selectedChat.property || null,
         receiverId: receiverId.toString(),
         text: currentText,
@@ -263,20 +264,17 @@ const ChatHub = () => {
         });
       }
 
-      // Update last message in the thread list
+      // Update last message in the thread list (always ensure it is in the list and at top)
       setChats(prev => {
         const idx = prev.findIndex(c => c._id === selectedChat._id);
-        if (idx !== -1) {
-          const updated = [...prev];
-          const current = { 
-            ...updated[idx], 
-            lastMessage: currentText, 
-            lastMessageAt: new Date().toISOString() 
-          };
-          updated.splice(idx, 1);
-          return [current, ...updated];
-        }
-        return prev;
+        const targetChat = idx !== -1 ? prev[idx] : selectedChat;
+        const current = { 
+          ...targetChat, 
+          lastMessage: currentText, 
+          lastMessageAt: new Date().toISOString() 
+        };
+        const remaining = idx !== -1 ? prev.filter(c => c._id !== selectedChat._id) : prev;
+        return [current, ...remaining];
       });
 
     } catch (err) {

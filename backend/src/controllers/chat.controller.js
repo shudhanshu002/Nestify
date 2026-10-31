@@ -54,15 +54,22 @@ export const fetchMessages = async (req, res, next) => {
 
 export const sendMessage = async (req, res, next) => {
   try {
-    const { receiverId, text, propertyId, status } = req.body;
+    const { conversationId, receiverId, text, propertyId, status } = req.body;
     const senderId = req.user._id;
 
-    if (!text || !receiverId) {
-      return res.status(400).json({ success: false, message: "Text and Receiver are required" });
+    if (!text || (!receiverId && !conversationId)) {
+      return res.status(400).json({ success: false, message: "Text and Receiver (or Conversation ID) are required" });
     }
 
     // 1. Get or Create the room
-    const chat = await chatService.createOrAccessChat(senderId, receiverId, propertyId);
+    let chat;
+    if (conversationId) {
+      chat = await Conversation.findById(conversationId);
+    }
+    
+    if (!chat) {
+      chat = await chatService.createOrAccessChat(senderId, receiverId, propertyId);
+    }
 
     // 2. Save message with status
     const message = await chatService.saveNewMessage(senderId, chat._id, text, status || 'SENT');

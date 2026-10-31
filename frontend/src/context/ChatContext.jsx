@@ -1,5 +1,5 @@
 // src/context/ChatContext.jsx
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import io from 'socket.io-client';
 import { AuthContext } from './AuthContext';
 import API from '../api/client';
@@ -23,6 +23,11 @@ export const ChatProvider = ({ children }) => {
       // Quiet fail if not yet ready
     }
   }, [user]);
+
+  const selectedChatRef = useRef(selectedChat);
+  useEffect(() => {
+    selectedChatRef.current = selectedChat;
+  }, [selectedChat]);
 
   useEffect(() => {
     if (user) {
@@ -53,7 +58,8 @@ export const ChatProvider = ({ children }) => {
         }
 
         // Increment unread total if this chat is not currently open
-        if (!selectedChat || selectedChat._id !== msg.conversation) {
+        const active = selectedChatRef.current;
+        if (!active || active._id !== msg.conversation) {
           setUnreadTotal(prev => prev + 1);
         }
       });
@@ -64,7 +70,7 @@ export const ChatProvider = ({ children }) => {
       setUnreadTotal(0);
       setNotifications([]);
     }
-  }, [user, selectedChat, refreshUnreadCount]);
+  }, [user, refreshUnreadCount]);
 
   return (
     <ChatContext.Provider value={{ 
