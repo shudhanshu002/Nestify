@@ -42,6 +42,7 @@ export const createProperty = async (req, res, next) => {
       description: req.body.description,
       category: req.body.category,
       genderPreference: req.body.genderPreference,
+      tier: req.body.tier || 'FLAGSHIP',
       owner: req.user._id,
       location,
       amenities,
@@ -289,10 +290,13 @@ export const getAdminPendingProperties = async (req, res, next) => {
 // @desc    Verify Property (ADMIN ONLY)
 export const verifyProperty = async (req, res, next) => {
   try {
-    const { status, reason } = req.body;
+    const { status, reason, tier } = req.body;
     const property = await Property.findById(req.params.id);
 
-    property.verificationStatus = status;
+    if (status) property.verificationStatus = status;
+    if (tier && ['FLAGSHIP', 'LUXURY', 'BUDGET', 'STANDARD'].includes(tier)) {
+      property.tier = tier;
+    }
     if (status === 'REJECTED') property.rejectionReason = reason;
     await property.save();
 
@@ -301,12 +305,12 @@ export const verifyProperty = async (req, res, next) => {
       recipient: property.owner,
       title: status === 'VERIFIED' ? 'Building Approved! 🚀' : 'Action Required: Listing Rejected',
       message: status === 'VERIFIED' 
-        ? `Great news! "${property.title}" is now live on the platform.` 
+        ? `Great news! "${property.title}" is now live on the platform as a ${property.tier || 'FLAGSHIP'} stay.` 
         : `Your property "${property.title}" was rejected. Reason: ${reason}. Please update your documents.`,
       relatedId: property._id
     });
 
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: true, tier: property.tier });
   } catch (error) { next(error); }
 };
 
@@ -334,4 +338,37 @@ export const resubmitPropertyDocs = async (req, res, next) => {
       res.status(400).json({ message: "No document uploaded." });
     }
   } catch (error) { next(error); }
+};
+
+// @desc    Update property tier (OWNER or ADMIN)
+// @route   PATCH /api/v1/properties/:id/tier
+export const updatePropertyTier = async (req, res, next) => {
+  try {
+    const { tier } = req.body;
+    if (!['FLAGSHIP', 'LUXURY', 'BUDGET', 'STANDARD'].includes(tier)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid tier. Must be FLAGSHIP, LUXURY, BUDGET, or STANDARD." 
+      });
+    }
+
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ success: false, message: "Property not found" });
+
+    // Ensure owner or admin
+    if (req.user.role !== 'ADMIN' && property.owner.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Unauthorized to update this property tier" });
+    }
+
+    property.tier = tier;
+    await property.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Property tier updated to ${tier}`,
+      data: property
+    });
+  } catch (error) {
+    next(error);
+  }
 };

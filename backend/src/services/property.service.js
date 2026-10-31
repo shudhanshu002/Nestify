@@ -96,15 +96,19 @@ export const getFilteredProperties = async (query) => {
     }
   }
 
-  // 8. OYO Tier / Collection
-  if (collection) {
-    const colUpper = collection.toUpperCase();
-    if (colUpper === 'LUXURY') {
-      filter.basePrice = { ...(filter.basePrice || {}), $gte: 12000 };
-    } else if (colUpper === 'BUDGET') {
-      filter.basePrice = { ...(filter.basePrice || {}), $lte: 7000 };
-    } else if (colUpper === 'FLAGSHIP') {
-      filter.averageRating = { ...(filter.averageRating || {}), $gte: 4.2 };
+  // 8. OYO Tier / Collection (Matches explicit property.tier with fallback)
+  const targetTier = (query.tier || collection || '').toUpperCase();
+  if (targetTier) {
+    if (['FLAGSHIP', 'LUXURY', 'BUDGET', 'STANDARD'].includes(targetTier)) {
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { tier: targetTier },
+          ...(targetTier === 'LUXURY' ? [{ basePrice: { $gte: 12000 } }] : []),
+          ...(targetTier === 'BUDGET' ? [{ basePrice: { $lte: 8500 } }] : []),
+          ...(targetTier === 'FLAGSHIP' ? [{ averageRating: { $gte: 4.2 } }] : [])
+        ]
+      });
     }
   }
 

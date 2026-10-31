@@ -33,18 +33,24 @@ const propertySchema = new mongoose.Schema({
     cctv: { type: Boolean, default: false }
   },
 
-  // Add these to your propertySchema
-verificationStatus: { 
-  type: String, 
-  enum: ['PENDING', 'VERIFIED', 'REJECTED'], 
-  default: 'PENDING' 
-},
-legalDocuments: [{
-  docType: { type: String, default: 'OWNERSHIP_DEED' }, // e.g., Tax Receipt, Sale Deed
-  fileUrl: String,
-  uploadedAt: { type: Date, default: Date.now }
-}],
-rejectionReason: { type: String, default: '' },
+  // Explicit Property Tier: Assigned by Owner or Admin
+  tier: { 
+    type: String, 
+    enum: ['FLAGSHIP', 'LUXURY', 'BUDGET', 'STANDARD'], 
+    default: 'FLAGSHIP' 
+  },
+
+  verificationStatus: { 
+    type: String, 
+    enum: ['PENDING', 'VERIFIED', 'REJECTED'], 
+    default: 'PENDING' 
+  },
+  legalDocuments: [{
+    docType: { type: String, default: 'OWNERSHIP_DEED' },
+    fileUrl: String,
+    uploadedAt: { type: Date, default: Date.now }
+  }],
+  rejectionReason: { type: String, default: '' },
 
   images: [{ url: String, public_id: String }],
   basePrice: { type: Number, default: 0 },
