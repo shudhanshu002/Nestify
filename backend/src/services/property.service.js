@@ -1,73 +1,186 @@
 import Property from '../models/property.model.js';
+import Room from '../models/room.model.js';
 
 export const getFilteredProperties = async (query) => {
-  // 󾠮 ADDED: 'search' (for property name/keyword)
-  const { category, city, search, minPrice, maxPrice, lat, lng, maxDistance, verificationStatus } = query;
+  const { 
+    category, 
+    city, 
+    search, 
+    minPrice, 
+    maxPrice, 
+    priceRange,
+    lat, 
+    lng, 
+    maxDistance, 
+    verificationStatus,
+    gender,
+    genderPreference,
+    amenities,
+    minRating,
+    collection,
+    sortBy,
+    verifiedOnly
+  } = query;
   
-  let filter = {
-    // 󾠯 THE HARD LOCK: Always strictly Verified for public
-    verificationStatus: 'VERIFIED'
-  };
+  let filter = {};
 
-  // 1. SMART KEYWORD SEARCH (Name or City)
-  // If the user types "Matrix" or "Noida", we check both fields
-  if (search || city) {
-    const keyword = search || city;
+  // 1. Verification Status
+  if (verifiedOnly === 'true' || verifiedOnly === true) {
+    filter.verificationStatus = 'VERIFIED';
+  } else if (verificationStatus) {
+    filter.verificationStatus = verificationStatus;
+  }
+
+  // 2. Smart Keyword Search (Title, City, Address, State, Description)
+  const keyword = (search || city || '').trim();
+  if (keyword) {
     filter.$or = [
       { title: { $regex: keyword, $options: 'i' } },
       { 'location.city': { $regex: keyword, $options: 'i' } },
-      { 'location.address': { $regex: keyword, $options: 'i' } }
+      { 'location.address': { $regex: keyword, $options: 'i' } },
+      { 'location.state': { $regex: keyword, $options: 'i' } },
+      { description: { $regex: keyword, $options: 'i' } }
     ];
   }
 
-  // 2. Category Filter
+  // 3. Category Filter (can be single or comma-separated)
   if (category && category !== 'all') {
-    filter.category = category;
+    if (category.includes(',')) {
+      filter.category = { $in: category.split(',').map(c => c.trim()) };
+    } else {
+      filter.category = category;
+    }
+  }
+
+  // 4. Resident Gender Preference
+  const targetGender = gender || genderPreference;
+  if (targetGender && targetGender !== 'ALL' && targetGender !== 'all') {
+    filter.genderPreference = { $in: [targetGender.toUpperCase(), 'UNISEX'] };
   }
   
-  // 3. Price Range (Assuming basePrice is now in your Property Model)
-  if (minPrice || maxPrice) {
-    filter.basePrice = {};
-    if (minPrice) filter.basePrice.$gte = Number(minPrice);
-    if (maxPrice) filter.basePrice.$lte = Number(maxPrice);
+  // 5. Price Range
+  let min = minPrice !== undefined && minPrice !== '' ? Number(minPrice) : null;
+  let max = maxPrice !== undefined && maxPrice !== '' ? Number(maxPrice) : null;
+  if (Array.isArray(priceRange)) {
+    if (priceRange[0] !== undefined) min = Number(priceRange[0]);
+    if (priceRange[1] !== undefined) max = Number(priceRange[1]);
+  } else if (typeof priceRange === 'string' && priceRange.includes(',')) {
+    const parts = priceRange.split(',');
+    min = Number(parts[0]);
+    max = Number(parts[1]);
   }
 
-  // 4. GEOSPATIAL SEARCH (Map Search)
-  if (lat && lng) {
-    // If we are doing a Map search, we remove the City/Title filter 
-    // to show everything within the physical radius of the map center
-    delete filter.$or; 
+  if (min !== null || max !== null) {
+    filter.basePrice = {};
+    if (min !== null && !isNaN(min)) filter.basePrice.$gte = min;
+    if (max !== null && !isNaN(max) && max > 0) filter.basePrice.$lte = max;
+    if (Object.keys(filter.basePrice).length === 0) delete filter.basePrice;
+  }
 
+  // 6. Amenities Filter (matches properties having the requested amenities)
+  let amenitiesList = [];
+  if (Array.isArray(amenities)) {
+    amenitiesList = amenities.filter(Boolean);
+  } else if (typeof amenities === 'string' && amenities.trim()) {
+    amenitiesList = amenities.split(',').map(a => a.trim()).filter(Boolean);
+  }
+  if (amenitiesList.length > 0) {
+    filter.amenities = { $in: amenitiesList };
+  }
+
+  // 7. Minimum Guest Rating
+  if (minRating) {
+    const numRating = Number(minRating);
+    if (!isNaN(numRating) && numRating > 0) {
+      filter.averageRating = { $gte: numRating };
+    }
+  }
+
+  // 8. OYO Tier / Collection
+  if (collection) {
+    const colUpper = collection.toUpperCase();
+    if (colUpper === 'LUXURY') {
+      filter.basePrice = { ...(filter.basePrice || {}), $gte: 12000 };
+    } else if (colUpper === 'BUDGET') {
+      filter.basePrice = { ...(filter.basePrice || {}), $lte: 7000 };
+    } else if (colUpper === 'FLAGSHIP') {
+      filter.averageRating = { ...(filter.averageRating || {}), $gte: 4.2 };
+    }
+  }
+
+  // 9. Geospatial Search (Map Search)
+  if (lat && lng && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
+    delete filter.$or; // Map takes spatial precedence over text search
     filter['location.coordinates'] = {
       $near: {
         $geometry: {
           type: 'Point',
-          coordinates: [parseFloat(lng), parseFloat(lat)], // [lng, lat]
+          coordinates: [parseFloat(lng), parseFloat(lat)],
         },
-        // Increased to 15km to make sure seeded properties appear
-        $maxDistance: parseInt(maxDistance) || 15000, 
+        $maxDistance: parseInt(maxDistance) || 25000, 
       },
     };
   }
 
-  // Final DB Query
-  return await Property.find(filter).sort({ createdAt: -1 });
+  // 10. Sort Order
+  let sortCriteria = { averageRating: -1, createdAt: -1 };
+  if (sortBy === 'price_asc' || sortBy === 'price_low') {
+    sortCriteria = { basePrice: 1 };
+  } else if (sortBy === 'price_desc' || sortBy === 'price_high') {
+    sortCriteria = { basePrice: -1 };
+  } else if (sortBy === 'rating_desc' || sortBy === 'rating') {
+    sortCriteria = { averageRating: -1 };
+  } else if (sortBy === 'newest') {
+    sortCriteria = { createdAt: -1 };
+  }
+
+  // 11. Execute DB Query with Owner populated
+  let properties;
+  try {
+    properties = await Property.find(filter)
+      .populate('owner', 'firstName lastName avatar kycStatus')
+      .sort(sortCriteria);
+  } catch (err) {
+    // If geospatial query fails (e.g. index issue), fallback without geo filter
+    if (filter['location.coordinates']) {
+      delete filter['location.coordinates'];
+      properties = await Property.find(filter)
+        .populate('owner', 'firstName lastName avatar kycStatus')
+        .sort(sortCriteria);
+    } else {
+      throw err;
+    }
+  }
+
+  // 12. Attach Room Inventories to each Property
+  if (properties.length > 0) {
+    const propIds = properties.map(p => p._id);
+    const rooms = await Room.find({ property: { $in: propIds } });
+    
+    return properties.map(p => {
+      const pObj = p.toObject();
+      pObj.rooms = rooms.filter(r => r.property.toString() === p._id.toString());
+      return pObj;
+    });
+  }
+
+  return [];
 };
 
 export const calculateMatchScore = (property) => {
   let score = 0;
 
-  // 󾠮 Trust Factor (40 pts)
+  // 1. Trust Factor (40 pts)
   if (property.isVerified) score += 25;
   if (property.owner?.kycStatus === 'VERIFIED') score += 15;
 
-  // 󾠯 Safety & Tech (30 pts)
+  // 2. Safety & Tech (30 pts)
   const metrics = property.safetyMetrics || {};
   if (metrics.powerBackup) score += 10;
   if (metrics.cctv) score += 10;
   if (parseInt(metrics.internetSpeed) >= 100) score += 10;
 
-  // 󾠰 User Feedback (30 pts)
+  // 3. User Feedback (30 pts)
   const rating = property.averageRating || 0;
   score += (rating / 5) * 30;
 
