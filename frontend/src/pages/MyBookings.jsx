@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import API from '../api/client';
 import { useChat } from '../context/ChatContext';
 import { 
@@ -35,6 +36,20 @@ const MyBookings = () => {
     comment: '',
     safetySignals: { noiseLevel: 'Moderate', internetSpeed: 'Good', powerBackupReliability: true }
   });
+
+  // Date Formatter Helper
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
   // Start chat with the PG or Hotel owner
   const handleChatWithLandlord = async (book) => {
@@ -98,6 +113,7 @@ const MyBookings = () => {
     };
 
     socket.on('ticket_status_updated', handleTicketStatusChange);
+
     return () => {
       socket.off('ticket_status_updated', handleTicketStatusChange);
     };
@@ -184,140 +200,213 @@ const MyBookings = () => {
   );
 
   return (
-    <div className="max-w-6xl mx-auto py-12 px-4 sm:px-6 text-white space-y-12">
-      <div className="flex items-center justify-between">
+    <div className="max-w-5xl mx-auto py-10 px-4 sm:px-6 text-white space-y-8">
+      {/* Header Bar */}
+      <div className="flex items-center justify-between border-b border-[#242424] pb-6">
         <div>
-          <h1 className="text-4xl sm:text-5xl font-black text-white italic tracking-tighter">My Stays.</h1>
-          <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mt-2">Manage your residency & queries</p>
+          <span className="text-[10px] font-black uppercase tracking-widest text-primary">Resident Portal</span>
+          <h1 className="text-3xl sm:text-4xl font-black text-white italic tracking-tighter mt-0.5">
+            My Stays<span className="text-primary not-italic">.</span>
+          </h1>
+          <p className="text-xs text-gray-400 font-medium mt-1">
+            Manage your room keys, extend stay duration, and raise direct maintenance tickets.
+          </p>
         </div>
-        <div className="bg-[#242424] border border-[#333333] px-6 py-2 rounded-full text-xs font-black text-gray-300 uppercase">
-          {bookings.length} Bookings
+        <div className="bg-[#202020] border border-[#333333] px-4 py-1.5 rounded-full text-xs font-black text-gray-300 uppercase shadow-sm">
+          {bookings.length} {bookings.length === 1 ? 'Stay' : 'Stays'}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {bookings.map(book => (
-          <div key={book._id} className="bg-[#181818] rounded-[3.5rem] border border-[#2a2a2a] shadow-xl overflow-hidden netflix-card transition-all duration-500 group">
-            <div className="relative h-56 bg-[#121212]">
-              <img src={book.property?.images?.[0]?.url || 'https://via.placeholder.com/600x400'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Property" />
-              <div className={`absolute top-6 right-6 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl ${
-                book.status === 'CONFIRMED' ? 'bg-primary text-white' : 
-                book.status === 'CHECKED_IN' ? 'bg-emerald-600 text-white' : 
-                book.status === 'COMPLETED' ? 'bg-[#2a2a2a] text-gray-300 border border-[#444]' : 'bg-[#181818] text-white'
-              }`}>
-                {book.status === 'COMPLETED' ? 'CHECKED OUT' : book.status.replace('_', ' ')}
-              </div>
-            </div>
-            
-            <div className="p-8 sm:p-10 space-y-8">
-              <div>
-                <h3 className="text-2xl sm:text-3xl font-black text-white group-hover:text-primary transition">{book.property?.title}</h3>
-                <p className="text-gray-400 font-bold flex items-center gap-1 text-sm mt-2 italic">
-                  <MapPin size={16} className="text-primary"/> {book.property?.location?.city}, {book.property?.location?.state}
-                </p>
-              </div>
+      {/* Booking Cards (Landscape Layout) */}
+      {bookings.length === 0 ? (
+        <div className="bg-[#181818] rounded-[2.5rem] border border-[#2a2a2a] p-12 sm:p-16 text-center space-y-4 max-w-lg mx-auto shadow-2xl">
+          <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mx-auto">
+            <Calendar size={28} />
+          </div>
+          <h3 className="text-2xl font-black italic tracking-tight text-white">No active bookings yet</h3>
+          <p className="text-xs text-gray-400 font-medium leading-relaxed max-w-sm mx-auto">
+            You don't have any stays booked right now. Explore audited rooms, student housing, and verified coliving suites across India.
+          </p>
+          <div className="pt-2">
+            <Link 
+              to="/search" 
+              className="btn-netflix inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg"
+            >
+              Browse Stays <ChevronRight size={14} />
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {bookings.map(book => (
+            <div 
+              key={book._id} 
+              className="bg-[#181818] rounded-3xl border border-[#2a2a2a] shadow-xl overflow-hidden hover:border-[#383838] transition-all duration-300 flex flex-col md:flex-row group"
+            >
+              {/* 1. SMALL LANDSCAPE PICTURE ON THE LEFT */}
+              <div className="relative w-full md:w-64 lg:w-72 h-48 md:h-auto min-h-[190px] shrink-0 bg-[#121212] overflow-hidden">
+                <img 
+                  src={book.property?.images?.[0]?.url || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600'} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  alt={book.property?.title || 'Property'} 
+                />
+                
+                {/* Dark Gradient Overlay for Mobile */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none md:hidden"></div>
 
-              <div className="grid grid-cols-2 gap-6 py-6 border-y border-[#262626]">
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Unit Type</p>
-                  <p className="font-black text-white">{book.room?.roomType}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Total Paid</p>
-                  <p className="font-black text-white text-xl font-mono">₹{book.totalAmount.toLocaleString()}</p>
-                </div>
-              </div>
-
-              {/* ACTION BUTTONS */}
-              <div className="flex flex-col gap-3">
-                {/* CHAT WITH PG / HOTEL OWNER */}
-                <button 
-                  onClick={() => handleChatWithLandlord(book)}
-                  disabled={chatLoadingId === book._id}
-                  className="w-full btn-netflix-secondary py-3.5 rounded-[1.5rem] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-                >
-                  {chatLoadingId === book._id ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <MessageSquare size={16} />
-                  )}
-                  <span>
-                    {book.property?.owner?.firstName 
-                      ? `Chat with ${book.property.owner.firstName} (Owner)`
-                      : 'Chat with Owner / Landlord'}
+                {/* Status Badge */}
+                <div className="absolute top-3 left-3">
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${
+                    book.status === 'CONFIRMED' ? 'bg-primary text-white' : 
+                    book.status === 'CHECKED_IN' ? 'bg-emerald-600 text-white' : 
+                    book.status === 'COMPLETED' ? 'bg-[#222222]/90 text-gray-300 border border-[#444]' : 'bg-[#181818] text-white'
+                  }`}>
+                    {book.status === 'COMPLETED' ? 'CHECKED OUT' : book.status.replace('_', ' ')}
                   </span>
-                </button>
+                </div>
 
-                {/* TICKET & EXTENSION ACTIONS BASED ON CHECK-IN STATUS */}
-                {book.status === 'CHECKED_IN' ? (
-                  <div className="space-y-3">
+                {/* Booking Reference Pill */}
+                <div className="absolute bottom-3 left-3 hidden md:block">
+                  <span className="text-[10px] font-mono text-gray-300 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 font-bold">
+                    #{book._id.slice(-6).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+
+              {/* 2. DETAILS & OPTIONS ON THE SIDE */}
+              <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
+                
+                {/* Header Information: Title, City, and Total Rent */}
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-xl sm:text-2xl font-black italic tracking-tight text-white group-hover:text-primary transition line-clamp-1">
+                        {book.property?.title || 'Audited Stay'}
+                      </h3>
+                      <p className="text-gray-400 font-medium flex items-center gap-1.5 text-xs mt-1">
+                        <MapPin size={14} className="text-primary shrink-0" /> 
+                        <span>{book.property?.location?.city || 'City'}, {book.property?.location?.state || 'State'}</span>
+                      </p>
+                    </div>
+
+                    {/* Total Rent Paid */}
+                    <div className="sm:text-right shrink-0">
+                      <div className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Total Paid</div>
+                      <div className="text-xl sm:text-2xl font-black font-mono text-white">
+                        ₹{book.totalAmount ? book.totalAmount.toLocaleString() : '0'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Middle Meta Badges: Stay Dates & Unit Type */}
+                  <div className="flex flex-wrap items-center gap-2.5 mt-3.5 pt-3 border-t border-[#242424] text-xs">
+                    <div className="flex items-center gap-1.5 text-gray-300 font-semibold bg-[#222222] px-3 py-1.5 rounded-xl border border-[#303030]">
+                      <Calendar size={13} className="text-primary shrink-0" />
+                      <span>
+                        {formatDate(book.checkInDate)} → {formatDate(book.checkOutDate)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-gray-300 font-semibold bg-[#222222] px-3 py-1.5 rounded-xl border border-[#303030]">
+                      <span className="text-[10px] font-black uppercase text-gray-400">Unit:</span>
+                      <span className="text-white font-bold">{book.room?.roomType || 'Standard'}</span>
+                    </div>
+
+                    {book.extensions?.length > 0 && (
+                      <div className="flex items-center gap-1 text-emerald-400 text-xs font-bold bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-800/40">
+                        <CalendarPlus size={12} />
+                        <span>Extended (+{book.extensions.length}x)</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bottom Options Toolbar: Beside the picture */}
+                <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#242424]">
+                  {/* 1. EXTEND RENT / STAY (If checked in) */}
+                  {book.status === 'CHECKED_IN' && (
                     <button 
                       onClick={() => setSelectedExtendBooking(book)}
-                      className="w-full bg-emerald-950/50 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-800/50 py-3.5 rounded-[1.5rem] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition duration-300 shadow-sm active:scale-[0.99] cursor-pointer"
+                      className="bg-emerald-950/60 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-800/50 px-3.5 py-2 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition duration-200 shadow-sm active:scale-95 cursor-pointer"
                     >
-                      <CalendarPlus size={16} /> Extend Rent / Extend Stay
+                      <CalendarPlus size={14} /> Extend Stay
                     </button>
+                  )}
 
-                    <div className="flex gap-3">
+                  {/* 2. VIEW RECEIPT */}
+                  <button 
+                    onClick={() => setSelectedReceiptBooking(book)}
+                    className="btn-netflix px-3.5 py-2 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition shadow-sm active:scale-95 cursor-pointer"
+                  >
+                    <Receipt size={14} /> Receipt
+                  </button>
+
+                  {/* 3. CHAT WITH OWNER */}
+                  <button 
+                    onClick={() => handleChatWithLandlord(book)}
+                    disabled={chatLoadingId === book._id}
+                    className="btn-netflix-secondary px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                  >
+                    {chatLoadingId === book._id ? (
+                      <Loader2 size={14} className="animate-spin text-primary" />
+                    ) : (
+                      <MessageSquare size={14} />
+                    )}
+                    <span>
+                      {book.property?.owner?.firstName 
+                        ? `Chat with ${book.property.owner.firstName}`
+                        : 'Chat Owner'}
+                    </span>
+                  </button>
+
+                  {/* 4. IN-STAY MAINTENANCE TICKETS */}
+                  {book.status === 'CHECKED_IN' && (
+                    <>
                       <button 
                         onClick={() => { setShowIssueModal(book); setIssueData({ type: 'WIFI', desc: '', priority: 'MEDIUM' }); }}
-                        className="flex-1 btn-netflix py-3.5 rounded-[1.5rem] font-black text-[11px] uppercase flex items-center justify-center gap-2 transition shadow-sm active:scale-95 cursor-pointer"
+                        className="bg-[#242424] hover:bg-[#303030] text-gray-200 hover:text-white border border-[#383838] px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
                       >
-                        <Wrench size={15}/> Raise Ticket
+                        <Wrench size={13} className="text-primary" /> Raise Issue
                       </button>
                       <button 
                         onClick={() => fetchAndShowTickets(book)} 
-                        className="flex-1 btn-netflix-secondary py-3.5 rounded-[1.5rem] font-black text-[11px] uppercase flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+                        className="bg-[#242424] hover:bg-[#303030] text-gray-300 hover:text-white border border-[#383838] px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
                       >
-                        <Search size={15}/> Track Issues
+                        <Search size={13} /> Issues
                       </button>
-                    </div>
-                  </div>
-                ) : book.status === 'COMPLETED' ? (
-                  <div className="flex gap-3">
-                    <div 
-                      className="flex-1 bg-[#222222] text-gray-400 py-3.5 px-4 rounded-[1.5rem] font-bold text-[10px] uppercase flex items-center justify-center gap-2 border border-[#333333] cursor-default select-none"
-                    >
-                      <CheckCircle2 size={14} className="text-gray-400"/> Checked Out • Tickets Closed
-                    </div>
-                    <button 
-                      onClick={() => fetchAndShowTickets(book)} 
-                      className="btn-netflix-secondary py-3.5 px-5 rounded-[1.5rem] font-black text-[10px] uppercase flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
-                    >
-                      <Search size={14}/> View History
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex gap-3">
-                    <div 
-                      className="flex-1 bg-[#222222] text-gray-400 py-3.5 px-4 rounded-[1.5rem] font-bold text-[10px] uppercase flex items-center justify-center gap-2 border border-[#333333] cursor-not-allowed select-none"
-                    >
-                      <Lock size={14} className="opacity-40"/> Check-in Required for Tickets
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  {book.status === 'COMPLETED' && (
-                    <button 
-                      onClick={() => setShowReviewModal(book)}
-                      className="flex-1 bg-amber-500 text-white py-4 rounded-[1.5rem] font-black text-[11px] uppercase flex items-center justify-center gap-2 shadow-lg hover:bg-amber-600 transition cursor-pointer"
-                    >
-                      <Star size={16} fill="currentColor"/> Rate Stay
-                    </button>
+                    </>
                   )}
-                  <button 
-                    onClick={() => setSelectedReceiptBooking(book)}
-                    className="flex-1 btn-netflix py-4 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest transition shadow-xl flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
-                  >
-                    <Receipt size={16}/> View Receipt
-                  </button>
+
+                  {/* 5. RATE STAY OR TICKETS HISTORY (If completed) */}
+                  {book.status === 'COMPLETED' && (
+                    <>
+                      <button 
+                        onClick={() => setShowReviewModal(book)}
+                        className="bg-amber-600 hover:bg-amber-500 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
+                      >
+                        <Star size={13} fill="currentColor" /> Rate Stay
+                      </button>
+                      <button 
+                        onClick={() => fetchAndShowTickets(book)} 
+                        className="bg-[#242424] hover:bg-[#303030] text-gray-300 border border-[#383838] px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                      >
+                        <Search size={13} /> History
+                      </button>
+                    </>
+                  )}
+
+                  {/* 6. PENDING CHECK-IN NOTE */}
+                  {book.status !== 'CHECKED_IN' && book.status !== 'COMPLETED' && (
+                    <span className="text-[11px] text-gray-500 flex items-center gap-1.5 ml-auto font-medium">
+                      <Lock size={12} className="opacity-60" /> Check-in unlocks room maintenance
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* MODAL: QUERY TRACKER */}
       {showTracker && (
