@@ -38,6 +38,16 @@ const bookingSchema = new mongoose.Schema({
   fraudScore: { type: Number, default: 0 },
   actualCheckInDate: { type: Date },
   actualCheckOutDate: { type: Date },
+
+  // Extension History
+  extensions: [{
+    extendedAt: { type: Date, default: Date.now },
+    previousCheckOutDate: { type: Date, required: true },
+    newCheckOutDate: { type: Date, required: true },
+    additionalDays: { type: Number, required: true },
+    additionalAmount: { type: Number, required: true },
+    paymentStatus: { type: String, default: 'PAID' }
+  }],
 }, { 
   timestamps: true 
 });

@@ -1,29 +1,31 @@
 import Booking from '../models/booking.model.js';
 import Room from '../models/room.model.js';
 import Property from '../models/property.model.js';
+import Notification from '../models/notification.model.js';
 
 /**
- * 󾠮 REFINED UTILITY: Dynamic Inventory Matrix
- * We must ensure we check against 'totalInventory' correctly.
+ * Standardized Date-Interval Conflict Utility
+ * Validates availability across [checkIn, checkOut) against room.totalInventory
  */
-const getAvailableCountForDates = async (roomId, checkIn, checkOut, totalInventory) => {
-  // 󾠯 CRITICAL: Standardize dates to "Start of Day" to avoid 11:59 PM vs 12:01 AM issues
+export const getAvailableCountForDates = async (roomId, checkIn, checkOut, totalInventory, excludeBookingId = null) => {
   const start = new Date(checkIn);
   start.setHours(0, 0, 0, 0);
   
   const end = new Date(checkOut);
-  end.setHours(23, 59, 59, 999);
+  end.setHours(0, 0, 0, 0);
 
-  const overlappingBookings = await Booking.countDocuments({
+  const query = {
     room: roomId,
     status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
-    $and: [
-      { checkInDate: { $lt: end } },  // Existing stay starts before your checkout
-      { checkOutDate: { $gt: start } } // Existing stay ends after your checkin
-    ]
-  });
+    checkInDate: { $lt: end },
+    checkOutDate: { $gt: start }
+  };
 
-  // Example: totalInventory: 1, overlapping: 1 => 0 available (Correctly Blocks!)
+  if (excludeBookingId) {
+    query._id = { $ne: excludeBookingId };
+  }
+
+  const overlappingBookings = await Booking.countDocuments(query);
   const available = totalInventory - overlappingBookings;
   return available > 0 ? available : 0;
 };
@@ -47,29 +49,31 @@ export const initiateBooking = async (req, res, next) => {
     if (availableUnits <= 0) {
       return res.status(400).json({ 
         success: false, 
-        message: 'This room is sold out for the selected dates.' 
+        message: `Sold Out! All ${room.totalInventory} units of this room type are booked for the selected dates.` 
       });
     }
 
     res.status(200).json({
       success: true,
-      availableUnits
+      availableUnits,
+      totalInventory: room.totalInventory
     });
   } catch (error) {
     next(error);
   }
 };
 
+// @desc    Create a new booking with conflict protection
+// @route   POST /api/v1/bookings
 export const createBooking = async (req, res, next) => {
   try {
     const { property, room, checkInDate, checkOutDate, totalAmount } = req.body;
 
-    // 󾠰 1. Get the current Room Data
+    // 1. Get room details
     const roomDoc = await Room.findById(room).populate('property');
     if (!roomDoc) return res.status(404).json({ success: false, message: "Room not found" });
 
-    // 󾠱 2. RE-VERIFY MATRIX: Use our bulletproof logic
-    // We pass roomDoc.totalInventory (e.g., 1)
+    // 2. Conflict Management: Check overlapping bookings
     const availableUnits = await getAvailableCountForDates(
       room, 
       checkInDate, 
@@ -77,15 +81,15 @@ export const createBooking = async (req, res, next) => {
       roomDoc.totalInventory
     );
 
-    // 󾠲 3. THE BLOCKER: If units <= 0, someone else occupied the "slot" in the timeline
+    // 3. Block if all units are booked (e.g. 5 total, 5 booked -> 0 available)
     if (availableUnits <= 0) {
       return res.status(400).json({ 
         success: false, 
-        message: `Sold Out! All ${roomDoc.totalInventory} units of this type are booked for these dates.` 
+        message: `Sold Out! All ${roomDoc.totalInventory} rooms of this type are already booked for the selected dates.` 
       });
     }
 
-    // 4. Create the Booking
+    // 4. Create Booking
     const booking = await Booking.create({
       tenant: req.user._id,
       property,
@@ -97,8 +101,8 @@ export const createBooking = async (req, res, next) => {
       paymentStatus: 'PAID'
     });
 
-    // 󾠳 5. UPDATE SNAPSHOT (Optional)
-    roomDoc.availableInventory = availableUnits - 1;
+    // 5. Update room snapshot
+    roomDoc.availableInventory = Math.max(0, availableUnits - 1);
     await roomDoc.save();
 
     res.status(201).json({ success: true, data: booking });
@@ -108,18 +112,204 @@ export const createBooking = async (req, res, next) => {
   }
 };
 
+// @desc    Check availability for extending a stay (CHECKED_IN only)
+// @route   POST /api/v1/bookings/:id/check-extension
+export const checkExtensionAvailability = async (req, res, next) => {
+  try {
+    const { newCheckOutDate } = req.body;
+    if (!newCheckOutDate) {
+      return res.status(400).json({ success: false, message: "New check-out date is required" });
+    }
+
+    const booking = await Booking.findById(req.params.id)
+      .populate('room')
+      .populate('property');
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    // Security: Only the tenant or platform admin
+    if (booking.tenant.toString() !== req.user._id.toString() && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: "Unauthorized to extend this booking" });
+    }
+
+    // Condition: User must be currently checked in
+    if (booking.status !== 'CHECKED_IN') {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Stay extension is only available for guests who are currently checked in." 
+      });
+    }
+
+    const currentCheckOut = new Date(booking.checkOutDate);
+    const targetCheckOut = new Date(newCheckOutDate);
+    targetCheckOut.setHours(0, 0, 0, 0);
+    currentCheckOut.setHours(0, 0, 0, 0);
+
+    if (targetCheckOut <= currentCheckOut) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "New check-out date must be after your current check-out date." 
+      });
+    }
+
+    const roomDoc = booking.room;
+    if (!roomDoc) {
+      return res.status(404).json({ success: false, message: "Room details not found" });
+    }
+
+    // Calculate additional days and pricing
+    const additionalDays = Math.max(1, Math.ceil((targetCheckOut - currentCheckOut) / (1000 * 60 * 60 * 24)));
+    const dailyRate = roomDoc.basePrice || Math.round(booking.totalAmount / 30);
+    const additionalAmount = additionalDays * dailyRate;
+
+    // Check availability during the extended window, excluding this booking
+    const availableUnits = await getAvailableCountForDates(
+      roomDoc._id,
+      currentCheckOut,
+      targetCheckOut,
+      roomDoc.totalInventory,
+      booking._id
+    );
+
+    res.status(200).json({
+      success: true,
+      available: availableUnits > 0,
+      availableUnits,
+      totalInventory: roomDoc.totalInventory,
+      currentCheckOutDate: booking.checkOutDate,
+      newCheckOutDate: targetCheckOut,
+      additionalDays,
+      dailyRate,
+      additionalAmount,
+      newTotalAmount: booking.totalAmount + additionalAmount
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Extend stay check-out date and record payment (CHECKED_IN only)
+// @route   POST /api/v1/bookings/:id/extend
+export const extendStay = async (req, res, next) => {
+  try {
+    const { newCheckOutDate } = req.body;
+    if (!newCheckOutDate) {
+      return res.status(400).json({ success: false, message: "New check-out date is required" });
+    }
+
+    const booking = await Booking.findById(req.params.id)
+      .populate('room')
+      .populate('property')
+      .populate('tenant', 'firstName lastName email');
+
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    if (booking.tenant._id.toString() !== req.user._id.toString() && req.user.role !== 'ADMIN') {
+      return res.status(403).json({ success: false, message: "Unauthorized" });
+    }
+
+    // Must be currently checked in
+    if (booking.status !== 'CHECKED_IN') {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Stay extension is only available for guests who are currently checked in." 
+      });
+    }
+
+    const currentCheckOut = new Date(booking.checkOutDate);
+    const targetCheckOut = new Date(newCheckOutDate);
+    targetCheckOut.setHours(0, 0, 0, 0);
+    currentCheckOut.setHours(0, 0, 0, 0);
+
+    if (targetCheckOut <= currentCheckOut) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "New check-out date must be later than your current check-out date." 
+      });
+    }
+
+    const roomDoc = booking.room;
+    const additionalDays = Math.max(1, Math.ceil((targetCheckOut - currentCheckOut) / (1000 * 60 * 60 * 24)));
+    const dailyRate = roomDoc.basePrice || Math.round(booking.totalAmount / 30);
+    const additionalAmount = additionalDays * dailyRate;
+
+    // Strict overlap check on the extension window
+    const availableUnits = await getAvailableCountForDates(
+      roomDoc._id,
+      currentCheckOut,
+      targetCheckOut,
+      roomDoc.totalInventory,
+      booking._id
+    );
+
+    if (availableUnits <= 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Extension unavailable! All ${roomDoc.totalInventory} rooms of this type are booked for the requested extension period.` 
+      });
+    }
+
+    // Record extension in audit log
+    booking.extensions = booking.extensions || [];
+    booking.extensions.push({
+      extendedAt: new Date(),
+      previousCheckOutDate: currentCheckOut,
+      newCheckOutDate: targetCheckOut,
+      additionalDays,
+      additionalAmount,
+      paymentStatus: 'PAID'
+    });
+
+    // Update checkOutDate and totalAmount
+    booking.checkOutDate = targetCheckOut;
+    booking.totalAmount += additionalAmount;
+    await booking.save();
+
+    // Notify Owner
+    const propOwnerId = booking.property?.owner?._id || booking.property?.owner;
+    if (propOwnerId) {
+      await Notification.create({
+        recipient: propOwnerId,
+        title: 'Stay Extended! 📅',
+        message: `Guest ${booking.tenant?.firstName || 'Tenant'} has extended their stay at "${booking.property?.title}" until ${targetCheckOut.toLocaleDateString()}. Additional rent paid: ₹${additionalAmount.toLocaleString()}.`,
+        relatedId: booking._id
+      });
+    }
+
+    // Notify Tenant
+    await Notification.create({
+      recipient: booking.tenant._id,
+      title: 'Stay Extended Successfully! ✅',
+      message: `Your stay at "${booking.property?.title}" has been successfully extended by ${additionalDays} days until ${targetCheckOut.toLocaleDateString()}.`,
+      relatedId: booking._id
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Stay extended by ${additionalDays} days until ${targetCheckOut.toLocaleDateString()}.`,
+      data: booking
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getMyBookings = async (req, res, next) => {
   try {
     const bookings = await Booking.find({ tenant: req.user._id })
       .populate({
-        path: 'property', // 1. Populate the property first
+        path: 'property',
         select: 'title owner images location address category',
         populate: { 
-          path: 'owner', // 2. Then populate the owner INSIDE the property
+          path: 'owner',
           select: '_id firstName lastName role email phone' 
         }
       })
-      .populate('room', 'roomType roomNumber basePrice')
+      .populate('room', 'roomType roomNumber basePrice totalInventory')
       .populate('tenant', 'firstName lastName email phone avatar')
       .sort('-createdAt');
 
@@ -133,11 +323,9 @@ export const getMyBookings = async (req, res, next) => {
 // @route   GET /api/v1/bookings/owner-bookings
 export const getOwnerBookings = async (req, res, next) => {
   try {
-    // 1. Find all property IDs belonging to this owner
     const properties = await Property.find({ owner: req.user._id }).select('_id');
     const propertyIds = properties.map(p => p._id);
 
-    // 2. Find all bookings for these properties
     const bookings = await Booking.find({ property: { $in: propertyIds } })
       .populate({
         path: 'property',
@@ -147,9 +335,9 @@ export const getOwnerBookings = async (req, res, next) => {
           select: 'firstName lastName email phone'
         }
       })
-      .populate('room', 'roomType roomNumber basePrice')
+      .populate('room', 'roomType roomNumber basePrice totalInventory')
       .populate('tenant', 'firstName lastName email avatar phone')
-      .sort('-checkInDate'); // Show upcoming/current stays first
+      .sort('-checkInDate');
 
     res.status(200).json({
       success: true,
@@ -170,7 +358,7 @@ export const updateBookingStatus = async (req, res, next) => {
 
     if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
 
-    // 1. SECURITY: Owner check
+    // Security: Owner check
     if (booking.property.owner.toString() !== req.user._id.toString()) {
       return res.status(403).json({ success: false, message: "Unauthorized" });
     }
@@ -178,11 +366,9 @@ export const updateBookingStatus = async (req, res, next) => {
     const now = new Date();
     const selectedDate = new Date(actualDate || now);
 
-    // 2. 󾠮 LOGIC: Prevent Check-in if the date is too far ahead
+    // Prevent Check-in if the date is too far ahead
     if (status === 'CHECKED_IN') {
       const hoursUntilCheckIn = (new Date(booking.checkInDate) - now) / (1000 * 60 * 60);
-      
-      // If the guest is trying to check in more than 24 hours early
       if (hoursUntilCheckIn > 24) {
         return res.status(400).json({ 
           success: false, 
@@ -192,7 +378,7 @@ export const updateBookingStatus = async (req, res, next) => {
       booking.actualCheckInDate = selectedDate;
     }
 
-    // 3. 󾠯 LOGIC: Record Actual Check-out
+    // Record Actual Check-out
     if (status === 'COMPLETED') {
       booking.actualCheckOutDate = selectedDate;
     }
@@ -217,14 +403,13 @@ export const getBookingReceipt = async (req, res, next) => {
           select: 'firstName lastName email phone'
         }
       })
-      .populate('room', 'roomType roomNumber basePrice')
+      .populate('room', 'roomType roomNumber basePrice totalInventory')
       .populate('tenant', 'firstName lastName email avatar phone');
 
     if (!booking) {
       return res.status(404).json({ success: false, message: 'Booking not found' });
     }
 
-    // Security check: tenant of the booking, owner of the property, or admin
     const isTenant = booking.tenant?._id?.toString() === req.user._id.toString();
     const isOwner = booking.property?.owner?._id?.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'ADMIN';
@@ -233,13 +418,11 @@ export const getBookingReceipt = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Unauthorized to access this receipt' });
     }
 
-    // Calculate nights / duration
     const checkIn = new Date(booking.checkInDate);
     const checkOut = new Date(booking.checkOutDate);
     const diffTime = Math.abs(checkOut - checkIn);
     const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
-    // Total and itemized financial breakdown
     const totalAmount = booking.totalAmount || 0;
     const baseTariff = Math.round((totalAmount * 0.88) * 100) / 100;
     const totalTax = Math.round((totalAmount - baseTariff) * 100) / 100;
@@ -259,6 +442,7 @@ export const getBookingReceipt = async (req, res, next) => {
         paymentStatus: booking.paymentStatus || 'PAID',
         paymentMethod: 'PREPAID_ONLINE_GATEWAY',
         stayDurationDays: diffDays,
+        extensions: booking.extensions || [],
         pricing: {
           baseTariff,
           taxesAndFees: totalTax,

@@ -5,7 +5,9 @@ import {
   createBooking, 
   getOwnerBookings, 
   updateBookingStatus,
-  getBookingReceipt 
+  getBookingReceipt,
+  checkExtensionAvailability,
+  extendStay
 } from '../controllers/booking.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
 
@@ -19,5 +21,9 @@ router.get('/my-bookings', getMyBookings);
 router.get('/owner-bookings', getOwnerBookings);
 router.patch('/:id/status', updateBookingStatus);
 router.get('/:id/receipt', getBookingReceipt);
+
+// Stay Extension Endpoints (Active CHECKED_IN Guests)
+router.post('/:id/check-extension', checkExtensionAvailability);
+router.post('/:id/extend', extendStay);
 
 export default router;

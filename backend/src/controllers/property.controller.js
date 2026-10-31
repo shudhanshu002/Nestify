@@ -191,19 +191,19 @@ export const getPropertyById = async (req, res, next) => {
 
     // 󾠮 THE DYNAMIC MATRIX CALCULATION
     const roomsWithAvailability = await Promise.all(rooms.map(async (room) => {
-      let currentAvailable = room.totalInventory;
+      const start = checkIn ? new Date(checkIn) : new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = checkOut ? new Date(checkOut) : new Date(start.getTime() + 86400000);
+      end.setHours(0, 0, 0, 0);
 
-      if (checkIn && checkOut) {
-        const overlaps = await Booking.countDocuments({
-          room: room._id,
-          status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
-          $and: [
-            { checkInDate: { $lt: new Date(checkOut) } },
-            { checkOutDate: { $gt: new Date(checkIn) } }
-          ]
-        });
-        currentAvailable = Math.max(0, room.totalInventory - overlaps);
-      }
+      const overlaps = await Booking.countDocuments({
+        room: room._id,
+        status: { $in: ['CONFIRMED', 'CHECKED_IN'] },
+        checkInDate: { $lt: end },
+        checkOutDate: { $gt: start }
+      });
+
+      const currentAvailable = Math.max(0, room.totalInventory - overlaps);
 
       return {
         ...room._doc,
