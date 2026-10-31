@@ -108,7 +108,7 @@ const Home = () => {
                     </p>
 
                     {/* Integrated Search Box */}
-                    <form onSubmit={handleSearch} className="bg-white p-3 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row items-center gap-2 max-w-3xl mx-auto border-4 border-white/10">
+                    <form onSubmit={handleSearch} className="bg-[#181818]/90 backdrop-blur-xl p-3 rounded-[2.5rem] shadow-2xl flex flex-col md:flex-row items-center gap-2 max-w-3xl mx-auto border border-white/15">
                         
                         {/* Search Input */}
                         <div className="flex-grow flex items-center gap-3 px-5 py-2 w-full">
@@ -116,14 +116,14 @@ const Home = () => {
                             <input
                                 type="text"
                                 placeholder="Search City, Sector, Metro or Landmark..."
-                                className="w-full py-2 outline-none font-bold text-gray-800 text-base placeholder-gray-400"
+                                className="w-full py-2 outline-none font-bold text-white text-base placeholder-gray-400 bg-transparent"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
                         </div>
 
                         {/* Resident Gender Pill Selector */}
-                        <div className="flex bg-gray-100 p-1 rounded-2xl w-full md:w-auto shrink-0 justify-center">
+                        <div className="flex bg-[#242424] p-1 rounded-2xl w-full md:w-auto shrink-0 justify-center border border-[#333333]">
                             {[
                               { id: 'ALL', label: 'All' },
                               { id: 'MALE', label: 'Boys' },
@@ -133,10 +133,10 @@ const Home = () => {
                                 type="button"
                                 key={g.id}
                                 onClick={() => setResidentType(g.id)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition ${
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-black uppercase transition cursor-pointer ${
                                   residentType === g.id 
-                                    ? 'bg-gray-900 text-white shadow-sm' 
-                                    : 'text-gray-500 hover:text-gray-900'
+                                    ? 'btn-netflix shadow-sm text-white' 
+                                    : 'text-gray-400 hover:text-white'
                                 }`}
                               >
                                 {g.label}
@@ -216,27 +216,27 @@ const Home = () => {
                 <CategoryFilter active={category} onChange={setCategory} />
 
                 {/* Home View Mode Toggle */}
-                <div className="flex bg-gray-100 p-1.5 rounded-2xl shrink-0 border border-gray-200">
+                <div className="flex bg-[#1c1c1c] p-1.5 rounded-2xl shrink-0 border border-[#2e2e2e]">
                     <button
                         onClick={() => setHomeView('collections')}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase transition ${
-                            homeView === 'collections' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase transition cursor-pointer ${
+                            homeView === 'collections' ? 'btn-netflix shadow-md text-white' : 'text-gray-400 hover:text-white'
                         }`}
                     >
-                        <Sparkles size={14} className="text-amber-500" /> Curated
+                        <Sparkles size={14} className="text-amber-400" /> Curated
                     </button>
                     <button
                         onClick={() => setHomeView('grid')}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase transition ${
-                            homeView === 'grid' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase transition cursor-pointer ${
+                            homeView === 'grid' ? 'btn-netflix shadow-md text-white' : 'text-gray-400 hover:text-white'
                         }`}
                     >
                         <LayoutGrid size={14} /> Grid
                     </button>
                     <button
                         onClick={() => setHomeView('map')}
-                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase transition ${
-                            homeView === 'map' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black uppercase transition cursor-pointer ${
+                            homeView === 'map' ? 'btn-netflix shadow-md text-white' : 'text-gray-400 hover:text-white'
                         }`}
                     >
                         <MapIcon size={14} /> Map
@@ -255,7 +255,7 @@ const Home = () => {
                 <section className="container mx-auto px-4 space-y-4">
                     <div className="flex justify-between items-center">
                         <div>
-                            <h2 className="text-3xl font-black italic tracking-tighter text-gray-900">Map View.</h2>
+                            <h2 className="text-3xl font-black italic tracking-tighter text-white">Map View.</h2>
                             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">
                                 Explore pricing across localities and click pins to preview
                             </p>
@@ -275,7 +275,7 @@ const Home = () => {
                 /* ALL PROPERTIES GRID VIEW */
                 <section className="container mx-auto px-4 space-y-6">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-3xl font-black italic tracking-tighter text-gray-900">
+                        <h2 className="text-3xl font-black italic tracking-tighter text-white">
                             Available Stays ({properties.length}).
                         </h2>
                         <Link 
@@ -303,7 +303,7 @@ const Home = () => {
                                     <div className="inline-flex items-center gap-1.5 text-rose-600 text-xs font-black uppercase tracking-wider mb-1">
                                         <Sparkles size={14} /> Premium Experience
                                     </div>
-                                    <h2 className="text-3xl font-black italic tracking-tighter text-gray-900">
+                                    <h2 className="text-3xl font-black italic tracking-tighter text-white">
                                         Nestify Flagship & Luxury Suites.
                                     </h2>
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
@@ -334,7 +334,7 @@ const Home = () => {
                                     <div className="inline-flex items-center gap-1.5 text-blue-600 text-xs font-black uppercase tracking-wider mb-1">
                                         🎓 Student & Fresher Favorites
                                     </div>
-                                    <h2 className="text-3xl font-black italic tracking-tighter text-gray-900">
+                                    <h2 className="text-3xl font-black italic tracking-tighter text-white">
                                         Pocket-Friendly Stays Under ₹8,500.
                                     </h2>
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
@@ -365,7 +365,7 @@ const Home = () => {
                                     <div className="inline-flex items-center gap-1.5 text-emerald-600 text-xs font-black uppercase tracking-wider mb-1">
                                         <Star size={14} className="fill-emerald-600" /> Rated 4.5+
                                     </div>
-                                    <h2 className="text-3xl font-black italic tracking-tighter text-gray-900">
+                                    <h2 className="text-3xl font-black italic tracking-tighter text-white">
                                         Highest Rated by Residents.
                                     </h2>
                                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
@@ -391,7 +391,7 @@ const Home = () => {
                     {/* RAIL 4: BROWSE BY POPULAR CO-LIVING HUBS */}
                     <section className="container mx-auto px-4 space-y-6">
                         <div>
-                            <h2 className="text-3xl font-black italic tracking-tighter text-gray-900">
+                            <h2 className="text-3xl font-black italic tracking-tighter text-white">
                                 Explore by City Hubs.
                             </h2>
                             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">

@@ -66,16 +66,16 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
   );
 
   return (
-    <div className="space-y-8 select-none">
+    <div className="space-y-8 select-none text-white">
       
       {/* 1. FILTER HEADER */}
-      <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gray-900 text-white flex items-center justify-center">
+      <div className="flex items-center justify-between pb-4 border-b border-[#282828]">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center shadow-md">
             <SlidersHorizontal size={16} />
           </div>
           <div>
-            <h3 className="font-black text-gray-900 text-base">Filters</h3>
+            <h3 className="font-black text-white text-base">Filters</h3>
             {activeFilterCount > 0 && (
               <span className="text-[10px] font-black uppercase text-primary">
                 {activeFilterCount} active
@@ -87,17 +87,17 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
         {activeFilterCount > 0 && (
           <button 
             onClick={resetAll}
-            className="text-[11px] font-black uppercase tracking-wider text-rose-500 hover:text-rose-700 flex items-center gap-1 transition"
+            className="text-[11px] font-black uppercase tracking-wider text-primary hover:text-white flex items-center gap-1 transition cursor-pointer"
           >
             <RotateCcw size={12} /> Clear
           </button>
         )}
       </div>
 
-      {/* 2. OYO COLLECTIONS */}
+      {/* 2. COLLECTIONS */}
       <section className="space-y-3">
         <div className="flex items-center gap-1.5">
-          <Sparkles size={14} className="text-amber-500" />
+          <Sparkles size={14} className="text-amber-400" />
           <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Collections</h4>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -110,10 +110,10 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
             <button
               key={col.id}
               onClick={() => setFilters({ ...filters, collection: col.id })}
-              className={`py-2 px-3 rounded-xl text-xs font-black transition text-center ${
+              className={`py-2 px-3 rounded-xl text-xs font-black transition text-center cursor-pointer ${
                 filters.collection === col.id
-                  ? 'bg-gray-900 text-white shadow-md'
-                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  ? 'btn-netflix shadow-md text-white'
+                  : 'bg-[#242424] text-gray-300 border border-[#333333] hover:bg-[#2c2c2c] hover:text-white'
               }`}
             >
               {col.label}
@@ -129,7 +129,7 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
             <DollarSign size={14} className="text-primary" />
             <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Price Range</h4>
           </div>
-          <span className="text-xs font-black text-gray-900 font-mono">
+          <span className="text-xs font-black text-white font-mono">
             Up to ₹{(filters.priceRange?.[1] || 50000).toLocaleString()}
           </span>
         </div>
@@ -142,8 +142,10 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
               <button
                 key={idx}
                 onClick={() => handlePricePreset(p.range)}
-                className={`py-1.5 px-2 rounded-xl text-[10px] font-bold transition text-center ${
-                  isMatch ? 'bg-primary text-white shadow-sm' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                className={`py-1.5 px-2 rounded-xl text-[10px] font-bold transition text-center cursor-pointer ${
+                  isMatch 
+                    ? 'btn-netflix shadow-sm text-white' 
+                    : 'bg-[#242424] text-gray-300 border border-[#333333] hover:bg-[#2c2c2c] hover:text-white'
                 }`}
               >
                 {p.label}
@@ -158,7 +160,7 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
           max="50000" 
           step="1000"
           value={filters.priceRange?.[1] || 50000}
-          className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-primary"
+          className="w-full h-2 bg-[#2a2a2a] rounded-lg appearance-none cursor-pointer accent-primary"
           onChange={(e) => setFilters({
             ...filters, 
             priceRange: [filters.priceRange?.[0] || 0, Number(e.target.value)]
@@ -175,7 +177,7 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
       {/* 4. RESIDENT GENDER PREFERENCE */}
       <section className="space-y-3">
         <div className="flex items-center gap-1.5">
-          <UserCheck size={14} className="text-blue-500" />
+          <UserCheck size={14} className="text-primary" />
           <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Resident Type</h4>
         </div>
         <div className="grid grid-cols-3 gap-2">
@@ -187,10 +189,10 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
             <button
               key={g.id}
               onClick={() => setFilters({ ...filters, gender: g.id })}
-              className={`py-2 px-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
+              className={`py-2 px-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer ${
                 (filters.gender || 'ALL') === g.id
-                  ? 'bg-gray-900 text-white shadow-md'
-                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  ? 'btn-netflix shadow-md text-white'
+                  : 'bg-[#242424] text-gray-300 border border-[#333333] hover:bg-[#2c2c2c] hover:text-white'
               }`}
             >
               {g.label}
@@ -212,10 +214,10 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
             <button
               key={c.id}
               onClick={() => setFilters({ ...filters, category: c.id })}
-              className={`py-2 px-2.5 rounded-xl text-xs font-black transition text-left truncate ${
+              className={`py-2 px-2.5 rounded-xl text-xs font-black transition text-left truncate cursor-pointer ${
                 (filters.category || 'all') === c.id
-                  ? 'bg-primary text-white shadow-md'
-                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  ? 'btn-netflix shadow-md text-white'
+                  : 'bg-[#242424] text-gray-300 border border-[#333333] hover:bg-[#2c2c2c] hover:text-white'
               }`}
             >
               {c.label}
@@ -227,7 +229,7 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
       {/* 6. GUEST RATING */}
       <section className="space-y-3">
         <div className="flex items-center gap-1.5">
-          <Star size={14} className="text-amber-500 fill-amber-500" />
+          <Star size={14} className="text-amber-400 fill-amber-400" />
           <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Guest Rating</h4>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -240,10 +242,10 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
             <button
               key={r.val}
               onClick={() => setFilters({ ...filters, minRating: r.val })}
-              className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition ${
+              className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition cursor-pointer ${
                 (filters.minRating || 0) === r.val
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  : 'bg-[#242424] text-gray-300 border border-[#333333] hover:bg-[#2c2c2c] hover:text-white'
               }`}
             >
               {r.label}
@@ -264,8 +266,8 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
                 onClick={() => handleAmenityToggle(item.name)}
                 className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition text-xs font-bold ${
                   isChecked 
-                    ? 'border-primary bg-primary/5 text-primary' 
-                    : 'border-gray-100 hover:bg-gray-50 text-gray-700'
+                    ? 'border-primary bg-primary/20 text-white' 
+                    : 'border-[#333333] bg-[#222222] hover:bg-[#282828] text-gray-300 hover:text-white'
                 }`}
               >
                 <span>{item.icon}</span>
@@ -277,16 +279,16 @@ const SidebarFilters = ({ filters, setFilters, onReset }) => {
       </section>
 
       {/* 8. TRUST & VERIFICATION */}
-      <section className="pt-2 border-t border-gray-100">
+      <section className="pt-2 border-t border-[#282828]">
         <label className="flex items-center gap-3 cursor-pointer group">
           <input 
             type="checkbox" 
             checked={!!filters.verifiedOnly}
             onChange={(e) => setFilters({ ...filters, verifiedOnly: e.target.checked })}
-            className="w-5 h-5 rounded-lg border-gray-200 text-primary focus:ring-primary accent-primary cursor-pointer"
+            className="w-5 h-5 rounded-lg border-[#333333] text-primary focus:ring-primary accent-primary cursor-pointer"
           />
-          <div className="flex items-center gap-1.5 text-xs font-black text-gray-700 group-hover:text-primary transition">
-            <ShieldCheck size={16} className="text-emerald-500" />
+          <div className="flex items-center gap-1.5 text-xs font-black text-gray-300 group-hover:text-primary transition">
+            <ShieldCheck size={16} className="text-emerald-400" />
             <span>Verified Properties Only</span>
           </div>
         </label>

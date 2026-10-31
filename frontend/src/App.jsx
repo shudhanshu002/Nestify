@@ -34,9 +34,9 @@ function App() {
   const { user } = useContext(AuthContext);
 
   if (loading) return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#141414]">
       <div className="relative w-16 h-16">
-        <div className="absolute top-0 left-0 w-full h-full border-4 border-primary/10 rounded-full"></div>
+        <div className="absolute top-0 left-0 w-full h-full border-4 border-primary/20 rounded-full"></div>
         <div className="absolute top-0 left-0 w-full h-full border-4 border-t-primary rounded-full animate-spin"></div>
       </div>
     </div>
@@ -44,7 +44,7 @@ function App() {
 
   return (
     <ChatProvider>
-      <div className="min-h-screen bg-gray-50 font-sans">
+      <div className="min-h-screen bg-[#141414] text-white font-sans antialiased selection:bg-primary selection:text-white">
         <Navbar />
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Routes>

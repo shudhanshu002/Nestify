@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import API from '../../api/client';
 import { 
-  ShieldCheck, Users, Building, Search, CheckCircle2, 
-  Clock, AlertCircle, Star, MapPin, Loader2, Bed, 
-  ExternalLink, ChevronDown, ChevronUp, ShieldAlert,
-  Phone, Mail, Check, X, ArrowUpRight, Sparkles
+  ShieldCheck, ShieldAlert, Search, CheckCircle2, Clock, 
+  AlertOctagon, Star, MapPin, Loader2, Bed, 
+  ExternalLink, Check, X, ChevronDown, ChevronUp, Users, Building, Mail, Phone, Sparkles
 } from 'lucide-react';
 
 const AdminHome = ({ user }) => {
@@ -19,16 +18,18 @@ const AdminHome = ({ user }) => {
   const fetchOwnersDirectory = async () => {
     try {
       setLoading(true);
-      const { data } = await API.get('/admin/owners-directory');
+      const { data } = await API.get('/admin/owners-overview');
       setOwners(data.data || []);
-      // By default expand the first 3 owners
+      // Expand all owners with pending PGs by default
       const initialExpanded = {};
-      (data.data || []).forEach((o, index) => {
-        initialExpanded[o._id] = index < 3;
+      data.data?.forEach(o => {
+        if (o.properties?.some(p => p.verificationStatus === 'PENDING') || o.kycStatus === 'PENDING') {
+          initialExpanded[o._id] = true;
+        }
       });
       setExpandedOwners(initialExpanded);
     } catch (err) {
-      console.error("Admin owners directory error:", err);
+      console.error("Admin owners overview fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -42,14 +43,17 @@ const AdminHome = ({ user }) => {
     setExpandedOwners(prev => ({ ...prev, [ownerId]: !prev[ownerId] }));
   };
 
-  const handleVerifyProperty = async (propId, status, reason = "") => {
+  const handleVerifyProperty = async (propId, status, rejectionReason = '') => {
     try {
       setVerifyingPropId(propId);
-      await API.put(`/properties/admin/verify/${propId}`, { status, reason });
-      alert(`Property marked as ${status}!`);
+      await API.patch(`/admin/verify-property/${propId}`, { 
+        status, 
+        rejectionReason 
+      });
+      // Refresh directory
       fetchOwnersDirectory();
     } catch (err) {
-      alert("Verification update failed.");
+      alert(err.response?.data?.message || "Failed to update property status.");
     } finally {
       setVerifyingPropId(null);
     }
@@ -70,7 +74,6 @@ const AdminHome = ({ user }) => {
     const ownerName = `${owner.firstName} ${owner.lastName || ''}`.toLowerCase();
     const ownerEmail = (owner.email || '').toLowerCase();
     
-    // Check if query matches owner or any of their PGs/cities
     const matchesOwner = !query || ownerName.includes(query) || ownerEmail.includes(query);
     const matchesPG = owner.properties?.some(p => 
       p.title?.toLowerCase().includes(query) ||
@@ -96,17 +99,17 @@ const AdminHome = ({ user }) => {
   const totalPendingPGs = owners.reduce((acc, o) => acc + (o.properties?.filter(p => p.verificationStatus === 'PENDING')?.length || 0), 0);
 
   return (
-    <div className="space-y-12 pb-20">
+    <div className="space-y-12 pb-20 text-white">
       
       {/* 1. ADMIN PLATFORM HERO */}
-      <section className="relative rounded-[3.5rem] bg-gray-950 text-white p-8 md:p-14 overflow-hidden shadow-2xl border border-gray-800">
+      <section className="relative rounded-[3.5rem] bg-[#181818] text-white p-8 md:p-14 overflow-hidden shadow-2xl border border-[#2a2a2a]">
         <div className="absolute right-[-40px] top-[-40px] w-96 h-96 bg-primary/20 rounded-full blur-[100px] pointer-events-none animate-netflix-pulse"></div>
 
         <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest text-blue-400 border border-blue-500/20">
+          <div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest text-primary border border-primary/20">
             <ShieldCheck size={14} /> Master Platform Oversight • Admin Command Center
           </div>
-          <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter leading-none">
+          <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter leading-none text-white">
             Owners & PG Directory.
           </h1>
           <p className="text-gray-400 text-sm md:text-base font-medium max-w-xl">
@@ -130,20 +133,20 @@ const AdminHome = ({ user }) => {
         </div>
 
         {/* ADMIN METRICS ROW */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-12 pt-8 border-t border-white/10">
-          <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-12 pt-8 border-t border-[#282828]">
+          <div className="bg-[#242424] p-4 rounded-2xl border border-[#333333]">
             <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">Registered Owners</span>
             <p className="text-3xl font-black italic text-white mt-1">{owners.length}</p>
           </div>
-          <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-            <span className="text-[10px] font-black uppercase text-blue-400 tracking-wider block">Total Platform PGs</span>
-            <p className="text-3xl font-black italic text-blue-400 mt-1">{totalProperties}</p>
+          <div className="bg-[#242424] p-4 rounded-2xl border border-[#333333]">
+            <span className="text-[10px] font-black uppercase text-primary tracking-wider block">Total Platform PGs</span>
+            <p className="text-3xl font-black italic text-primary mt-1">{totalProperties}</p>
           </div>
-          <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
-            <span className="text-[10px] font-black uppercase text-green-400 tracking-wider block">Live & Verified PGs</span>
-            <p className="text-3xl font-black italic text-green-400 mt-1">{totalVerifiedPGs}</p>
+          <div className="bg-[#242424] p-4 rounded-2xl border border-[#333333]">
+            <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider block">Live & Verified PGs</span>
+            <p className="text-3xl font-black italic text-emerald-400 mt-1">{totalVerifiedPGs}</p>
           </div>
-          <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+          <div className="bg-[#242424] p-4 rounded-2xl border border-[#333333]">
             <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block">Pending Approvals</span>
             <p className="text-3xl font-black italic text-amber-400 mt-1">{totalPendingPGs + totalPendingKyc}</p>
           </div>
@@ -151,7 +154,7 @@ const AdminHome = ({ user }) => {
       </section>
 
       {/* 2. ADMIN SEARCH & FILTER BAR */}
-      <section className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4">
+      <section className="bg-[#181818] p-6 rounded-[2.5rem] border border-[#2a2a2a] shadow-xl space-y-4">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
@@ -160,7 +163,7 @@ const AdminHome = ({ user }) => {
               placeholder="Search owners, PG title, tier, city..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-2xl font-bold text-sm text-gray-800 outline-none focus:ring-2 focus:ring-primary border-none transition"
+              className="w-full pl-12 pr-4 py-3 bg-[#242424] rounded-2xl font-bold text-sm text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-primary border border-[#333333] transition"
             />
           </div>
 
@@ -175,10 +178,10 @@ const AdminHome = ({ user }) => {
               <button
                 key={tab.id}
                 onClick={() => setKycFilter(tab.id)}
-                className={`px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition ${
+                className={`px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition cursor-pointer ${
                   kycFilter === tab.id 
-                    ? 'bg-gray-900 text-white shadow-md' 
-                    : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                    ? 'btn-netflix shadow-md text-white' 
+                    : 'bg-[#242424] text-gray-300 border border-[#333333] hover:text-white hover:bg-[#2c2c2c]'
                 }`}
               >
                 {tab.label}
@@ -192,7 +195,7 @@ const AdminHome = ({ user }) => {
       <section className="space-y-6">
         <div className="flex justify-between items-center px-2">
           <div>
-            <h2 className="text-3xl font-black italic tracking-tighter text-gray-900">Owner Roster & PG Portfolios.</h2>
+            <h2 className="text-3xl font-black italic tracking-tighter text-white">Owner Roster & PG Portfolios.</h2>
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
               Showing {filteredOwners.length} owners across platform
             </p>
@@ -204,7 +207,7 @@ const AdminHome = ({ user }) => {
               owners.forEach(o => { allExpanded[o._id] = nextState; });
               setExpandedOwners(allExpanded);
             }}
-            className="text-xs font-black uppercase tracking-wider text-primary hover:underline"
+            className="text-xs font-black uppercase tracking-wider text-primary hover:underline cursor-pointer"
           >
             {Object.values(expandedOwners).some(v => !v) ? 'Expand All' : 'Collapse All'}
           </button>
@@ -224,22 +227,22 @@ const AdminHome = ({ user }) => {
               return (
                 <div 
                   key={owner._id}
-                  className="bg-white rounded-[3rem] border border-gray-100 shadow-xl overflow-hidden transition-all duration-300"
+                  className="bg-[#181818] rounded-[3rem] border border-[#2a2a2a] shadow-xl overflow-hidden transition-all duration-300 text-white"
                 >
                   {/* OWNER SUMMARY HEADER */}
                   <div 
                     onClick={() => toggleExpand(owner._id)}
-                    className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer hover:bg-gray-50/50 transition border-b border-gray-50"
+                    className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer hover:bg-[#202020] transition border-b border-[#282828]"
                   >
                     <div className="flex items-center gap-4">
                       <div className="relative">
                         <img 
-                          src={owner.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(owner.firstName + ' ' + (owner.lastName || ''))}&background=0D8ABC&color=fff`} 
+                          src={owner.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(owner.firstName + ' ' + (owner.lastName || ''))}&background=E50914&color=fff`} 
                           alt={owner.firstName}
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-white shadow-sm"
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-primary/40 shadow-sm"
                         />
                         {owner.kycStatus === 'VERIFIED' && (
-                          <div className="absolute -bottom-1 -right-1 bg-green-500 text-white rounded-full p-0.5 border-2 border-white" title="KYC Verified">
+                          <div className="absolute -bottom-1 -right-1 bg-emerald-600 text-white rounded-full p-0.5 border-2 border-[#181818]" title="KYC Verified">
                             <CheckCircle2 size={14}/>
                           </div>
                         )}
@@ -247,10 +250,10 @@ const AdminHome = ({ user }) => {
 
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="text-xl font-black text-gray-900 tracking-tight">
+                          <h3 className="text-xl font-black text-white tracking-tight">
                             {owner.firstName} {owner.lastName || ''}
                           </h3>
-                          <span className="text-[10px] font-black uppercase text-gray-400 bg-gray-100 px-2 py-0.5 rounded">
+                          <span className="text-[10px] font-black uppercase text-gray-300 bg-[#242424] border border-[#333333] px-2 py-0.5 rounded">
                             {owner.role || 'OWNER'}
                           </span>
                         </div>
@@ -266,9 +269,9 @@ const AdminHome = ({ user }) => {
                       <div className="text-right">
                         <span className="text-[10px] font-black uppercase tracking-wider block text-gray-400">Owner KYC</span>
                         <span className={`text-[11px] font-black uppercase px-3 py-1 rounded-full inline-block mt-0.5 ${
-                          owner.kycStatus === 'VERIFIED' ? 'bg-green-100 text-green-700' :
-                          owner.kycStatus === 'PENDING' ? 'bg-amber-100 text-amber-700 animate-pulse' :
-                          'bg-gray-100 text-gray-500'
+                          owner.kycStatus === 'VERIFIED' ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40' :
+                          owner.kycStatus === 'PENDING' ? 'bg-amber-950/60 text-amber-400 border border-amber-800/40 animate-pulse' :
+                          'bg-[#242424] text-gray-400'
                         }`}>
                           {owner.kycStatus || 'NOT_SUBMITTED'}
                         </span>
@@ -276,12 +279,12 @@ const AdminHome = ({ user }) => {
 
                       <div className="text-right">
                         <span className="text-[10px] font-black uppercase tracking-wider block text-gray-400">Portfolio</span>
-                        <span className="bg-primary/10 text-primary text-[11px] font-black uppercase px-3 py-1 rounded-full inline-block mt-0.5">
+                        <span className="bg-primary/20 text-primary border border-primary/30 text-[11px] font-black uppercase px-3 py-1 rounded-full inline-block mt-0.5">
                           {pgsCount} {pgsCount === 1 ? 'PG' : 'PGs'} ({livePgsCount} Live)
                         </span>
                       </div>
 
-                      <div className="p-2 bg-gray-100 rounded-xl text-gray-500">
+                      <div className="p-2 bg-[#242424] rounded-xl text-gray-400">
                         {isExpanded ? <ChevronUp size={18}/> : <ChevronDown size={18}/>}
                       </div>
                     </div>
@@ -289,17 +292,17 @@ const AdminHome = ({ user }) => {
 
                   {/* INDIVIDUAL OWNER LISTED PGs (EXPANDED VIEW) */}
                   {isExpanded && (
-                    <div className="p-6 md:p-8 bg-gray-50/40 space-y-6 animate-in fade-in duration-300">
+                    <div className="p-6 md:p-8 bg-[#141414] space-y-6 animate-in fade-in duration-300">
                       <div className="flex justify-between items-center px-1">
-                        <h4 className="text-xs font-black uppercase text-gray-500 tracking-wider">
+                        <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">
                           Properties Listed by {owner.firstName} ({pgsCount})
                         </h4>
                         {owner.kycStatus === 'PENDING' && (
                           <Link 
                             to="/admin/verify-users" 
-                            className="text-[10px] font-black uppercase text-amber-600 bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 hover:bg-amber-100 transition"
+                            className="text-[10px] font-black uppercase text-amber-400 bg-amber-950/40 px-3 py-1 rounded-lg border border-amber-800/40 hover:bg-amber-950 transition"
                           >
-                            Review Owner KYC Documents →
+                            Review Owner KYC
                           </Link>
                         )}
                       </div>
@@ -313,59 +316,58 @@ const AdminHome = ({ user }) => {
                             return (
                               <div 
                                 key={pg._id}
-                                className="bg-white rounded-3xl p-6 border border-gray-200/80 shadow-sm space-y-4 hover:shadow-md transition"
+                                className="bg-[#1c1c1c] rounded-3xl p-6 border border-[#2e2e2e] shadow-sm space-y-4 hover:border-primary/40 transition text-white"
                               >
                                 <div className="flex gap-4 items-start">
                                   <img 
                                     src={pg.images?.[0]?.url || 'https://via.placeholder.com/200?text=No+Photo'} 
                                     alt={pg.title}
-                                    className="w-24 h-24 rounded-2xl object-cover shrink-0 border border-gray-100"
+                                    className="w-24 h-24 rounded-2xl object-cover shrink-0 border border-[#333]"
                                   />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2">
                                       <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className="text-[9px] font-black uppercase tracking-wider bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-[#242424] text-gray-300 px-2 py-0.5 rounded border border-[#333]">
                                           {pg.category || 'PG'}
                                         </span>
-                                        <span className="text-[9px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-100 flex items-center gap-0.5">
-                                          <Sparkles size={10} className="text-amber-500" /> {pg.tier || 'FLAGSHIP'}
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-primary/20 text-primary px-2 py-0.5 rounded border border-primary/30 flex items-center gap-0.5">
+                                          <Sparkles size={10} className="text-amber-400" /> {pg.tier || 'FLAGSHIP'}
                                         </span>
                                       </div>
                                       
-                                      {/* Verification Status */}
                                       <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                                        pg.verificationStatus === 'VERIFIED' ? 'bg-green-100 text-green-700' :
-                                        pg.verificationStatus === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                                        'bg-amber-100 text-amber-700'
+                                        pg.verificationStatus === 'VERIFIED' ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40' :
+                                        pg.verificationStatus === 'REJECTED' ? 'bg-primary/20 text-primary border border-primary/30' :
+                                        'bg-amber-950/60 text-amber-400 border border-amber-800/40'
                                       }`}>
                                         {pg.verificationStatus || 'PENDING'}
                                       </span>
                                     </div>
 
-                                    <h5 className="font-black text-gray-900 text-lg truncate mt-1">
+                                    <h5 className="font-black text-white text-lg truncate mt-1">
                                       {pg.title}
                                     </h5>
 
                                     <p className="text-xs text-gray-400 font-bold flex items-center gap-1 mt-0.5">
-                                      <MapPin size={12} className="shrink-0"/>
+                                      <MapPin size={12} className="shrink-0 text-primary"/>
                                       <span className="truncate">{pg.location?.address ? `${pg.location.address}, ` : ''}{pg.location?.city || 'City'}</span>
                                     </p>
 
-                                    <div className="flex items-center gap-3 mt-2 text-xs font-bold text-gray-700">
+                                    <div className="flex items-center gap-3 mt-2 text-xs font-bold text-gray-200">
                                       <span className="font-mono text-primary font-black">₹{pg.basePrice?.toLocaleString()}/mo</span>
                                       {pg.averageRating > 0 ? (
-                                        <span className="flex items-center gap-1 text-yellow-500 font-black">
+                                        <span className="flex items-center gap-1 text-amber-400 font-black">
                                           <Star size={12} fill="currentColor"/> {pg.averageRating.toFixed(1)} Rating
                                         </span>
                                       ) : (
-                                        <span className="text-[10px] text-gray-400 font-normal">New (Unrated)</span>
+                                        <span className="text-[10px] text-gray-500 font-normal">New (Unrated)</span>
                                       )}
                                     </div>
                                   </div>
                                 </div>
 
                                 {/* ROOM CONFIGURATION BREAKDOWN */}
-                                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 space-y-1.5">
+                                <div className="bg-[#242424] p-3 rounded-2xl border border-[#333333] space-y-1.5">
                                   <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block flex items-center gap-1">
                                     <Bed size={12} className="text-primary"/> Configured Rooms & Inventory ({rooms.length})
                                   </span>
@@ -373,10 +375,10 @@ const AdminHome = ({ user }) => {
                                   {rooms.length > 0 ? (
                                     <div className="grid grid-cols-2 gap-2 pt-1">
                                       {rooms.map((room, rIdx) => (
-                                        <div key={room._id || rIdx} className="bg-white p-2 rounded-xl border border-gray-100 text-[10px]">
-                                          <p className="font-black text-gray-800">{room.roomType}</p>
-                                          <p className="text-gray-500">₹{room.basePrice?.toLocaleString()} • {room.capacity} Bed</p>
-                                          <p className="text-gray-400 font-mono">Inv: {room.availableInventory}/{room.totalInventory}</p>
+                                        <div key={room._id || rIdx} className="bg-[#1a1a1a] p-2 rounded-xl border border-[#333333] text-[10px]">
+                                          <p className="font-black text-white">{room.roomType}</p>
+                                          <p className="text-gray-400">₹{room.basePrice?.toLocaleString()} • {room.capacity} Bed</p>
+                                          <p className="text-gray-500 font-mono">Inv: {room.availableInventory}/{room.totalInventory}</p>
                                         </div>
                                       ))}
                                     </div>
@@ -386,26 +388,26 @@ const AdminHome = ({ user }) => {
                                 </div>
 
                                 {/* ADMIN PROPERTY ACTIONS & TIER CONTROL */}
-                                <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100">
+                                <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[#282828]">
                                   <div className="flex items-center gap-2">
                                     <span className="text-[9px] font-black uppercase text-gray-400">Tier:</span>
                                     <select
                                       value={pg.tier || 'FLAGSHIP'}
                                       onChange={(e) => handleUpdateTier(pg._id, e.target.value)}
-                                      className="text-[10px] font-black uppercase bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 outline-none cursor-pointer hover:border-primary transition"
+                                      className="text-[10px] font-black uppercase bg-[#242424] text-white border border-[#333333] rounded-lg px-2 py-1 outline-none cursor-pointer hover:border-primary transition"
                                       title="Update Property Tier"
                                     >
-                                      <option value="FLAGSHIP">⭐ Flagship</option>
-                                      <option value="LUXURY">💎 Luxury</option>
-                                      <option value="BUDGET">🎓 Budget</option>
-                                      <option value="STANDARD">🏠 Standard</option>
+                                      <option value="FLAGSHIP" className="bg-[#242424] text-white">⭐ Flagship</option>
+                                      <option value="LUXURY" className="bg-[#242424] text-white">💎 Luxury</option>
+                                      <option value="BUDGET" className="bg-[#242424] text-white">🎓 Budget</option>
+                                      <option value="STANDARD" className="bg-[#242424] text-white">🏠 Standard</option>
                                     </select>
                                   </div>
 
                                   <div className="flex items-center gap-2">
                                     <Link 
                                       to={`/property/${pg._id}`}
-                                      className="text-xs font-black uppercase text-gray-600 hover:text-primary transition flex items-center gap-1"
+                                      className="text-xs font-black uppercase text-gray-300 hover:text-white transition flex items-center gap-1"
                                     >
                                       View <ExternalLink size={12}/>
                                     </Link>
@@ -415,7 +417,7 @@ const AdminHome = ({ user }) => {
                                         <button 
                                           disabled={verifyingPropId === pg._id}
                                           onClick={() => handleVerifyProperty(pg._id, 'VERIFIED')}
-                                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 shadow-sm transition active:scale-95 disabled:opacity-50"
+                                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
                                         >
                                           <Check size={12}/> Approve
                                         </button>
@@ -425,7 +427,7 @@ const AdminHome = ({ user }) => {
                                             const reason = prompt("Enter rejection reason for owner:");
                                             if (reason) handleVerifyProperty(pg._id, 'REJECTED', reason);
                                           }}
-                                          className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 border border-red-200 transition active:scale-95 disabled:opacity-50"
+                                          className="bg-primary/20 text-primary hover:bg-primary hover:text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 border border-primary/30 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                                         >
                                           <X size={12}/> Reject
                                         </button>
@@ -438,7 +440,7 @@ const AdminHome = ({ user }) => {
                           })}
                         </div>
                       ) : (
-                        <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-gray-200">
+                        <div className="p-8 text-center bg-[#1c1c1c] rounded-2xl border border-dashed border-[#2e2e2e]">
                           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
                             This owner has not created any PG listings yet.
                           </p>
@@ -451,16 +453,16 @@ const AdminHome = ({ user }) => {
             })}
           </div>
         ) : (
-          <div className="py-24 text-center bg-white rounded-[3.5rem] border-2 border-dashed border-gray-200 p-12">
-            <Users size={56} className="mx-auto mb-4 text-gray-300"/>
-            <h3 className="text-2xl font-black text-gray-900 tracking-tight">No Matching Owners Found</h3>
+          <div className="py-24 text-center bg-[#181818] rounded-[3.5rem] border border-[#2a2a2a] p-12">
+            <Users size={56} className="mx-auto mb-4 text-gray-500"/>
+            <h3 className="text-2xl font-black text-white tracking-tight">No Matching Owners Found</h3>
             <p className="font-bold text-gray-400 text-xs mt-1 uppercase tracking-widest max-w-md mx-auto">
               No owner accounts match your search filter. Try clearing your search keyword.
             </p>
             {search && (
               <button 
                 onClick={() => setSearch('')}
-                className="mt-6 bg-gray-900 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase"
+                className="mt-6 btn-netflix-secondary px-6 py-3 rounded-2xl font-black text-xs uppercase cursor-pointer"
               >
                 Clear Search
               </button>

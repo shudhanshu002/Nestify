@@ -78,30 +78,23 @@ const SearchResults = () => {
     }
   }, [debouncedSearch, filters, sortBy, view]);
 
+  // Trigger search on filter/search change
   useEffect(() => {
-    fetchResults(mapCoords.lat, mapCoords.lng);
-  }, [fetchResults, mapCoords]);
+    fetchResults();
+  }, [fetchResults]);
 
-  // Synchronize URL query params with debounced search
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (debouncedSearch && debouncedSearch !== 'All Cities') {
-      params.set('city', debouncedSearch);
-    } else {
-      params.delete('city');
-    }
-    navigate({ search: params.toString() }, { replace: true });
-  }, [debouncedSearch]);
-
-  const handleCitySelect = (cityName) => {
-    if (cityName === 'All Cities') {
+  // Handle direct city click from quick chips
+  const handleCitySelect = (city) => {
+    if (city === 'All Cities') {
       setSearchInput('');
     } else {
-      setSearchInput(cityName);
+      setSearchInput(city);
     }
   };
 
+  // Reset all filters to default
   const handleResetFilters = () => {
+    setSearchInput('');
     setFilters({
       priceRange: [0, 50000],
       amenities: [],
@@ -111,11 +104,9 @@ const SearchResults = () => {
       minRating: 0,
       collection: ''
     });
-    setSearchInput('');
-    setSortBy('popular');
   };
 
-  // Active filter pills for instant removal
+  // Active filter count for badge
   const activeChips = [];
   if (searchInput && searchInput !== 'All Cities') {
     activeChips.push({ label: `City: ${searchInput}`, remove: () => setSearchInput('') });
@@ -152,7 +143,7 @@ const SearchResults = () => {
     <div className="max-w-[1680px] mx-auto px-4 sm:px-6 py-6 space-y-6">
       
       {/* 1. TOP SEARCH & CONTROLS HEADER */}
-      <section className="bg-white rounded-[2.5rem] p-5 sm:p-7 border border-gray-100 shadow-sm space-y-5">
+      <section className="bg-[#181818] rounded-[2.5rem] p-5 sm:p-7 border border-[#2a2a2a] shadow-xl text-white space-y-5">
         <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
           
           {/* Debounced Search Input */}
@@ -163,12 +154,12 @@ const SearchResults = () => {
               placeholder="Search by city, locality, PG name, sector..." 
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full pl-12 pr-10 py-3.5 bg-gray-50 rounded-2xl font-bold text-sm text-gray-800 outline-none focus:ring-2 focus:ring-primary border border-transparent focus:bg-white transition"
+              className="w-full pl-12 pr-10 py-3.5 bg-[#242424] rounded-2xl font-bold text-sm text-white outline-none focus:ring-2 focus:ring-primary border border-[#333333] transition placeholder-gray-400"
             />
             {searchInput && (
               <button 
                 onClick={() => setSearchInput('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 p-1"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white p-1"
               >
                 <X size={16} />
               </button>
@@ -181,7 +172,7 @@ const SearchResults = () => {
             {/* Mobile Filter Button */}
             <button
               onClick={() => setIsMobileFilterOpen(true)}
-              className="lg:hidden flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2.5 rounded-2xl font-black text-xs uppercase"
+              className="lg:hidden flex items-center gap-2 bg-[#242424] hover:bg-[#2c2c2c] text-white border border-[#333333] px-4 py-2.5 rounded-2xl font-black text-xs uppercase"
             >
               <SlidersHorizontal size={14} /> Filters
               {activeChips.length > 0 && (
@@ -192,28 +183,28 @@ const SearchResults = () => {
             </button>
 
             {/* Sort Dropdown */}
-            <div className="flex items-center gap-2 bg-gray-50 px-4 py-2.5 rounded-2xl border border-gray-100">
+            <div className="flex items-center gap-2 bg-[#242424] px-4 py-2.5 rounded-2xl border border-[#333333]">
               <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Sort:</span>
               <select 
                 value={sortBy} 
                 onChange={(e) => setSortBy(e.target.value)}
-                className="bg-transparent font-bold text-xs text-gray-800 outline-none cursor-pointer"
+                className="bg-transparent font-bold text-xs text-white outline-none cursor-pointer"
               >
-                <option value="popular">Recommended</option>
-                <option value="price_asc">Price: Low to High</option>
-                <option value="price_desc">Price: High to Low</option>
-                <option value="rating_desc">Guest Rating: High to Low</option>
-                <option value="newest">Newest Stays</option>
+                <option value="popular" className="bg-[#242424] text-white">Recommended</option>
+                <option value="price_asc" className="bg-[#242424] text-white">Price: Low to High</option>
+                <option value="price_desc" className="bg-[#242424] text-white">Price: High to Low</option>
+                <option value="rating_desc" className="bg-[#242424] text-white">Guest Rating: High to Low</option>
+                <option value="newest" className="bg-[#242424] text-white">Newest Stays</option>
               </select>
             </div>
 
             {/* View Switcher: List, Split, Map */}
-            <div className="flex bg-gray-100 p-1 rounded-2xl border border-gray-200/60">
+            <div className="flex bg-[#1c1c1c] p-1 rounded-2xl border border-[#2e2e2e]">
               <button 
                 onClick={() => setView('list')}
                 title="List View"
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs uppercase transition-all ${
-                  view === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs uppercase transition-all cursor-pointer ${
+                  view === 'list' ? 'btn-netflix shadow-sm text-white' : 'text-gray-400 hover:text-white'
                 }`}
               >
                 <List size={15} /> <span className="hidden sm:inline">List</span>
@@ -222,8 +213,8 @@ const SearchResults = () => {
               <button 
                 onClick={() => setView('split')}
                 title="Split View (List + Map)"
-                className={`hidden md:flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs uppercase transition-all ${
-                  view === 'split' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                className={`hidden md:flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs uppercase transition-all cursor-pointer ${
+                  view === 'split' ? 'btn-netflix shadow-sm text-white' : 'text-gray-400 hover:text-white'
                 }`}
               >
                 <Columns size={15} /> <span>Split</span>
@@ -232,8 +223,8 @@ const SearchResults = () => {
               <button 
                 onClick={() => setView('map')}
                 title="Map View"
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs uppercase transition-all ${
-                  view === 'map' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs uppercase transition-all cursor-pointer ${
+                  view === 'map' ? 'btn-netflix shadow-sm text-white' : 'text-gray-400 hover:text-white'
                 }`}
               >
                 <MapIcon size={15} /> <span className="hidden sm:inline">Map</span>
@@ -254,10 +245,10 @@ const SearchResults = () => {
               <button
                 key={c}
                 onClick={() => handleCitySelect(c)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer ${
                   isSelected 
-                    ? 'bg-gray-900 text-white shadow-sm' 
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    ? 'btn-netflix shadow-sm text-white' 
+                    : 'bg-[#242424] text-gray-300 border border-[#333333] hover:text-white hover:bg-[#2c2c2c]'
                 }`}
               >
                 {c}
@@ -268,22 +259,22 @@ const SearchResults = () => {
 
         {/* Active Filter Chips Bar */}
         {activeChips.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
+          <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#282828]">
             <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Active:</span>
             {activeChips.map((chip, idx) => (
               <span 
                 key={idx}
-                className="inline-flex items-center gap-1.5 bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full border border-primary/20"
+                className="inline-flex items-center gap-1.5 bg-primary/20 text-primary text-xs font-bold px-3 py-1 rounded-full border border-primary/30"
               >
                 <span>{chip.label}</span>
-                <button onClick={chip.remove} className="hover:text-rose-600">
+                <button onClick={chip.remove} className="hover:text-white cursor-pointer">
                   <X size={12} />
                 </button>
               </span>
             ))}
             <button 
               onClick={handleResetFilters}
-              className="text-[11px] font-black uppercase tracking-wider text-rose-500 hover:underline ml-2"
+              className="text-[11px] font-black uppercase tracking-wider text-primary hover:underline ml-2 cursor-pointer"
             >
               Clear All
             </button>
@@ -294,9 +285,9 @@ const SearchResults = () => {
       {/* 2. MAIN RESULTS LAYOUT (BASED ON VIEW MODE) */}
       <div className="flex flex-col lg:flex-row gap-8 items-start">
         
-        {/* DESKTOP SIDEBAR FILTERS (Hidden in Map View or when screen is small) */}
+        {/* DESKTOP SIDEBAR FILTERS */}
         {view !== 'map' && (
-          <aside className="hidden lg:block w-[300px] shrink-0 sticky top-24 bg-white p-7 rounded-[2.5rem] border border-gray-100 shadow-sm max-h-[calc(100vh-120px)] overflow-y-auto">
+          <aside className="hidden lg:block w-[300px] shrink-0 sticky top-24 bg-[#181818] p-7 rounded-[2.5rem] border border-[#2a2a2a] shadow-xl text-white max-h-[calc(100vh-120px)] overflow-y-auto">
             <SidebarFilters 
               filters={filters} 
               setFilters={setFilters} 
@@ -311,7 +302,7 @@ const SearchResults = () => {
           {/* Header Count Banner */}
           <div className="flex justify-between items-center px-1">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-gray-900">
+              <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-white">
                 {searchInput ? `Stays in ${searchInput}` : 'Recommended Accommodations'}
               </h2>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">
@@ -322,7 +313,7 @@ const SearchResults = () => {
 
           {/* LOADING STATE */}
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-32 bg-white rounded-[3.5rem] border-2 border-dashed border-gray-100">
+            <div className="flex flex-col items-center justify-center py-32 bg-[#181818] rounded-[3.5rem] border border-[#2a2a2a]">
               <Loader2 className="animate-spin text-primary mb-4" size={44} />
               <p className="text-gray-400 font-black uppercase text-[10px] tracking-[0.3em]">
                 Finding Best Deals & Checking Availability...
@@ -330,17 +321,17 @@ const SearchResults = () => {
             </div>
           ) : properties.length === 0 ? (
             /* EMPTY STATE */
-            <div className="text-center py-28 bg-white rounded-[3.5rem] border-2 border-dashed border-gray-200 p-8 space-y-4">
-              <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto text-gray-300">
+            <div className="text-center py-28 bg-[#181818] rounded-[3.5rem] border border-[#2a2a2a] p-8 space-y-4">
+              <div className="w-16 h-16 bg-[#242424] rounded-2xl flex items-center justify-center mx-auto text-gray-400">
                 <SlidersHorizontal size={28} />
               </div>
-              <h3 className="text-2xl font-black italic text-gray-900 tracking-tight">No Stays Found</h3>
+              <h3 className="text-2xl font-black italic text-white tracking-tight">No Stays Found</h3>
               <p className="text-gray-400 text-xs font-bold uppercase tracking-widest max-w-sm mx-auto">
                 No properties match your current combination of city, budget, and amenities.
               </p>
               <button 
                 onClick={handleResetFilters}
-                className="bg-gray-900 text-white px-7 py-3 rounded-2xl font-black text-xs uppercase hover:bg-primary transition shadow-lg"
+                className="btn-netflix px-7 py-3 rounded-2xl font-black text-xs uppercase shadow-lg cursor-pointer"
               >
                 Reset All Filters
               </button>
@@ -371,7 +362,7 @@ const SearchResults = () => {
             </div>
           ) : view === 'map' ? (
             /* FULL MAP VIEW */
-            <div className="h-[78vh] relative rounded-[3rem] overflow-hidden shadow-xl">
+            <div className="h-[78vh] relative rounded-[3rem] overflow-hidden shadow-xl border border-[#2a2a2a]">
               <PropertyMap 
                 properties={properties} 
                 selectedPropertyId={selectedPropertyId}
@@ -393,17 +384,17 @@ const SearchResults = () => {
 
       {/* 3. MOBILE FILTER MODAL DRAWER */}
       {isMobileFilterOpen && (
-        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex justify-end">
-          <div className="w-full max-w-md bg-white h-full p-6 flex flex-col justify-between overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300">
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex justify-end">
+          <div className="w-full max-w-md bg-[#181818] text-white border-l border-[#2e2e2e] h-full p-6 flex flex-col justify-between overflow-y-auto shadow-2xl animate-in slide-in-from-right duration-300">
             <div>
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+              <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#2e2e2e]">
                 <div className="flex items-center gap-2">
                   <SlidersHorizontal size={20} className="text-primary" />
-                  <h3 className="text-lg font-black text-gray-900">Filters</h3>
+                  <h3 className="text-lg font-black text-white">Filters</h3>
                 </div>
                 <button 
                   onClick={() => setIsMobileFilterOpen(false)}
-                  className="p-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  className="p-2 rounded-xl bg-[#242424] text-gray-300 hover:text-white cursor-pointer"
                 >
                   <X size={18} />
                 </button>
@@ -416,10 +407,10 @@ const SearchResults = () => {
               />
             </div>
 
-            <div className="pt-6 border-t border-gray-100 mt-6 sticky bottom-0 bg-white">
+            <div className="pt-6 border-t border-[#2e2e2e] mt-6 sticky bottom-0 bg-[#181818]">
               <button 
                 onClick={() => setIsMobileFilterOpen(false)}
-                className="w-full bg-primary hover:bg-rose-600 text-white py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-xl transition"
+                className="w-full btn-netflix py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-xl transition cursor-pointer"
               >
                 Apply Filters ({properties.length} Results)
               </button>

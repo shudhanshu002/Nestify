@@ -1,52 +1,46 @@
 import { useState, useEffect } from 'react';
 import { 
-  Calendar, CheckCircle, AlertCircle, Loader2, X, 
-  ArrowRight, ShieldCheck, Clock, CreditCard, ChevronRight, Sparkles 
+  X, Calendar, Clock, AlertCircle, CheckCircle, 
+  CreditCard, Loader2, Sparkles, Bed, ArrowRight 
 } from 'lucide-react';
 import API from '../../api/client';
 
 const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
   const currentCheckOut = new Date(booking.checkOutDate);
-  
-  // Default to +30 days (1 month) from current checkout
-  const defaultNextDate = new Date(currentCheckOut.getTime() + 30 * 86400000);
-  const minDateStr = new Date(currentCheckOut.getTime() + 86400000).toISOString().split('T')[0];
-  
-  const [selectedDate, setSelectedDate] = useState(defaultNextDate.toISOString().split('T')[0]);
-  const [availabilityData, setAvailabilityData] = useState(null);
-  const [checking, setChecking] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const minDate = new Date(currentCheckOut.getTime() + 86400000); // at least +1 day
+  const minDateStr = minDate.toISOString().split('T')[0];
 
-  // Check availability whenever selectedDate changes
+  const defaultExtended = new Date(currentCheckOut.getTime() + 30 * 86400000); // +30 days default
+  const [selectedDate, setSelectedDate] = useState(defaultExtended.toISOString().split('T')[0]);
+
+  const [checking, setChecking] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [availabilityData, setAvailabilityData] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Check inventory availability and calculate extension cost
   useEffect(() => {
-    let isMounted = true;
+    if (!selectedDate) return;
+
     const checkAvailability = async () => {
       setChecking(true);
       setErrorMsg('');
       try {
-        const { data } = await API.post(`/bookings/${booking._id}/check-extension`, {
-          newCheckOutDate: selectedDate
+        const { data } = await API.get(`/bookings/${booking._id}/check-extend`, {
+          params: { newCheckOutDate: selectedDate }
         });
-        if (isMounted) {
-          setAvailabilityData(data);
-        }
+        setAvailabilityData(data.data);
       } catch (err) {
-        if (isMounted) {
-          setAvailabilityData(null);
-          setErrorMsg(err.response?.data?.message || "Failed to check room availability.");
-        }
+        setErrorMsg(err.response?.data?.message || "Failed to verify room inventory.");
+        setAvailabilityData(null);
       } finally {
-        if (isMounted) setChecking(false);
+        setChecking(false);
       }
     };
 
-    if (selectedDate) {
-      checkAvailability();
-    }
-
-    return () => { isMounted = false; };
-  }, [booking._id, selectedDate]);
+    const timer = setTimeout(checkAvailability, 300);
+    return () => clearTimeout(timer);
+  }, [selectedDate, booking._id]);
 
   const handlePresetDays = (days) => {
     const next = new Date(currentCheckOut.getTime() + days * 86400000);
@@ -71,16 +65,16 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[400] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-xl rounded-[3rem] p-6 sm:p-10 shadow-2xl border border-gray-100 space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-[#181818] text-white w-full max-w-xl rounded-[3rem] p-6 sm:p-10 shadow-2xl border border-[#2e2e2e] space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
         
         {/* HEADER */}
-        <div className="flex justify-between items-start pb-4 border-b border-gray-100">
+        <div className="flex justify-between items-start pb-4 border-b border-[#282828]">
           <div>
             <div className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-primary tracking-widest mb-1">
-              <Sparkles size={12} className="text-amber-500" /> Active Residency Extension
+              <Sparkles size={12} className="text-amber-400" /> Active Residency Extension
             </div>
-            <h3 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-gray-900">
+            <h3 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-white">
               Extend Your Rent.
             </h3>
             <p className="text-xs font-bold text-gray-400 mt-0.5 truncate max-w-sm">
@@ -89,21 +83,21 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
           </div>
           <button 
             onClick={onClose}
-            className="p-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-500 transition"
+            className="p-2.5 rounded-2xl bg-[#242424] hover:bg-[#333] text-gray-300 hover:text-white transition cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* CURRENT STAY SUMMARY */}
-        <div className="grid grid-cols-2 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 text-xs">
+        <div className="grid grid-cols-2 gap-3 p-4 bg-[#242424] rounded-2xl border border-[#333333] text-xs">
           <div>
             <span className="text-[10px] font-black uppercase text-gray-400 block tracking-wider">Scheduled Check-in</span>
-            <p className="font-black text-gray-800 mt-0.5">{new Date(booking.checkInDate).toLocaleDateString()}</p>
+            <p className="font-black text-gray-200 mt-0.5">{new Date(booking.checkInDate).toLocaleDateString()}</p>
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase text-rose-500 block tracking-wider">Current Check-out</span>
-            <p className="font-black text-rose-600 mt-0.5">{currentCheckOut.toLocaleDateString()}</p>
+            <span className="text-[10px] font-black uppercase text-primary block tracking-wider">Current Check-out</span>
+            <p className="font-black text-primary mt-0.5">{currentCheckOut.toLocaleDateString()}</p>
           </div>
         </div>
 
@@ -127,10 +121,10 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
                   type="button"
                   key={preset.days}
                   onClick={() => handlePresetDays(preset.days)}
-                  className={`py-2.5 px-3 rounded-2xl text-xs font-black uppercase tracking-wider transition ${
+                  className={`py-2.5 px-3 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
                     isSelected 
-                      ? 'bg-gray-900 text-white shadow-md' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'btn-netflix shadow-md text-white' 
+                      : 'bg-[#242424] text-gray-300 border border-[#333333] hover:bg-[#2c2c2c] hover:text-white'
                   }`}
                 >
                   {preset.label}
@@ -140,7 +134,7 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
           </div>
 
           {/* Custom Date Input */}
-          <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-1">
+          <div className="p-4 bg-[#242424] rounded-2xl border border-[#333333] space-y-1">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">
               Or Select Exact New Check-Out Date
             </label>
@@ -149,20 +143,20 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
               min={minDateStr}
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full bg-transparent font-bold text-sm text-gray-900 outline-none cursor-pointer"
+              className="w-full bg-transparent font-bold text-sm text-white outline-none cursor-pointer"
             />
           </div>
         </div>
 
         {/* AVAILABILITY & CONFLICT STATUS BOX */}
-        <div className="p-5 rounded-2xl border transition-all">
+        <div className="p-5 rounded-2xl border border-[#2e2e2e] bg-[#1a1a1a] transition-all">
           {checking ? (
             <div className="flex items-center gap-3 py-3 justify-center text-primary">
               <Loader2 size={18} className="animate-spin" />
               <span className="text-xs font-black uppercase tracking-widest">Checking Room Inventory...</span>
             </div>
           ) : errorMsg ? (
-            <div className="flex items-start gap-3 text-red-600 bg-red-50 p-4 rounded-xl border border-red-100">
+            <div className="flex items-start gap-3 text-primary bg-primary/10 p-4 rounded-xl border border-primary/20">
               <AlertCircle size={20} className="shrink-0 mt-0.5" />
               <div>
                 <p className="font-black text-xs uppercase tracking-wider">Extension Blocked</p>
@@ -171,9 +165,9 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
             </div>
           ) : availabilityData?.available ? (
             <div className="space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                  <CheckCircle size={14} className="text-emerald-600" />
+              <div className="flex items-center justify-between pb-3 border-b border-[#282828]">
+                <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase text-emerald-400 bg-emerald-950/50 px-3 py-1 rounded-full border border-emerald-800/40">
+                  <CheckCircle size={14} className="text-emerald-400" />
                   Available ({availabilityData.availableUnits} of {availabilityData.totalInventory} units free)
                 </span>
                 <span className="text-xs font-bold text-gray-400">
@@ -183,20 +177,20 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
 
               {/* Cost Calculation Breakdown */}
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between text-gray-500 font-bold">
+                <div className="flex justify-between text-gray-400 font-bold">
                   <span>Additional Stay Duration</span>
-                  <span className="font-mono text-gray-800">{availabilityData.additionalDays} Days</span>
+                  <span className="font-mono text-white">{availabilityData.additionalDays} Days</span>
                 </div>
-                <div className="flex justify-between text-gray-500 font-bold">
+                <div className="flex justify-between text-gray-400 font-bold">
                   <span>Room Tariff Rate</span>
-                  <span className="font-mono text-gray-800">₹{availabilityData.dailyRate.toLocaleString()} / day</span>
+                  <span className="font-mono text-white">₹{availabilityData.dailyRate.toLocaleString()} / day</span>
                 </div>
-                <div className="flex justify-between text-gray-500 font-bold">
+                <div className="flex justify-between text-gray-400 font-bold">
                   <span>New Scheduled Check-out</span>
-                  <span className="font-mono text-emerald-600 font-black">{new Date(availabilityData.newCheckOutDate).toLocaleDateString()}</span>
+                  <span className="font-mono text-emerald-400 font-black">{new Date(availabilityData.newCheckOutDate).toLocaleDateString()}</span>
                 </div>
-                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
-                  <span className="font-black text-sm text-gray-900 uppercase">Extension Rent Due</span>
+                <div className="flex justify-between items-center pt-3 border-t border-[#282828]">
+                  <span className="font-black text-sm text-white uppercase">Extension Rent Due</span>
                   <span className="text-2xl font-black text-primary font-mono">
                     ₹{availabilityData.additionalAmount.toLocaleString()}
                   </span>
@@ -204,7 +198,7 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
               </div>
             </div>
           ) : (
-            <div className="flex items-start gap-3 text-red-600 bg-red-50 p-4 rounded-xl border border-red-100">
+            <div className="flex items-start gap-3 text-primary bg-primary/10 p-4 rounded-xl border border-primary/20">
               <AlertCircle size={20} className="shrink-0 mt-0.5" />
               <div>
                 <p className="font-black text-xs uppercase tracking-wider">No Rooms Available</p>
@@ -220,7 +214,7 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
         <button
           disabled={checking || submitting || !availabilityData?.available}
           onClick={handleConfirmExtension}
-          className="w-full btn-netflix py-4 rounded-2xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none active:scale-95 cursor-pointer"
+          className="w-full btn-netflix py-4 rounded-2xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 disabled:opacity-40 active:scale-95 cursor-pointer"
         >
           {submitting ? (
             <>
@@ -243,4 +237,3 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
 };
 
 export default ExtendStayModal;
-
