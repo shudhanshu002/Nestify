@@ -15,6 +15,17 @@ const PropertyCard = ({ property }) => {
   const discountPercent = Math.round(((originalPrice - basePrice) / originalPrice) * 100);
   const rating = property.averageRating || 4.6;
 
+  const getTierBadge = () => {
+    if (property.tier === 'LUXURY') return { label: 'Luxury', bg: 'bg-gradient-to-r from-amber-600 to-rose-600', icon: '💎' };
+    if (property.tier === 'BUDGET') return { label: 'Budget', bg: 'bg-blue-600', icon: '🎓' };
+    if (property.tier === 'STANDARD') return { label: 'Classic', bg: 'bg-gray-800', icon: '🏠' };
+    if (property.tier === 'FLAGSHIP') return { label: 'Flagship', bg: 'bg-rose-600', icon: '⭐' };
+    return property.basePrice > 12000 
+      ? { label: 'Premier', bg: 'bg-gradient-to-r from-amber-600 to-rose-600', icon: '💎' }
+      : { label: 'Flagship', bg: 'bg-rose-600', icon: '⭐' };
+  };
+  const tierBadge = getTierBadge();
+
   return (
     <div 
       onClick={() => navigate(`/property/${property._id}`)} 
@@ -30,9 +41,9 @@ const PropertyCard = ({ property }) => {
 
         {/* OYO Flagship Badge */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-          <span className="bg-rose-600 text-white text-[9px] font-black uppercase px-2.5 py-1 rounded-full tracking-wider shadow-md flex items-center gap-1">
-            <Sparkles size={10} />
-            {property.basePrice > 12000 ? 'Premier' : 'Flagship'}
+          <span className={`${tierBadge.bg} text-white text-[9px] font-black uppercase px-2.5 py-1 rounded-full tracking-wider shadow-md flex items-center gap-1`}>
+            <span>{tierBadge.icon}</span>
+            <span>{tierBadge.label}</span>
           </span>
           {property.verificationStatus === 'VERIFIED' && (
             <span className="bg-gray-950/80 backdrop-blur-md text-emerald-400 text-[8px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">

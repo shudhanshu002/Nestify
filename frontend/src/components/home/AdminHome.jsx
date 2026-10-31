@@ -5,7 +5,7 @@ import {
   ShieldCheck, Users, Building, Search, CheckCircle2, 
   Clock, AlertCircle, Star, MapPin, Loader2, Bed, 
   ExternalLink, ChevronDown, ChevronUp, ShieldAlert,
-  Phone, Mail, Check, X, ArrowUpRight
+  Phone, Mail, Check, X, ArrowUpRight, Sparkles
 } from 'lucide-react';
 
 const AdminHome = ({ user }) => {
@@ -55,6 +55,15 @@ const AdminHome = ({ user }) => {
     }
   };
 
+  const handleUpdateTier = async (propId, tier) => {
+    try {
+      await API.patch(`/properties/${propId}/tier`, { tier });
+      fetchOwnersDirectory();
+    } catch (err) {
+      alert("Failed to update property tier.");
+    }
+  };
+
   // Filter owners by search query and KYC status
   const filteredOwners = owners.filter(owner => {
     const query = search.toLowerCase().trim();
@@ -66,6 +75,7 @@ const AdminHome = ({ user }) => {
     const matchesPG = owner.properties?.some(p => 
       p.title?.toLowerCase().includes(query) ||
       p.location?.city?.toLowerCase().includes(query) ||
+      p.tier?.toLowerCase().includes(query) ||
       p.rooms?.some(r => r.roomType?.toLowerCase().includes(query))
     );
 
@@ -100,7 +110,7 @@ const AdminHome = ({ user }) => {
             Owners & PG Directory.
           </h1>
           <p className="text-gray-400 text-sm md:text-base font-medium max-w-xl">
-            Audit registered PG owners, inspect their listed properties and room inventories, verify safety compliance, and monitor guest ratings.
+            Audit registered PG owners, inspect listed properties and room inventories, manage collection tiers, verify safety compliance, and monitor ratings.
           </p>
 
           <div className="flex flex-wrap gap-3 pt-4">
@@ -147,7 +157,7 @@ const AdminHome = ({ user }) => {
             <Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
             <input 
               type="text" 
-              placeholder="Search owners, PG title, city, email..." 
+              placeholder="Search owners, PG title, tier, city..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-2xl font-bold text-sm text-gray-800 outline-none focus:ring-2 focus:ring-primary border-none transition"
@@ -313,9 +323,14 @@ const AdminHome = ({ user }) => {
                                   />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2">
-                                      <span className="text-[9px] font-black uppercase tracking-wider bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
-                                        {pg.category || 'PG'}
-                                      </span>
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                                          {pg.category || 'PG'}
+                                        </span>
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-100 flex items-center gap-0.5">
+                                          <Sparkles size={10} className="text-amber-500" /> {pg.tier || 'FLAGSHIP'}
+                                        </span>
+                                      </div>
                                       
                                       {/* Verification Status */}
                                       <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
@@ -370,36 +385,53 @@ const AdminHome = ({ user }) => {
                                   )}
                                 </div>
 
-                                {/* ADMIN PROPERTY ACTIONS */}
-                                <div className="pt-2 flex items-center justify-between gap-2 border-t border-gray-100">
-                                  <Link 
-                                    to={`/property/${pg._id}`}
-                                    className="text-xs font-black uppercase text-gray-600 hover:text-primary transition flex items-center gap-1"
-                                  >
-                                    View Listing <ExternalLink size={12}/>
-                                  </Link>
+                                {/* ADMIN PROPERTY ACTIONS & TIER CONTROL */}
+                                <div className="pt-2 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[9px] font-black uppercase text-gray-400">Tier:</span>
+                                    <select
+                                      value={pg.tier || 'FLAGSHIP'}
+                                      onChange={(e) => handleUpdateTier(pg._id, e.target.value)}
+                                      className="text-[10px] font-black uppercase bg-gray-50 border border-gray-200 rounded-lg px-2 py-1 outline-none cursor-pointer hover:border-primary transition"
+                                      title="Update Property Tier"
+                                    >
+                                      <option value="FLAGSHIP">⭐ Flagship</option>
+                                      <option value="LUXURY">💎 Luxury</option>
+                                      <option value="BUDGET">🎓 Budget</option>
+                                      <option value="STANDARD">🏠 Standard</option>
+                                    </select>
+                                  </div>
 
-                                  {isPending && (
-                                    <div className="flex gap-2">
-                                      <button 
-                                        disabled={verifyingPropId === pg._id}
-                                        onClick={() => handleVerifyProperty(pg._id, 'VERIFIED')}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 shadow-sm transition active:scale-95 disabled:opacity-50"
-                                      >
-                                        <Check size={12}/> Approve
-                                      </button>
-                                      <button 
-                                        disabled={verifyingPropId === pg._id}
-                                        onClick={() => {
-                                          const reason = prompt("Enter rejection reason for owner:");
-                                          if (reason) handleVerifyProperty(pg._id, 'REJECTED', reason);
-                                        }}
-                                        className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 border border-red-200 transition active:scale-95 disabled:opacity-50"
-                                      >
-                                        <X size={12}/> Reject
-                                      </button>
-                                    </div>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    <Link 
+                                      to={`/property/${pg._id}`}
+                                      className="text-xs font-black uppercase text-gray-600 hover:text-primary transition flex items-center gap-1"
+                                    >
+                                      View <ExternalLink size={12}/>
+                                    </Link>
+
+                                    {isPending && (
+                                      <div className="flex gap-2">
+                                        <button 
+                                          disabled={verifyingPropId === pg._id}
+                                          onClick={() => handleVerifyProperty(pg._id, 'VERIFIED')}
+                                          className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 shadow-sm transition active:scale-95 disabled:opacity-50"
+                                        >
+                                          <Check size={12}/> Approve
+                                        </button>
+                                        <button 
+                                          disabled={verifyingPropId === pg._id}
+                                          onClick={() => {
+                                            const reason = prompt("Enter rejection reason for owner:");
+                                            if (reason) handleVerifyProperty(pg._id, 'REJECTED', reason);
+                                          }}
+                                          className="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 border border-red-200 transition active:scale-95 disabled:opacity-50"
+                                        >
+                                          <X size={12}/> Reject
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             );

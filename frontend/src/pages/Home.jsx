@@ -73,9 +73,14 @@ const Home = () => {
         fetchData();
     }, [category]);
 
-    // Partition properties into OYO-style collections
-    const flagshipStays = properties.filter(p => p.basePrice >= 9000 || p.averageRating >= 4.4).slice(0, 6);
-    const budgetStays = properties.filter(p => p.basePrice <= 8500).slice(0, 6);
+    // Partition properties into OYO-style collections using explicit property.tier
+    const flagshipStays = properties.filter(p => 
+      p.tier === 'FLAGSHIP' || p.tier === 'LUXURY' || (!p.tier && (p.basePrice >= 9000 || p.averageRating >= 4.4))
+    ).slice(0, 6);
+    
+    const budgetStays = properties.filter(p => 
+      p.tier === 'BUDGET' || (!p.tier && p.basePrice <= 8500)
+    ).slice(0, 6);
     const topRatedStays = [...properties].sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0)).slice(0, 6);
 
     return (

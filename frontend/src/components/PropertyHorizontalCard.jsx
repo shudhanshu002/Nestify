@@ -44,6 +44,17 @@ const PropertyHorizontalCard = ({ property }) => {
     return 'Comfortable';
   };
 
+  const getTierBadge = () => {
+    if (property.tier === 'LUXURY') return { label: 'Premier Luxury', bg: 'bg-gradient-to-r from-amber-600 to-rose-600', icon: '💎' };
+    if (property.tier === 'BUDGET') return { label: 'Student Budget', bg: 'bg-blue-600', icon: '🎓' };
+    if (property.tier === 'STANDARD') return { label: 'Standard PG', bg: 'bg-gray-800', icon: '🏠' };
+    if (property.tier === 'FLAGSHIP') return { label: 'Nestify Flagship', bg: 'bg-rose-600', icon: '⭐' };
+    return property.basePrice > 12000 
+      ? { label: 'Premier Collection', bg: 'bg-gradient-to-r from-amber-600 to-rose-600', icon: '💎' }
+      : { label: 'Nestify Flagship', bg: 'bg-rose-600', icon: '⭐' };
+  };
+  const tierBadge = getTierBadge();
+
   const handleNextImage = (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -71,9 +82,9 @@ const PropertyHorizontalCard = ({ property }) => {
 
         {/* OYO Collection / Flagship Badge */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-          <span className="bg-rose-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shadow-md flex items-center gap-1">
-            <Sparkles size={11} />
-            {property.basePrice > 12000 ? 'Premier Collection' : 'Nestify Flagship'}
+          <span className={`${tierBadge.bg} text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shadow-md flex items-center gap-1`}>
+            <span>{tierBadge.icon}</span>
+            <span>{tierBadge.label}</span>
           </span>
           {property.verificationStatus === 'VERIFIED' && (
             <span className="bg-gray-950/80 backdrop-blur-md text-emerald-400 text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full flex items-center gap-1">
