@@ -6,8 +6,8 @@ const notificationSchema = new mongoose.Schema({
   message: { type: String, required: true },
   type: { 
     type: String, 
-    enum: ['KYC_UPDATE', 'PROPERTY_VERIFICATION', 'BOOKING'], 
-    default: 'PROPERTY_VERIFICATION' 
+    enum: ['KYC_UPDATE', 'PROPERTY_VERIFICATION', 'BOOKING', 'MAINTENANCE'], 
+    default: 'MAINTENANCE' 
   },
   relatedId: { type: mongoose.Schema.Types.ObjectId }, 
   isRead: { type: Boolean, default: false },

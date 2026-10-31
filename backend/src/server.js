@@ -19,8 +19,9 @@ const io = new Server(server, {
   }
 });
 
-// 3. Attach socket logic
+// 3. Attach socket logic and expose io to express app
 initSocket(io);
+app.set('io', io);
 
 const PORT = process.env.PORT || 5000;
 

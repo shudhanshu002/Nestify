@@ -4,6 +4,7 @@ const maintenanceSchema = new mongoose.Schema({
   property: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
   tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   room: { type: mongoose.Schema.Types.ObjectId, ref: 'Room' },
+  booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
   issueType: { type: String, enum: ['PLUMBING', 'WIFI', 'CLEANING', 'ELECTRIC', 'OTHER'], required: true },
   description: { type: String, required: true },
   priority: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH'], default: 'MEDIUM' },
