@@ -7,6 +7,7 @@ import { ChatProvider } from './context/ChatContext';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import ChatLauncher from './components/chat/ChatLauncher'; 
+import Footer from './components/Footer'; 
 
 // --- PAGES ---
 import Home from './pages/Home';
@@ -44,9 +45,9 @@ function App() {
 
   return (
     <ChatProvider>
-      <div className="min-h-screen bg-[#141414] text-white font-sans antialiased selection:bg-primary selection:text-white">
+      <div className="min-h-screen flex flex-col justify-between bg-[#141414] text-white font-sans antialiased selection:bg-primary selection:text-white">
         <Navbar />
-        <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/search" element={<SearchResults />} />
@@ -88,6 +89,7 @@ function App() {
           {/* 󾠮 ChatLauncher handles the floating bubble & drawer logic internally */}
           <ChatLauncher />
         </main>
+        <Footer />
       </div>
     </ChatProvider>
   );
