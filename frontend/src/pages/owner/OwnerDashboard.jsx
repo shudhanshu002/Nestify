@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import API from '../../api/client';
+import { useChat } from '../../context/ChatContext';
 import { 
   Calendar, User, Home, ArrowRight, Loader2, 
   CheckCircle2, LogOut, RefreshCcw, DollarSign, 
   CreditCard, Search, ArrowUpRight, ChevronRight,
-  Wrench, Clock, MessageSquare, Star, Hash, AlertTriangle
+  Wrench, Clock, MessageSquare, Star, Hash, AlertTriangle,
+  Inbox, CheckCheck, Send
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -14,23 +16,26 @@ const OwnerDashboard = () => {
   const [tickets, setTickets] = useState([]); // Maintenance State
   const [loading, setLoading] = useState(true);
   const [actionBooking, setActionBooking] = useState(null); 
-  const [resolutionNote, setResolutionNote] = useState("");
+  const [resolutionNotes, setResolutionNotes] = useState({}); // Per-ticket resolution note state
+  const [resolvingId, setResolvingId] = useState(null);
   const [customDate, setCustomDate] = useState(new Date().toISOString().slice(0, 16));
+
+  const { socket } = useChat();
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // 1. Restore original working fetch
+      // 1. Fetch bookings
       const res = await API.get('/bookings/owner-bookings');
       setBookings(res.data.data || []);
 
-      // 2. Add maintenance fetch with a "Safety Guard"
+      // 2. Fetch all tickets for owner's properties
       try {
         const ticketRes = await API.get('/maintenance/owner/all');
         setTickets(ticketRes.data.data || []);
       } catch (ticketError) {
-        console.warn("Maintenance feature backend not ready yet.");
-        setTickets([]); // Default to empty so UI doesn't crash
+        console.warn("Maintenance feature backend error:", ticketError);
+        setTickets([]);
       }
 
     } catch (err) { 
@@ -40,7 +45,36 @@ const OwnerDashboard = () => {
     }
   };
 
-  useEffect(() => { fetchDashboardData(); }, []);
+  useEffect(() => { 
+    fetchDashboardData(); 
+  }, []);
+
+  // Real-time socket listener for live ticket updates without page refresh
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewTicket = (newTicket) => {
+      setTickets((prev) => {
+        // Prevent duplicate if already in state
+        if (prev.some((t) => t._id === newTicket._id)) return prev;
+        return [newTicket, ...prev];
+      });
+    };
+
+    const handleTicketUpdated = (updatedTicket) => {
+      setTickets((prev) =>
+        prev.map((t) => (t._id === updatedTicket._id ? updatedTicket : t))
+      );
+    };
+
+    socket.on('new_maintenance_ticket', handleNewTicket);
+    socket.on('ticket_updated', handleTicketUpdated);
+
+    return () => {
+      socket.off('new_maintenance_ticket', handleNewTicket);
+      socket.off('ticket_updated', handleTicketUpdated);
+    };
+  }, [socket]);
 
   const handleStatusUpdate = async (bookingId, newStatus) => {
     try {
@@ -48,18 +82,43 @@ const OwnerDashboard = () => {
       alert(`Status updated to ${newStatus}`);
       setActionBooking(null);
       fetchDashboardData();
-    } catch (err) { alert(err.response?.data?.message || "Operation failed."); }
+    } catch (err) { 
+      alert(err.response?.data?.message || "Operation failed."); 
+    }
   };
 
   const handleResolveTicket = async (ticketId) => {
-    if (!resolutionNote) return alert("Please type a resolution note.");
+    const note = resolutionNotes[ticketId]?.trim();
+    if (!note) return alert("Please type a resolution note before marking it solved.");
+
     try {
-      await API.patch(`/maintenance/${ticketId}/respond`, { status: 'RESOLVED', resolutionNote });
-      alert("Issue Resolved!");
-      setResolutionNote("");
-      fetchDashboardData();
-    } catch (err) { alert("Error resolving ticket"); }
+      setResolvingId(ticketId);
+      const { data } = await API.patch(`/maintenance/${ticketId}/respond`, { 
+        status: 'RESOLVED', 
+        resolutionNote: note 
+      });
+
+      alert("Issue marked as Resolved! Tenant has been notified.");
+      
+      // Update local state immediately so it moves from Pending to Service History
+      setTickets((prev) =>
+        prev.map((t) => (t._id === ticketId ? data.data : t))
+      );
+
+      setResolutionNotes((prev) => {
+        const copy = { ...prev };
+        delete copy[ticketId];
+        return copy;
+      });
+    } catch (err) { 
+      alert(err.response?.data?.message || "Error resolving ticket"); 
+    } finally {
+      setResolvingId(null);
+    }
   };
+
+  const pendingTickets = tickets.filter(t => t.status !== 'RESOLVED');
+  const resolvedTickets = tickets.filter(t => t.status === 'RESOLVED');
 
   const completedBookings = bookings.filter(b => b?.status === 'COMPLETED');
   const totalRevenue = completedBookings.reduce((sum, b) => sum + (b?.totalAmount || 0), 0);
@@ -74,25 +133,54 @@ const OwnerDashboard = () => {
   return (
     <div className="max-w-7xl mx-auto py-12 px-6">
       
-      {/* HEADER SECTION - SAME AS OLD CODE */}
+      {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
         <div>
           <h1 className="text-6xl font-black italic tracking-tighter text-gray-900 leading-none">Portal.</h1>
-          <div className="flex gap-4 mt-6">
-            <button onClick={() => setActiveTab('live')} className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition ${activeTab === 'live' ? 'bg-gray-900 text-white shadow-xl' : 'bg-gray-100 text-gray-400'}`}>Live Occupancy</button>
-            <button onClick={() => setActiveTab('ledger')} className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition ${activeTab === 'ledger' ? 'bg-gray-900 text-white shadow-xl' : 'bg-gray-100 text-gray-400'}`}>Transaction Ledger</button>
-            <button onClick={() => setActiveTab('queries')} className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition ${activeTab === 'queries' ? 'bg-gray-900 text-white shadow-xl' : 'bg-gray-100 text-gray-400'}`}>
-                Service History {tickets.length > 0 && <span className="text-primary ml-1">({tickets.length})</span>}
+          <div className="flex flex-wrap gap-3 mt-6">
+            <button 
+              onClick={() => setActiveTab('live')} 
+              className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition ${activeTab === 'live' ? 'bg-gray-900 text-white shadow-xl' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              Live Occupancy
+            </button>
+            <button 
+              onClick={() => setActiveTab('ledger')} 
+              className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition ${activeTab === 'ledger' ? 'bg-gray-900 text-white shadow-xl' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              Transaction Ledger
+            </button>
+            <button 
+              onClick={() => setActiveTab('pending_tasks')} 
+              className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 ${activeTab === 'pending_tasks' ? 'bg-red-500 text-white shadow-xl' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              <span>Pending Tasks</span>
+              {pendingTickets.length > 0 && (
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${activeTab === 'pending_tasks' ? 'bg-white text-red-500' : 'bg-red-500 text-white animate-pulse'}`}>
+                  {pendingTickets.length}
+                </span>
+              )}
+            </button>
+            <button 
+              onClick={() => setActiveTab('service_history')} 
+              className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 ${activeTab === 'service_history' ? 'bg-gray-900 text-white shadow-xl' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              <span>Service History</span>
+              {resolvedTickets.length > 0 && (
+                <span className="bg-primary/20 text-primary px-2 py-0.5 rounded-full text-[9px] font-black">
+                  {resolvedTickets.length}
+                </span>
+              )}
             </button>
           </div>
         </div>
         <div className="flex gap-4">
-          <Link to="/owner/my-properties" className="bg-white border-2 border-gray-900 text-gray-900 px-8 py-4 rounded-2xl font-black text-xs uppercase shadow-sm">Inventory</Link>
-          <button onClick={fetchDashboardData} className="p-4 bg-gray-50 rounded-2xl text-gray-400 hover:text-primary transition"><RefreshCcw size={20}/></button>
+          <Link to="/owner/my-properties" className="bg-white border-2 border-gray-900 text-gray-900 px-8 py-4 rounded-2xl font-black text-xs uppercase shadow-sm hover:bg-gray-900 hover:text-white transition">Inventory</Link>
+          <button onClick={fetchDashboardData} className="p-4 bg-gray-50 rounded-2xl text-gray-400 hover:text-primary transition" title="Refresh Data"><RefreshCcw size={20}/></button>
         </div>
       </div>
 
-      {/* 󾠮 TAB: LIVE OCCUPANCY (RESTORED) */}
+      {/* 1. TAB: LIVE OCCUPANCY */}
       {activeTab === 'live' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -154,7 +242,7 @@ const OwnerDashboard = () => {
         </div>
       )}
 
-      {/* 󾠯 TAB: TRANSACTION LEDGER (RESTORED) */}
+      {/* 2. TAB: TRANSACTION LEDGER */}
       {activeTab === 'ledger' && (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="bg-white rounded-[4rem] shadow-2xl border border-gray-50 overflow-hidden">
@@ -186,58 +274,178 @@ const OwnerDashboard = () => {
         </div>
       )}
 
-      {/* 󾠰 TAB: MAINTENANCE HISTORY (NEW WORKING VERSION) */}
-      {activeTab === 'queries' && (
+      {/* 3. TAB: PENDING TASKS (Live & Unfinished requests) */}
+      {activeTab === 'pending_tasks' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {tickets.length > 0 ? tickets.map(t => {
-            const duration = t.resolvedAt ? Math.floor((new Date(t.resolvedAt) - new Date(t.createdAt)) / (1000 * 60 * 60)) : null;
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-2xl font-black text-gray-900 italic tracking-tight">Active Maintenance Requests</h3>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Live queue of tickets requiring resolution</p>
+            </div>
+            <div className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-1.5 rounded-full text-xs font-black">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+              <span>Live Synced</span>
+            </div>
+          </div>
 
-            return (
-              <div key={t._id} className="bg-white p-10 rounded-[4rem] border border-gray-100 shadow-xl flex flex-col md:flex-row justify-between gap-10">
-                <div className="flex-1 space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-4 rounded-2xl ${t.status === 'RESOLVED' ? 'bg-green-50 text-green-500' : 'bg-red-50 text-red-500'}`}>
-                      <Wrench size={24}/>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{t.property?.title || "Property"}</p>
-                      <h4 className="text-3xl font-black text-gray-900 italic tracking-tighter">
-                         {t.issueType} <span className="text-primary not-italic text-sm ml-2 bg-primary/5 px-2 py-1 rounded">Room {t.room?.roomType || 'N/A'}</span>
-                      </h4>
-                    </div>
+          {pendingTickets.length > 0 ? pendingTickets.map(t => (
+            <div key={t._id} className="bg-white p-10 rounded-[3.5rem] border border-red-100 shadow-xl flex flex-col lg:flex-row justify-between gap-8 transition-all hover:shadow-2xl">
+              <div className="flex-1 space-y-5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="p-3.5 rounded-2xl bg-red-50 text-red-500">
+                    <Wrench size={22}/>
                   </div>
-                  <p className="text-gray-600 font-medium italic bg-gray-50 p-6 rounded-[2rem]">"{t.description}"</p>
-                  <div className="flex gap-6 text-[10px] font-black uppercase text-gray-400">
-                     <span className="flex items-center gap-1"><User size={12}/> {t.tenant?.firstName}</span>
-                     <span className="flex items-center gap-1"><Clock size={12}/> {new Date(t.createdAt).toLocaleDateString()}</span>
-                     {t.status === 'RESOLVED' && t.userRating && (
-                        <span className="flex items-center gap-1 text-yellow-500"><Star size={12} fill="currentColor"/> {t.userRating} Star Fix</span>
-                     )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2.5 py-1 rounded-lg">
+                        {t.property?.title || "Property"}
+                      </span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase bg-gray-100 px-2.5 py-1 rounded-lg">
+                        {t.room?.roomNumber ? `Room ${t.room.roomNumber}` : (t.room?.roomType ? `Unit: ${t.room.roomType}` : 'Assigned Room')}
+                      </span>
+                      <span className="text-[10px] font-black uppercase text-red-600 bg-red-50 px-2.5 py-1 rounded-lg">
+                        Priority: {t.priority || 'MEDIUM'}
+                      </span>
+                    </div>
+                    <h4 className="text-3xl font-black text-gray-900 italic tracking-tighter mt-1">
+                      {t.issueType} <span className="not-italic text-xs font-bold text-gray-400 ml-2">Ticket #{t._id.slice(-6).toUpperCase()}</span>
+                    </h4>
                   </div>
                 </div>
 
-                <div className="w-full md:w-96">
-                  {t.status !== 'RESOLVED' ? (
-                    <div className="bg-gray-900 p-8 rounded-[3rem] space-y-4">
-                      <textarea 
-                        className="w-full bg-white/10 text-white p-4 rounded-2xl text-xs outline-none focus:border-primary border border-transparent h-24" 
-                        placeholder="Resolution message..." 
-                        onChange={(e) => setResolutionNote(e.target.value)} 
-                      />
-                      <button onClick={() => handleResolveTicket(t._id)} className="w-full bg-primary text-white py-4 rounded-2xl font-black text-[10px] uppercase hover:bg-white hover:text-primary transition">Confirm Fix</button>
-                    </div>
+                <div className="bg-gray-50 p-6 rounded-[2rem] border border-gray-100">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Issue Description</p>
+                  <p className="text-gray-800 font-medium italic text-base leading-relaxed">"{t.description}"</p>
+                </div>
+
+                <div className="flex flex-wrap gap-6 text-[10px] font-black uppercase text-gray-400">
+                  <span className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl text-gray-600">
+                    <User size={13} className="text-primary"/> Tenant: {t.tenant?.firstName} {t.tenant?.lastName} ({t.tenant?.email})
+                  </span>
+                  <span className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-xl">
+                    <Clock size={13}/> Raised: {new Date(t.createdAt).toLocaleString()}
+                  </span>
+                  <span className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-xl">
+                    Status: {t.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* ACTION: RESOLVE ISSUE */}
+              <div className="w-full lg:w-96 flex flex-col justify-between bg-gray-950 p-7 rounded-[2.8rem] space-y-4 shadow-xl">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 mb-2 block flex items-center gap-1.5">
+                    <MessageSquare size={13} className="text-primary"/> Resolution Reply for Tenant
+                  </label>
+                  <textarea 
+                    value={resolutionNotes[t._id] || ''}
+                    onChange={(e) => setResolutionNotes({ ...resolutionNotes, [t._id]: e.target.value })}
+                    className="w-full bg-white/10 text-white placeholder-gray-400 p-4 rounded-2xl text-xs outline-none focus:ring-2 focus:ring-primary border border-transparent h-28 resize-none transition" 
+                    placeholder="E.g. Plumber replaced the leaking pipe. Work completed successfully." 
+                  />
+                </div>
+                <button 
+                  onClick={() => handleResolveTicket(t._id)}
+                  disabled={resolvingId === t._id}
+                  className="w-full bg-primary text-white py-4 rounded-2xl font-black text-[11px] uppercase tracking-wider hover:bg-white hover:text-primary transition flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
+                >
+                  {resolvingId === t._id ? (
+                    <Loader2 size={16} className="animate-spin" />
                   ) : (
-                    <div className="h-full flex flex-col justify-center items-center bg-gray-50 rounded-[3rem] p-8 border-2 border-dashed border-gray-100">
-                        <CheckCircle2 size={32} className="text-green-500 mb-2"/>
-                        <p className="text-[10px] font-black text-gray-400 uppercase">Resolution Logged</p>
-                        <p className="text-sm font-bold text-gray-900 mt-2 text-center">"{t.resolutionNote}"</p>
+                    <CheckCheck size={16}/>
+                  )}
+                  <span>Confirm Fix & Move to History</span>
+                </button>
+              </div>
+            </div>
+          )) : (
+            <div className="text-center py-24 bg-white rounded-[3.5rem] border-2 border-dashed border-gray-100 p-12">
+              <CheckCircle2 size={56} className="mx-auto mb-4 text-green-400"/>
+              <h4 className="text-xl font-black text-gray-900 tracking-tight">All Tasks Finished!</h4>
+              <p className="font-bold text-gray-400 text-xs mt-1 uppercase tracking-widest">No pending maintenance requests right now.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. TAB: SERVICE HISTORY (Finished/Resolved tasks only) */}
+      {activeTab === 'service_history' && (
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-2xl font-black text-gray-900 italic tracking-tight">Resolved Service History</h3>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Archive of resolved tickets with manager replies and resident ratings</p>
+            </div>
+            <span className="text-xs font-black uppercase text-gray-400 bg-gray-100 px-4 py-1.5 rounded-full">
+              {resolvedTickets.length} Completed
+            </span>
+          </div>
+
+          {resolvedTickets.length > 0 ? resolvedTickets.map(t => {
+            const duration = t.resolvedAt ? Math.max(1, Math.round((new Date(t.resolvedAt) - new Date(t.createdAt)) / (1000 * 60 * 60))) : null;
+
+            return (
+              <div key={t._id} className="bg-white p-10 rounded-[3.5rem] border border-gray-100 shadow-xl flex flex-col lg:flex-row justify-between gap-8">
+                <div className="flex-1 space-y-5">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3.5 rounded-2xl bg-green-50 text-green-600">
+                      <CheckCircle2 size={24}/>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 bg-gray-100 px-2.5 py-1 rounded-lg">
+                          {t.property?.title || "Property"}
+                        </span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase bg-gray-100 px-2.5 py-1 rounded-lg">
+                          {t.room?.roomNumber ? `Room ${t.room.roomNumber}` : (t.room?.roomType ? `Unit: ${t.room.roomType}` : 'Room')}
+                        </span>
+                        <span className="text-[10px] font-black uppercase text-green-700 bg-green-50 px-2.5 py-1 rounded-lg">
+                          Solved
+                        </span>
+                      </div>
+                      <h4 className="text-3xl font-black text-gray-900 italic tracking-tighter mt-1">
+                        {t.issueType} <span className="not-italic text-xs font-bold text-gray-400 ml-2">Ticket #{t._id.slice(-6).toUpperCase()}</span>
+                      </h4>
+                    </div>
+                  </div>
+
+                  <p className="text-gray-700 font-medium italic bg-gray-50 p-6 rounded-[2rem]">"{t.description}"</p>
+
+                  <div className="flex flex-wrap gap-6 text-[10px] font-black uppercase text-gray-400">
+                    <span className="flex items-center gap-1.5"><User size={12}/> Tenant: {t.tenant?.firstName} {t.tenant?.lastName}</span>
+                    <span className="flex items-center gap-1.5"><Clock size={12}/> Reported: {new Date(t.createdAt).toLocaleDateString()}</span>
+                    {t.resolvedAt && (
+                      <span className="flex items-center gap-1.5 text-green-600"><CheckCircle2 size={12}/> Resolved: {new Date(t.resolvedAt).toLocaleDateString()} ({duration}h turnaround)</span>
+                    )}
+                    {t.userRating && (
+                      <span className="flex items-center gap-1 text-yellow-500 font-black"><Star size={12} fill="currentColor"/> {t.userRating} Star Rating</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="w-full lg:w-96 flex flex-col justify-center items-stretch bg-gray-50 rounded-[2.8rem] p-7 border-2 border-dashed border-gray-100">
+                  <div className="flex items-center gap-2 mb-2 text-green-600">
+                    <CheckCheck size={18}/>
+                    <span className="text-[10px] font-black uppercase tracking-wider">Manager Resolution</span>
+                  </div>
+                  <p className="text-sm font-bold text-gray-900 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 italic">
+                    "{t.resolutionNote || 'Ticket marked resolved by owner.'}"
+                  </p>
+                  {t.userFeedback && (
+                    <div className="mt-3 text-xs text-gray-500 italic bg-yellow-50/50 p-3 rounded-xl border border-yellow-100">
+                      <span className="font-bold text-[9px] uppercase text-yellow-700 not-italic block">Tenant Feedback:</span>
+                      "{t.userFeedback}"
                     </div>
                   )}
                 </div>
               </div>
             );
           }) : (
-            <div className="text-center py-24 opacity-20"><Wrench size={64} className="mx-auto mb-4"/><p className="font-black uppercase tracking-widest text-sm">No Service History</p></div>
+            <div className="text-center py-24 bg-white rounded-[3.5rem] border-2 border-dashed border-gray-100 p-12">
+              <Inbox size={56} className="mx-auto mb-4 text-gray-300"/>
+              <h4 className="text-xl font-black text-gray-900 tracking-tight">No Service History Yet</h4>
+              <p className="font-bold text-gray-400 text-xs mt-1 uppercase tracking-widest">Finished tasks will be archived here once resolved.</p>
+            </div>
           )}
         </div>
       )}
