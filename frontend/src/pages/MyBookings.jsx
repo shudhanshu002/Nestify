@@ -4,7 +4,7 @@ import { useChat } from '../context/ChatContext';
 import { 
   Calendar, MapPin, Loader2, Wrench, Star, 
   X, Send, ShieldCheck, Wifi, Volume2, Zap, Search, MessageSquare,
-  Clock, ChevronRight, CheckCircle2, Lock
+  Clock, ChevronRight, CheckCircle2, Lock, Check
 } from 'lucide-react';
 
 const MyBookings = () => {
@@ -205,9 +205,10 @@ const MyBookings = () => {
               <img src={book.property?.images?.[0]?.url || 'https://via.placeholder.com/600x400'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Property" />
               <div className={`absolute top-6 right-6 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl ${
                 book.status === 'CONFIRMED' ? 'bg-blue-500 text-white' : 
-                book.status === 'CHECKED_IN' ? 'bg-green-500 text-white' : 'bg-gray-900 text-white'
+                book.status === 'CHECKED_IN' ? 'bg-green-500 text-white' : 
+                book.status === 'COMPLETED' ? 'bg-gray-800 text-white' : 'bg-gray-900 text-white'
               }`}>
-                {book.status.replace('_', ' ')}
+                {book.status === 'COMPLETED' ? 'CHECKED OUT' : book.status.replace('_', ' ')}
               </div>
             </div>
             
@@ -250,8 +251,9 @@ const MyBookings = () => {
                   </span>
                 </button>
 
-                {/* TICKET ACTIONS: ONLY ALLOWED WHEN CURRENTLY CHECKED IN */}
+                {/* TICKET ACTIONS BASED ACCORDINGLY ON RESIDENCY / CHECK-IN / CHECK-OUT STATUS */}
                 {book.status === 'CHECKED_IN' ? (
+                  /* 1. CURRENTLY CHECKED IN: User can raise & track active tickets */
                   <div className="flex gap-3">
                     <button 
                       onClick={() => { setShowIssueModal(book); setIssueData({ type: 'WIFI', desc: '', priority: 'MEDIUM' }); }}
@@ -266,11 +268,38 @@ const MyBookings = () => {
                       <Search size={16}/> Track Issues
                     </button>
                   </div>
-                ) : (
+                ) : book.status === 'COMPLETED' ? (
+                  /* 2. CHECKED OUT: Stay is completed, show checked-out status and allow reviewing past tickets */
+                  <div className="flex gap-3">
+                    <div 
+                      className="flex-1 bg-gray-50 text-gray-500 py-3.5 px-4 rounded-[1.5rem] font-bold text-[10px] uppercase flex items-center justify-center gap-2 border border-gray-100 cursor-default select-none"
+                      title="You have already checked out of this stay. New maintenance tickets are closed."
+                    >
+                      <CheckCircle2 size={14} className="text-gray-400"/> Checked Out • Tickets Closed
+                    </div>
+                    <button 
+                      onClick={() => fetchAndShowTickets(book)} 
+                      className="bg-blue-50/80 hover:bg-blue-600 hover:text-white text-blue-600 py-3.5 px-5 rounded-[1.5rem] font-black text-[10px] uppercase border border-blue-100 flex items-center justify-center gap-1.5 transition active:scale-95"
+                      title="View maintenance records from your stay"
+                    >
+                      <Search size={14}/> View History
+                    </button>
+                  </div>
+                ) : book.status === 'CANCELLED' ? (
+                  /* 3. CANCELLED: Booking was cancelled */
                   <div className="flex gap-3">
                     <div 
                       className="flex-1 bg-gray-50 text-gray-400 py-3.5 px-4 rounded-[1.5rem] font-bold text-[10px] uppercase flex items-center justify-center gap-2 border border-gray-100 cursor-not-allowed select-none"
-                      title="You can only raise maintenance requests once the owner logs your check-in."
+                    >
+                      <X size={14} className="opacity-40"/> Booking Cancelled • Tickets Unavailable
+                    </div>
+                  </div>
+                ) : (
+                  /* 4. NOT CHECKED IN YET (CONFIRMED / PENDING): Must check in first */
+                  <div className="flex gap-3">
+                    <div 
+                      className="flex-1 bg-gray-50 text-gray-400 py-3.5 px-4 rounded-[1.5rem] font-bold text-[10px] uppercase flex items-center justify-center gap-2 border border-gray-100 cursor-not-allowed select-none"
+                      title="Check-in is required before you can raise maintenance tickets."
                     >
                       <Lock size={14} className="opacity-40"/> Check-in Required for Tickets
                     </div>
