@@ -1,4 +1,4 @@
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
@@ -16,6 +16,34 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [adminChatLoading, setAdminChatLoading] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Auto-close dropdown when clicking outside or pressing Escape
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   // 1. Notification Logic with real-time socket updates
   useEffect(() => {
@@ -88,12 +116,14 @@ const Navbar = () => {
           </div>
         )}
 
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           {user ? (
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2.5 p-1 pr-3 rounded-xl bg-[#222222] hover:bg-[#2a2a2a] border border-[#333333] transition"
+                className={`flex items-center gap-2.5 p-1 pr-3 rounded-xl bg-[#222222] hover:bg-[#2a2a2a] border transition cursor-pointer ${
+                  isOpen ? 'border-primary ring-1 ring-primary/40' : 'border-[#333333]'
+                }`}
               >
                 <img 
                   src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}&background=E50914&color=fff`} 
@@ -101,23 +131,35 @@ const Navbar = () => {
                   className="w-8 h-8 rounded-lg object-cover border border-primary/30" 
                 />
                 <span className="text-sm font-bold text-gray-200">{user.firstName}</span>
-                <ChevronDown size={14} className="text-gray-400" />
+                <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-primary' : ''}`} />
               </button>
 
               {isOpen && (
-                <div className="absolute right-0 top-12 w-64 bg-[#181818] rounded-2xl shadow-2xl border border-[#2e2e2e] p-2 overflow-hidden animate-in fade-in zoom-in duration-200 z-50 text-gray-200">
-                  <div className="px-4 py-3 border-b border-[#282828] mb-2 bg-[#121212] rounded-xl">
-                    <p className="text-[10px] font-black uppercase text-gray-400">Signed in as</p>
-                    <p className="text-sm font-bold text-primary truncate">{user.email}</p>
+                <div className="absolute right-0 top-12 w-64 bg-[#181818] rounded-2xl shadow-2xl border border-[#2e2e2e] p-2 overflow-hidden animate-in fade-in zoom-in-95 duration-150 z-50 text-gray-200">
+                  <div className="px-4 py-3 border-b border-[#282828] mb-2 bg-[#121212] rounded-xl flex items-center gap-3">
+                    <img 
+                      src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=E50914&color=fff`} 
+                      alt={user.firstName}
+                      className="w-9 h-9 rounded-xl object-cover border border-primary/30 shrink-0" 
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-sm font-black text-white truncate">{user.firstName} {user.lastName}</p>
+                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
+                          {user.role}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                    </div>
                   </div>
 
                   {/* --- SHARED --- */}
                   <Link 
                     to="/profile" 
                     onClick={() => setIsOpen(false)} 
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-primary/15 hover:border-l-2 hover:border-primary rounded-xl transition group"
                   >
-                    <User size={18} className="text-gray-400" /> My Profile
+                    <User size={18} className="text-gray-400 group-hover:text-primary transition-colors" /> My Profile
                   </Link>
 
                   {/* --- TENANT ONLY --- */}
