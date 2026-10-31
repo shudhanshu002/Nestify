@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import API from '../api/client';
-import { Bell, CheckCircle, XCircle, Clock, Loader2, ArrowLeft } from 'lucide-react';
+import { Bell, CheckCircle, XCircle, Clock, Loader2, ArrowLeft, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Notifications = () => {
@@ -11,16 +11,56 @@ const Notifications = () => {
   const fetchNotifs = async () => {
     try {
       const { data } = await API.get('/notifications');
-      setNotifications(data.data);
+      setNotifications(data.data || []);
       // Automatically mark all as read when opening this page
       await API.put('/notifications/mark-read');
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
-  useEffect(() => { fetchNotifs(); }, []);
+  useEffect(() => { 
+    fetchNotifs(); 
+  }, []);
 
-  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary" size={40} /></div>;
+  if (loading) return (
+    <div className="flex h-screen items-center justify-center">
+      <Loader2 className="animate-spin text-primary" size={40} />
+    </div>
+  );
+
+  const getNotificationIcon = (n) => {
+    if (n.type === 'MAINTENANCE' || n.title.includes('Ticket')) {
+      if (n.title.includes('Solved') || n.title.includes('Resolved')) {
+        return (
+          <div className="p-3 rounded-2xl bg-green-100 text-green-600">
+            <CheckCircle size={20}/>
+          </div>
+        );
+      }
+      return (
+        <div className="p-3 rounded-2xl bg-amber-100 text-amber-600">
+          <Wrench size={20}/>
+        </div>
+      );
+    }
+
+    if (n.title.includes('Approved') || n.title.includes('Verified')) {
+      return (
+        <div className="p-3 rounded-2xl bg-green-100 text-green-600">
+          <CheckCircle size={20}/>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-3 rounded-2xl bg-red-100 text-red-600">
+        <XCircle size={20}/>
+      </div>
+    );
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-20">
@@ -38,9 +78,7 @@ const Notifications = () => {
         {notifications.length > 0 ? notifications.map(n => (
           <div key={n._id} className={`p-8 rounded-[2.5rem] border transition shadow-sm ${n.isRead ? 'bg-white border-gray-100' : 'bg-blue-50/30 border-blue-100 shadow-blue-50'}`}>
             <div className="flex gap-6 items-start">
-              <div className={`p-3 rounded-2xl ${n.title.includes('Approved') ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                {n.title.includes('Approved') ? <CheckCircle size={20}/> : <XCircle size={20}/>}
-              </div>
+              {getNotificationIcon(n)}
               <div className="flex-1">
                 <div className="flex justify-between items-start mb-1">
                   <h3 className="font-black text-lg text-gray-900">{n.title}</h3>
@@ -48,7 +86,7 @@ const Notifications = () => {
                     <Clock size={10}/> {new Date(n.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                <p className="text-gray-500 font-medium leading-relaxed">{n.message}</p>
+                <p className="text-gray-600 font-medium leading-relaxed">{n.message}</p>
                 
                 {n.relatedId && n.title.includes('Rejected') && (
                   <button 
@@ -56,6 +94,21 @@ const Notifications = () => {
                     className="mt-4 text-[10px] font-black text-primary uppercase underline tracking-widest"
                   >
                     Fix Listing Now
+                  </button>
+                )}
+
+                {n.type === 'MAINTENANCE' && (
+                  <button 
+                    onClick={() => {
+                      if (n.title.includes('New Maintenance Ticket')) {
+                        navigate('/owner/dashboard');
+                      } else {
+                        navigate('/my-bookings');
+                      }
+                    }}
+                    className="mt-4 inline-block text-[10px] font-black text-primary uppercase tracking-wider hover:underline"
+                  >
+                    {n.title.includes('New Maintenance Ticket') ? 'View in Owner Portal →' : 'View in My Bookings →'}
                   </button>
                 )}
               </div>

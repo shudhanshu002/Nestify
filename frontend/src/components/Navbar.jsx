@@ -10,24 +10,45 @@ import API from '../api/client';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
-  const { setSelectedChat, setIsChatOpen } = useChat();
+  const { setSelectedChat, setIsChatOpen, socket } = useChat();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [adminChatLoading, setAdminChatLoading] = useState(false);
 
-  // 󾠮 Notification Logic
+  // 1. Notification Logic with real-time socket updates
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
         const { data } = await API.get('/notifications/unread-count');
-        setUnreadCount(data.count);
-      } catch (err) { console.error("Notif Fetch Error", err); }
+        setUnreadCount(data.count || 0);
+      } catch (err) { 
+        console.error("Notif Fetch Error", err); 
+      }
     };
-    if (user) fetchNotifs();
-  }, [user]);
 
-  // 󾠯 Chat with Admin support handler (for Tenant and Owner)
+    if (user) fetchNotifs();
+
+    if (!socket) return;
+
+    const handleNewNotif = () => {
+      setUnreadCount(prev => prev + 1);
+    };
+
+    const handleRefreshCount = () => {
+      fetchNotifs();
+    };
+
+    socket.on('notification', handleNewNotif);
+    socket.on('unread_notification_count_changed', handleRefreshCount);
+
+    return () => {
+      socket.off('notification', handleNewNotif);
+      socket.off('unread_notification_count_changed', handleRefreshCount);
+    };
+  }, [user, socket]);
+
+  // 2. Chat with Admin support handler (for Tenant and Owner)
   const handleChatWithAdmin = async () => {
     setIsOpen(false);
     try {
@@ -50,7 +71,7 @@ const Navbar = () => {
 
       <div className="flex items-center gap-6">
 
-        {/* 󾠯 THE NOTIFICATION BELL */}
+        {/* THE NOTIFICATION BELL */}
         {user && (
           <div className="relative cursor-pointer group" onClick={() => navigate('/notifications')}>
             <Bell size={22} className="text-gray-400 group-hover:text-primary transition-colors" />

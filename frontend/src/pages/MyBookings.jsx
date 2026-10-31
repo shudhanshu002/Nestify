@@ -4,11 +4,11 @@ import { useChat } from '../context/ChatContext';
 import { 
   Calendar, MapPin, Loader2, Wrench, Star, 
   X, Send, ShieldCheck, Wifi, Volume2, Zap, Search, MessageSquare,
-  Clock, ChevronRight, CheckCircle2
+  Clock, ChevronRight, CheckCircle2, Lock
 } from 'lucide-react';
 
 const MyBookings = () => {
-  const { setSelectedChat, setIsChatOpen } = useChat();
+  const { setSelectedChat, setIsChatOpen, socket } = useChat();
   const [chatLoadingId, setChatLoadingId] = useState(null);
 
   const [bookings, setBookings] = useState([]);
@@ -25,6 +25,7 @@ const MyBookings = () => {
   
   // Form States
   const [issueData, setIssueData] = useState({ type: 'WIFI', desc: '', priority: 'MEDIUM' });
+  const [submittingIssue, setSubmittingIssue] = useState(false);
   const [reviewData, setReviewData] = useState({
     ratings: { cleanliness: 5, maintenance: 5, safety: 5, services: 5 },
     comment: '',
@@ -54,11 +55,11 @@ const MyBookings = () => {
     }
   };
 
-  // 󾠮 Fetch user's booking history
+  // 1. Fetch user's booking history
   const fetchMyStays = async () => {
     try {
       const { data } = await API.get('/bookings/my-bookings');
-      setBookings(data.data);
+      setBookings(data.data || []);
     } catch (err) {
       console.error("Fetch Stays Error:", err);
     } finally {
@@ -66,36 +67,84 @@ const MyBookings = () => {
     }
   };
 
-  // 󾠯 Fetch maintenance queries for a specific property
+  // 2. Fetch maintenance queries for a specific property
   const fetchAndShowTickets = async (book) => {
     try {
       const { data } = await API.get(`/maintenance/my-tickets/${book.property._id}`);
-      setActiveTickets(data.data);
+      setActiveTickets(data.data || []);
       setShowTracker(true);
     } catch (err) {
       alert("Could not load tracking data.");
     }
   };
 
-  useEffect(() => { fetchMyStays(); }, []);
+  useEffect(() => { 
+    fetchMyStays(); 
+  }, []);
 
-  // 󾠰 Submit new Maintenance Ticket
+  // Live real-time socket listener for ticket resolution updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTicketResolved = (data) => {
+      // Update tracking state live
+      setActiveTickets(prev =>
+        prev.map(t =>
+          t._id === data.ticketId
+            ? { ...t, status: 'RESOLVED', resolutionNote: data.resolutionNote, resolvedAt: new Date().toISOString() }
+            : t
+        )
+      );
+    };
+
+    socket.on('ticket_resolved', handleTicketResolved);
+
+    return () => {
+      socket.off('ticket_resolved', handleTicketResolved);
+    };
+  }, [socket]);
+
+  // 3. Submit new Maintenance Ticket (Enforces CHECKED_IN only)
   const handleIssueSubmit = async () => {
+    if (!showIssueModal) return;
+
+    // Front-end validation for checked-in status
+    if (showIssueModal.status !== 'CHECKED_IN') {
+      alert("Access Denied: You can only raise maintenance requests for bookings where you are currently CHECKED_IN.");
+      return;
+    }
+
+    if (!issueData.desc?.trim()) {
+      alert("Please provide a description of the issue.");
+      return;
+    }
+
     try {
-      await API.post('/maintenance', {
-        propertyId: showIssueModal.property._id,
+      setSubmittingIssue(true);
+      const { data } = await API.post('/maintenance', {
+        propertyId: showIssueModal.property?._id || showIssueModal.property,
+        bookingId: showIssueModal._id,
         issueType: issueData.type,
-        description: issueData.desc,
+        description: issueData.desc.trim(),
         priority: issueData.priority
       });
-      alert("Request Sent! The manager has been notified.");
+
+      alert(`Request Raised Successfully!\nTicket ID: #${data.data._id.slice(-6).toUpperCase()}\nThe owner has been notified immediately.`);
       setShowIssueModal(null);
+      setIssueData({ type: 'WIFI', desc: '', priority: 'MEDIUM' });
+
+      // If user had tracker open, update it
+      if (showTracker) {
+        fetchAndShowTickets(showIssueModal);
+      }
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to raise ticket");
+      alert(err.response?.data?.message || "Failed to raise ticket. Please ensure you are checked in.");
+    } finally {
+      setSubmittingIssue(false);
     }
   };
 
-  // 󾠱 Rate a fixed maintenance issue
+  // 4. Rate a fixed maintenance issue
   const handleRateTicket = async (ticketId, rating) => {
     try {
       await API.patch(`/maintenance/${ticketId}/rate`, { 
@@ -105,15 +154,16 @@ const MyBookings = () => {
       alert("Thank you for rating the service!");
       // Refresh the specific tickets list
       if (activeTickets.length > 0) {
-        const { data } = await API.get(`/maintenance/my-tickets/${activeTickets[0].property}`);
-        setActiveTickets(data.data);
+        const propId = activeTickets[0].property?._id || activeTickets[0].property;
+        const { data } = await API.get(`/maintenance/my-tickets/${propId}`);
+        setActiveTickets(data.data || []);
       }
     } catch (err) {
       alert("Failed to save rating.");
     }
   };
 
-  // 󾠲 Submit Property Review
+  // 5. Submit Property Review
   const handleReviewSubmit = async () => {
     try {
       await API.post(`/reviews/${showReviewModal.property._id}`, {
@@ -182,7 +232,7 @@ const MyBookings = () => {
 
               {/* ACTION BUTTONS */}
               <div className="flex flex-col gap-3">
-                {/* 󾠯 CHAT WITH PG / HOTEL OWNER */}
+                {/* CHAT WITH PG / HOTEL OWNER */}
                 <button 
                   onClick={() => handleChatWithLandlord(book)}
                   disabled={chatLoadingId === book._id}
@@ -200,20 +250,30 @@ const MyBookings = () => {
                   </span>
                 </button>
 
-                {book.status === 'CHECKED_IN' && (
+                {/* TICKET ACTIONS: ONLY ALLOWED WHEN CURRENTLY CHECKED IN */}
+                {book.status === 'CHECKED_IN' ? (
                   <div className="flex gap-3">
                     <button 
                       onClick={() => { setShowIssueModal(book); setIssueData({ type: 'WIFI', desc: '', priority: 'MEDIUM' }); }}
-                      className="flex-1 bg-red-50 text-red-500 py-4 rounded-[1.5rem] font-black text-[11px] uppercase flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition shadow-sm"
+                      className="flex-1 bg-red-50 text-red-500 py-4 rounded-[1.5rem] font-black text-[11px] uppercase flex items-center justify-center gap-2 hover:bg-red-500 hover:text-white transition shadow-sm active:scale-95"
                     >
-                      <Wrench size={16}/> Raise Query
+                      <Wrench size={16}/> Raise Ticket
                     </button>
                     <button 
                       onClick={() => fetchAndShowTickets(book)} 
-                      className="flex-1 bg-blue-50 text-blue-600 py-4 rounded-[1.5rem] font-black text-[11px] uppercase border-2 border-blue-100 flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition"
+                      className="flex-1 bg-blue-50 text-blue-600 py-4 rounded-[1.5rem] font-black text-[11px] uppercase border-2 border-blue-100 flex items-center justify-center gap-2 hover:bg-blue-600 hover:text-white transition active:scale-95"
                     >
-                      <Search size={16}/> Track Status
+                      <Search size={16}/> Track Issues
                     </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    <div 
+                      className="flex-1 bg-gray-50 text-gray-400 py-3.5 px-4 rounded-[1.5rem] font-bold text-[10px] uppercase flex items-center justify-center gap-2 border border-gray-100 cursor-not-allowed select-none"
+                      title="You can only raise maintenance requests once the owner logs your check-in."
+                    >
+                      <Lock size={14} className="opacity-40"/> Check-in Required for Tickets
+                    </div>
                   </div>
                 )}
 
@@ -227,7 +287,7 @@ const MyBookings = () => {
                     </button>
                   )}
                   <button className="flex-1 bg-gray-900 text-white py-4 rounded-[1.5rem] font-black text-[11px] uppercase tracking-widest hover:bg-primary transition shadow-xl">
-                    View Receipt
+                    View Details
                   </button>
                 </div>
               </div>
@@ -236,48 +296,51 @@ const MyBookings = () => {
         ))}
       </div>
 
-      {/* 󾠳 MODAL: QUERY TRACKER */}
+      {/* MODAL: QUERY TRACKER */}
       {showTracker && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[110] flex items-center justify-center p-6">
           <div className="bg-white w-full max-w-xl rounded-[4rem] p-12 max-h-[85vh] overflow-y-auto relative animate-in zoom-in duration-300 shadow-2xl">
-            <div className="flex justify-between items-center mb-12">
-              <h3 className="text-4xl font-black italic tracking-tighter text-gray-900">Issue Hub.</h3>
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h3 className="text-4xl font-black italic tracking-tighter text-gray-900">Issue Hub.</h3>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Live updates from owner</p>
+              </div>
               <button onClick={() => setShowTracker(false)} className="p-3 bg-gray-100 rounded-full hover:bg-red-500 hover:text-white transition-all"><X size={20}/></button>
             </div>
 
-            <div className="space-y-8">
+            <div className="space-y-6">
               {activeTickets.length > 0 ? activeTickets.map(t => (
                 <div key={t._id} className="p-8 bg-gray-50 rounded-[3rem] border border-gray-100 relative overflow-hidden">
                   <div className="flex justify-between items-start mb-6">
                     <div>
                       <span className="text-[10px] font-black uppercase text-primary tracking-widest bg-white px-3 py-1 rounded-lg border border-primary/10">{t.issueType}</span>
-                      <p className="text-[9px] font-bold text-gray-300 mt-3 uppercase tracking-tighter">Ticket ID: #{t._id.slice(-6)}</p>
+                      <p className="text-[9px] font-bold text-gray-400 mt-2 uppercase tracking-tighter">Ticket ID: #{t._id.slice(-6).toUpperCase()}</p>
                     </div>
-                    <span className={`text-[10px] font-black uppercase px-5 py-2 rounded-2xl shadow-sm ${t.status === 'RESOLVED' ? 'bg-green-500 text-white' : 'bg-orange-400 text-white'}`}>
-                      {t.status}
+                    <span className={`text-[10px] font-black uppercase px-4 py-1.5 rounded-2xl shadow-sm ${t.status === 'RESOLVED' ? 'bg-green-500 text-white' : 'bg-orange-500 text-white animate-pulse'}`}>
+                      {t.status === 'RESOLVED' ? 'Solved' : 'In Progress'}
                     </span>
                   </div>
                   
-                  <p className="text-lg font-bold text-gray-700 leading-snug mb-8">"{t.description}"</p>
+                  <p className="text-base font-bold text-gray-800 leading-snug mb-6">"{t.description}"</p>
                   
                   {/* MANAGER RESOLUTION RESPONSE */}
                   {t.resolutionNote && (
-                    <div className="mt-6 p-8 bg-white rounded-[2.5rem] border-l-[10px] border-primary shadow-inner">
-                      <p className="text-[10px] font-black uppercase text-gray-400 mb-3 flex items-center gap-2">
-                        <MessageSquare size={14}/> Manager's Response
+                    <div className="mt-4 p-6 bg-white rounded-[2rem] border-l-[6px] border-green-500 shadow-inner">
+                      <p className="text-[10px] font-black uppercase text-green-700 mb-2 flex items-center gap-2">
+                        <MessageSquare size={13}/> Owner Reply & Resolution
                       </p>
-                      <p className="text-sm font-medium text-gray-600 leading-relaxed italic">"{t.resolutionNote}"</p>
+                      <p className="text-sm font-semibold text-gray-700 leading-relaxed italic">"{t.resolutionNote}"</p>
                     </div>
                   )}
 
                   {/* USER RATING FOR THE FIX */}
                   {t.status === 'RESOLVED' && !t.userRating && (
-                    <div className="mt-8 p-8 bg-yellow-50 rounded-[2.5rem] border-2 border-dashed border-yellow-200 text-center animate-pulse-slow">
-                      <p className="text-[11px] font-black uppercase text-yellow-700 mb-4 tracking-widest">How was the fix?</p>
-                      <div className="flex justify-center gap-3">
+                    <div className="mt-6 p-6 bg-yellow-50 rounded-[2rem] border-2 border-dashed border-yellow-200 text-center">
+                      <p className="text-[11px] font-black uppercase text-yellow-700 mb-3 tracking-widest">Rate This Fix</p>
+                      <div className="flex justify-center gap-2">
                         {[1, 2, 3, 4, 5].map(star => (
                           <Star 
-                            key={star} size={28} 
+                            key={star} size={26} 
                             className="cursor-pointer transition-all hover:scale-125 active:scale-90" 
                             fill={star <= (tempRating || 0) ? "#f1c40f" : "none"}
                             color={star <= (tempRating || 0) ? "#f1c40f" : "#cbd5e1"}
@@ -291,18 +354,18 @@ const MyBookings = () => {
                   )}
 
                   {t.userRating && (
-                    <div className="mt-8 flex flex-col items-center gap-2 bg-white/40 py-4 rounded-[2rem]">
-                      <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">You Rated This Fix</span>
+                    <div className="mt-6 flex flex-col items-center gap-1 bg-white/60 py-3 rounded-[1.5rem]">
+                      <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">You Rated This Fix</span>
                       <div className="flex text-yellow-400 gap-1">
-                        {[...Array(t.userRating)].map((_, i) => <Star key={i} size={18} fill="currentColor"/>)}
+                        {[...Array(t.userRating)].map((_, i) => <Star key={i} size={16} fill="currentColor"/>)}
                       </div>
                     </div>
                   )}
                 </div>
               )) : (
-                <div className="text-center py-24 opacity-20">
-                  <Clock size={64} className="mx-auto mb-4"/>
-                  <p className="font-black uppercase text-sm tracking-widest">No queries raised yet</p>
+                <div className="text-center py-20 opacity-30">
+                  <Clock size={56} className="mx-auto mb-3"/>
+                  <p className="font-black uppercase text-xs tracking-widest">No queries raised yet for this property</p>
                 </div>
               )}
             </div>
@@ -310,60 +373,87 @@ const MyBookings = () => {
         </div>
       )}
 
-      {/* 󾠴 MODAL: RAISE QUERY */}
+      {/* MODAL: RAISE TICKET (Strictly Checked-In) */}
       {showIssueModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-md rounded-[3.5rem] p-12 space-y-8 relative animate-in zoom-in duration-200 shadow-2xl">
-            <button onClick={() => setShowIssueModal(null)} className="absolute top-10 right-10 text-gray-300 hover:text-gray-900 transition-colors"><X size={24}/></button>
-            <h3 className="text-4xl font-black italic tracking-tighter text-gray-900 leading-none">Support.</h3>
-            <p className="text-xs font-bold text-gray-400">Reporting issue for {showIssueModal.property?.title}</p>
+          <div className="bg-white w-full max-w-md rounded-[3.5rem] p-10 space-y-6 relative animate-in zoom-in duration-200 shadow-2xl">
+            <button onClick={() => setShowIssueModal(null)} className="absolute top-8 right-8 text-gray-300 hover:text-gray-900 transition-colors"><X size={22}/></button>
+            <div>
+              <h3 className="text-3xl font-black italic tracking-tighter text-gray-900 leading-none">Raise Ticket.</h3>
+              <p className="text-xs font-bold text-gray-400 mt-2">
+                For {showIssueModal.property?.title} ({showIssueModal.room?.roomType || 'Room'})
+              </p>
+            </div>
             
-            <div className="grid grid-cols-2 gap-3">
-              {['WIFI', 'PLUMBING', 'CLEANING', 'ELECTRIC'].map(t => (
+            <div className="grid grid-cols-2 gap-2.5">
+              {['WIFI', 'PLUMBING', 'CLEANING', 'ELECTRIC', 'OTHER'].map(t => (
                 <button 
                   key={t} 
+                  type="button"
                   onClick={() => setIssueData({...issueData, type: t})} 
-                  className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${issueData.type === t ? 'bg-primary text-white shadow-xl scale-105' : 'bg-gray-50 text-gray-400 border border-transparent'}`}
+                  className={`py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${issueData.type === t ? 'bg-primary text-white shadow-lg scale-[1.02]' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
                 >
                   {t}
                 </button>
               ))}
             </div>
 
-            <textarea 
-              className="w-full bg-gray-50 p-8 rounded-[2.5rem] text-sm font-medium outline-none h-40 border-2 border-transparent focus:border-primary transition-all resize-none" 
-              placeholder="Tell us what's wrong..."
-              onChange={(e) => setIssueData({...issueData, desc: e.target.value})}
-            />
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Priority</label>
+              <div className="flex gap-2">
+                {['LOW', 'MEDIUM', 'HIGH'].map(p => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setIssueData({...issueData, priority: p})}
+                    className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition ${issueData.priority === p ? (p === 'HIGH' ? 'bg-red-500 text-white' : p === 'MEDIUM' ? 'bg-amber-500 text-white' : 'bg-blue-500 text-white') : 'bg-gray-100 text-gray-400'}`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Describe the issue</label>
+              <textarea 
+                className="w-full bg-gray-50 p-5 rounded-[2rem] text-sm font-medium outline-none h-32 border-2 border-transparent focus:border-primary transition-all resize-none" 
+                placeholder="What seems to be broken? E.g. No hot water in bathroom..."
+                value={issueData.desc}
+                onChange={(e) => setIssueData({...issueData, desc: e.target.value})}
+              />
+            </div>
 
             <button 
               onClick={handleIssueSubmit} 
-              className="w-full bg-gray-900 text-white py-6 rounded-3xl font-black text-lg uppercase flex items-center justify-center gap-3 hover:bg-primary transition-all shadow-xl active:scale-95"
+              disabled={submittingIssue}
+              className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black text-sm uppercase flex items-center justify-center gap-2 hover:bg-primary transition-all shadow-xl active:scale-95 disabled:opacity-50"
             >
-              <Send size={20}/> Send Ticket
+              {submittingIssue ? <Loader2 size={18} className="animate-spin"/> : <Send size={18}/>}
+              <span>Send Ticket to Owner</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* 󾠵 MODAL: RATE STAY (Verified Property Review) */}
+      {/* MODAL: RATE STAY */}
       {showReviewModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-          <div className="bg-white w-full max-w-2xl rounded-[4rem] p-14 space-y-10 relative overflow-y-auto max-h-[90vh] shadow-2xl">
-            <button onClick={() => setShowReviewModal(null)} className="absolute top-12 right-12 text-gray-300 hover:text-gray-900 transition-colors"><X size={28}/></button>
+          <div className="bg-white w-full max-w-2xl rounded-[4rem] p-12 space-y-8 relative overflow-y-auto max-h-[90vh] shadow-2xl">
+            <button onClick={() => setShowReviewModal(null)} className="absolute top-10 right-10 text-gray-300 hover:text-gray-900 transition-colors"><X size={24}/></button>
             <div>
-              <h3 className="text-5xl font-black italic tracking-tighter text-gray-900">Experience.</h3>
+              <h3 className="text-4xl font-black italic tracking-tighter text-gray-900">Experience.</h3>
               <p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-widest flex items-center gap-2"><ShieldCheck size={14} className="text-blue-500"/> Verified Resident Review</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {Object.keys(reviewData.ratings).map(key => (
                 <div key={key}>
-                  <p className="text-[11px] font-black uppercase text-gray-400 tracking-widest mb-3">{key}</p>
-                  <div className="flex gap-2">
+                  <p className="text-[11px] font-black uppercase text-gray-400 tracking-widest mb-2">{key}</p>
+                  <div className="flex gap-1.5">
                     {[1, 2, 3, 4, 5].map(s => (
                       <Star 
-                        key={s} size={24} 
+                        key={s} size={22} 
                         className={`cursor-pointer transition-all hover:scale-110 ${s <= reviewData.ratings[key] ? 'text-yellow-400 fill-current' : 'text-gray-200'}`}
                         onClick={() => setReviewData({...reviewData, ratings: {...reviewData.ratings, [key]: s}})}
                       />
@@ -374,14 +464,15 @@ const MyBookings = () => {
             </div>
 
             <textarea 
-               className="w-full bg-gray-50 p-10 rounded-[3rem] text-base font-medium outline-none h-48 border-2 border-transparent focus:border-primary transition-all resize-none" 
+               className="w-full bg-gray-50 p-6 rounded-[2.5rem] text-sm font-medium outline-none h-36 border-2 border-transparent focus:border-primary transition-all resize-none" 
                placeholder="What should the next resident know?"
+               value={reviewData.comment}
                onChange={e => setReviewData({...reviewData, comment: e.target.value})}
             />
 
             <button 
               onClick={handleReviewSubmit} 
-              className="w-full bg-gray-900 text-white py-7 rounded-[2.5rem] font-black text-2xl hover:bg-primary transition-all shadow-2xl active:scale-95"
+              className="w-full bg-gray-900 text-white py-5 rounded-[2rem] font-black text-xl hover:bg-primary transition-all shadow-2xl active:scale-95"
             >
               Post Verified Review
             </button>
