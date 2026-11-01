@@ -4,6 +4,7 @@ import {
   getMyBookings, 
   createBooking, 
   getOwnerBookings, 
+  getOwnerOccupancyMatrix,
   updateBookingStatus,
   getBookingReceipt,
   checkExtensionAvailability,
@@ -19,6 +20,7 @@ router.post('/', createBooking);
 router.post('/initiate', initiateBooking);
 router.get('/my-bookings', getMyBookings);
 router.get('/owner-bookings', getOwnerBookings);
+router.get('/owner-occupancy', getOwnerOccupancyMatrix);
 router.patch('/:id/status', updateBookingStatus);
 router.get('/:id/receipt', getBookingReceipt);
 

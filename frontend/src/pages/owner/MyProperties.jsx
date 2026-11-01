@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import API from '../../api/client';
 import { 
   Plus, Loader2, ChevronRight, ArrowLeft, 
-  CheckCircle2, Clock, AlertOctagon, UploadCloud, FileText, X, MapPin 
+  CheckCircle2, Clock, AlertOctagon, UploadCloud, FileText, X, MapPin, Calendar 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -154,6 +154,13 @@ const MyProperties = () => {
                     </button>
                   ) : (
                     <>
+                      <Link 
+                        to={`/owner/dashboard?tab=occupancy&propertyId=${pg._id}`} 
+                        className="btn-netflix-secondary px-3.5 py-2 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-1.5 cursor-pointer text-gray-200 hover:text-white"
+                        title="View Room & Date Schedule"
+                      >
+                        <Calendar size={13} /> Room Schedule
+                      </Link>
                       <Link 
                         to={`/owner/add-room/${pg._id}`} 
                         className="btn-netflix-secondary px-3.5 py-2 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-1.5 cursor-pointer"

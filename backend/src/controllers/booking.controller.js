@@ -152,6 +152,21 @@ export const createBooking = async (req, res, next) => {
     roomDoc.availableInventory = Math.max(0, availableUnits - 1);
     await roomDoc.save();
 
+    // Real-time socket notification for owner inventory sync
+    try {
+      const io = req.app?.get('io');
+      const ownerId = roomDoc.property?.owner?._id || roomDoc.property?.owner;
+      if (io && ownerId) {
+        io.to(ownerId.toString()).emit('booking_inventory_updated', { 
+          bookingId: booking._id,
+          propertyId: roomDoc.property?._id || roomDoc.property,
+          roomId: roomDoc._id 
+        });
+      }
+    } catch (sockErr) {
+      console.warn("Socket broadcast error:", sockErr.message);
+    }
+
     res.status(201).json({ success: true, data: booking });
   } catch (error) {
     console.error("OVERLAP_PROTECTION_FAILED:", error);
@@ -364,7 +379,22 @@ export const extendStay = async (req, res, next) => {
       relatedId: booking._id
     });
 
-    // 11. Return fully populated fresh booking
+    // 11. Real-time socket notification for owner inventory sync
+    try {
+      const io = req.app?.get('io');
+      if (io && propOwnerId) {
+        io.to(propOwnerId.toString()).emit('booking_inventory_updated', {
+          bookingId: booking._id,
+          propertyId: booking.property?._id || booking.property,
+          roomId: roomDoc._id,
+          newCheckOutDate: targetCheckOut
+        });
+      }
+    } catch (sockErr) {
+      console.warn("Socket broadcast error:", sockErr.message);
+    }
+
+    // 12. Return fully populated fresh booking
     const updatedBooking = await Booking.findById(booking._id)
       .populate({
         path: 'property',
@@ -476,8 +506,177 @@ export const updateBookingStatus = async (req, res, next) => {
     booking.status = status;
     await booking.save();
 
+    // Real-time socket notification for owner inventory sync
+    try {
+      const io = req.app?.get('io');
+      const ownerId = booking.property?.owner?._id || booking.property?.owner;
+      if (io && ownerId) {
+        io.to(ownerId.toString()).emit('booking_inventory_updated', {
+          bookingId: booking._id,
+          propertyId: booking.property?._id || booking.property,
+          status: booking.status
+        });
+      }
+    } catch (sockErr) {
+      console.warn("Socket broadcast error:", sockErr.message);
+    }
+
     res.status(200).json({ success: true, message: `Guest ${status} successfully.`, data: booking });
   } catch (error) { next(error); }
+};
+
+// @desc    Get complete real-time room occupancy and schedule matrix for owner PGs
+// @route   GET /api/v1/bookings/owner-occupancy
+export const getOwnerOccupancyMatrix = async (req, res, next) => {
+  try {
+    const ownerId = req.user._id;
+    const targetDate = req.query.targetDate ? new Date(req.query.targetDate) : new Date();
+    targetDate.setHours(0, 0, 0, 0);
+
+    // 1. Fetch all properties for this owner
+    const properties = await Property.find({ owner: ownerId }).sort('-createdAt');
+    const propertyIds = properties.map(p => p._id);
+
+    // 2. Fetch all rooms belonging to these properties
+    const rooms = await Room.find({ property: { $in: propertyIds } }).sort('createdAt');
+
+    // 3. Fetch all active or confirmed bookings for these properties
+    const bookings = await Booking.find({
+      property: { $in: propertyIds },
+      status: { $in: ['CONFIRMED', 'CHECKED_IN', 'COMPLETED'] }
+    })
+      .populate('tenant', 'firstName lastName email avatar phone')
+      .populate('room', 'roomType roomNumber basePrice totalInventory')
+      .populate('property', 'title location category images')
+      .sort('checkInDate');
+
+    // 4. Construct real-time matrix per PG
+    const matrix = properties.map(prop => {
+      const propRooms = rooms.filter(r => r.property.toString() === prop._id.toString());
+      const propBookings = bookings.filter(b => b.property?._id?.toString() === prop._id.toString());
+
+      let totalUnits = 0;
+      let totalOccupiedUnits = 0;
+
+      const roomMatrix = propRooms.map(room => {
+        const roomInventory = room.totalInventory || 1;
+        totalUnits += roomInventory;
+
+        // All bookings for this room
+        const roomBookings = propBookings.filter(b => 
+          (b.room?._id?.toString() || b.room?.toString()) === room._id.toString()
+        );
+
+        // Active stays on targetDate (checkIn <= targetDate && checkOut > targetDate)
+        const activeBookings = roomBookings.filter(b => {
+          if (b.status === 'COMPLETED') return false;
+          const start = new Date(b.checkInDate); start.setHours(0, 0, 0, 0);
+          const end = new Date(b.checkOutDate); end.setHours(0, 0, 0, 0);
+          return start <= targetDate && end > targetDate;
+        });
+
+        // Upcoming bookings that start after targetDate
+        const upcomingBookings = roomBookings.filter(b => {
+          if (b.status === 'COMPLETED') return false;
+          const start = new Date(b.checkInDate); start.setHours(0, 0, 0, 0);
+          return start > targetDate;
+        });
+
+        // Past / Completed bookings
+        const pastBookings = roomBookings.filter(b => {
+          const end = new Date(b.checkOutDate); end.setHours(0, 0, 0, 0);
+          return b.status === 'COMPLETED' || end <= targetDate;
+        });
+
+        const occupiedCount = Math.min(roomInventory, activeBookings.length);
+        totalOccupiedUnits += occupiedCount;
+        const availableCount = Math.max(0, roomInventory - occupiedCount);
+
+        // Generate unit slots (e.g. Unit Slot 1, Unit Slot 2)
+        const slots = [];
+        for (let i = 0; i < roomInventory; i++) {
+          const activeBooking = activeBookings[i] || null;
+          const upcomingForSlot = !activeBooking ? (upcomingBookings[i] || null) : null;
+
+          if (activeBooking) {
+            slots.push({
+              slotNumber: i + 1,
+              status: 'BOOKED',
+              booking: activeBooking,
+              tenant: activeBooking.tenant,
+              checkInDate: activeBooking.checkInDate,
+              checkOutDate: activeBooking.checkOutDate,
+              bookingStatus: activeBooking.status,
+              isExtended: !!(activeBooking.extensions && activeBooking.extensions.length > 0),
+              extensions: activeBooking.extensions || [],
+              vacantFromDate: activeBooking.checkOutDate
+            });
+          } else if (upcomingForSlot) {
+            slots.push({
+              slotNumber: i + 1,
+              status: 'VACANT_UNTIL_UPCOMING',
+              upcomingBooking: upcomingForSlot,
+              tenant: upcomingForSlot.tenant,
+              nextCheckInDate: upcomingForSlot.checkInDate,
+              nextCheckOutDate: upcomingForSlot.checkOutDate,
+              bookingStatus: upcomingForSlot.status,
+              vacantUntilDate: upcomingForSlot.checkInDate
+            });
+          } else {
+            slots.push({
+              slotNumber: i + 1,
+              status: 'VACANT',
+              booking: null,
+              tenant: null,
+              vacantFromDate: null
+            });
+          }
+        }
+
+        return {
+          _id: room._id,
+          roomType: room.roomType,
+          basePrice: room.basePrice,
+          totalInventory: roomInventory,
+          occupiedCount,
+          availableCount,
+          occupancyRate: Math.round((occupiedCount / roomInventory) * 100),
+          isFullyBooked: availableCount === 0,
+          slots,
+          activeBookings,
+          upcomingBookings,
+          pastBookings,
+          allBookings: roomBookings
+        };
+      });
+
+      const totalVacantUnits = Math.max(0, totalUnits - totalOccupiedUnits);
+      const overallOccupancyRate = totalUnits > 0 ? Math.round((totalOccupiedUnits / totalUnits) * 100) : 0;
+
+      return {
+        _id: prop._id,
+        title: prop.title,
+        category: prop.category,
+        location: prop.location,
+        images: prop.images,
+        verificationStatus: prop.verificationStatus,
+        totalRooms: propRooms.length,
+        totalUnits,
+        totalOccupiedUnits,
+        totalVacantUnits,
+        occupancyRate: overallOccupancyRate,
+        rooms: roomMatrix
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      targetDate,
+      data: matrix
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // @desc    Get detailed official receipt for a booking
