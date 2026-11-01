@@ -35,98 +35,148 @@ export const FacebookIcon = ({ size = 20, className = "" }) => (
 const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
   const [loadingProvider, setLoadingProvider] = useState(null);
 
-  // Direct Google Authentication
-  const handleGoogleDirectLogin = async () => {
-    setLoadingProvider('google');
-    try {
-      const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-      // If Google Client ID is configured and Google SDK is available, trigger native Google popup
-      if (googleClientId && window.google?.accounts?.oauth2) {
-        const client = window.google.accounts.oauth2.initTokenClient({
-          client_id: googleClientId,
-          scope: 'email profile openid',
-          callback: async (tokenResponse) => {
-            if (tokenResponse.error) {
-              setLoadingProvider(null);
-              onError && onError(tokenResponse.error_description || 'Google sign in was cancelled');
-              return;
-            }
-            try {
-              const { data } = await API.post('/auth/google', {
-                accessToken: tokenResponse.access_token,
-                role
-              });
-              localStorage.setItem('token', data.token);
-              onSuccess && onSuccess(data.user || data);
-            } catch (err) {
-              onError && onError(err.response?.data?.message || 'Google authentication failed');
-            } finally {
-              setLoadingProvider(null);
-            }
-          }
-        });
-        client.requestAccessToken();
+  // Helper to load Google Identity Services client script
+  const ensureGoogleSDK = () => {
+    return new Promise((resolve, reject) => {
+      if (window.google?.accounts?.oauth2) return resolve(window.google.accounts.oauth2);
+      
+      const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+      if (existing) {
+        existing.addEventListener('load', () => resolve(window.google?.accounts?.oauth2));
+        existing.addEventListener('error', () => reject(new Error('Failed to load Google SDK')));
         return;
       }
 
-      // Direct instant Google login without modal
-      const { data } = await API.post('/auth/google', {
-        role,
-        name: 'Google Resident',
-        email: 'google.user@nestify.com'
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve(window.google?.accounts?.oauth2);
+      script.onerror = () => reject(new Error('Unable to connect to Google Identity Services'));
+      document.head.appendChild(script);
+    });
+  };
+
+  // Helper to load Facebook SDK
+  const ensureFacebookSDK = (appId) => {
+    return new Promise((resolve, reject) => {
+      if (window.FB) return resolve(window.FB);
+
+      window.fbAsyncInit = function() {
+        window.FB.init({
+          appId: appId,
+          cookie: true,
+          xfbml: true,
+          version: 'v19.0'
+        });
+        resolve(window.FB);
+      };
+
+      const existing = document.querySelector('script[src*="connect.facebook.net"]');
+      if (existing) return;
+
+      const script = document.createElement('script');
+      script.src = 'https://connect.facebook.net/en_US/sdk.js';
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => reject(new Error('Unable to connect to Facebook SDK'));
+      document.head.appendChild(script);
+    });
+  };
+
+  // Real Google OAuth 2.0 Popup
+  const handleGooglePopup = async () => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
+
+    if (!googleClientId) {
+      onError && onError('Google Client ID is not configured. Please paste your Google OAuth 2.0 Client ID in frontend/.env (VITE_GOOGLE_CLIENT_ID).');
+      return;
+    }
+
+    setLoadingProvider('google');
+    try {
+      const googleOAuth = await ensureGoogleSDK();
+
+      if (!googleOAuth) {
+        throw new Error('Google Identity Services SDK is unavailable');
+      }
+
+      const tokenClient = googleOAuth.initTokenClient({
+        client_id: googleClientId,
+        scope: 'email profile openid',
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error) {
+            setLoadingProvider(null);
+            onError && onError(tokenResponse.error_description || tokenResponse.error || 'Google sign-in was cancelled');
+            return;
+          }
+
+          try {
+            const { data } = await API.post('/auth/google', {
+              accessToken: tokenResponse.access_token,
+              role
+            });
+            localStorage.setItem('token', data.token);
+            onSuccess && onSuccess(data.user || data);
+          } catch (err) {
+            onError && onError(err.response?.data?.message || err.message || 'Google account verification failed');
+          } finally {
+            setLoadingProvider(null);
+          }
+        },
       });
-      localStorage.setItem('token', data.token);
-      onSuccess && onSuccess(data.user || data);
+
+      // Opens Google's native OAuth 2.0 popup dialog
+      tokenClient.requestAccessToken({ prompt: 'select_account' });
     } catch (err) {
-      onError && onError(err.response?.data?.message || err.message || 'Google login failed');
-    } finally {
       setLoadingProvider(null);
+      onError && onError(err.message || 'Failed to open Google login popup');
     }
   };
 
-  // Direct Facebook Authentication
-  const handleFacebookDirectLogin = async () => {
+  // Real Facebook OAuth Popup
+  const handleFacebookPopup = async () => {
+    const fbAppId = import.meta.env.VITE_FACEBOOK_APP_ID?.trim();
+
+    if (!fbAppId) {
+      onError && onError('Facebook App ID is not configured. Please paste your Facebook App ID in frontend/.env (VITE_FACEBOOK_APP_ID).');
+      return;
+    }
+
     setLoadingProvider('facebook');
     try {
-      const fbAppId = import.meta.env.VITE_FACEBOOK_APP_ID;
+      const FB = await ensureFacebookSDK(fbAppId);
 
-      // If Facebook App ID is configured and FB SDK is available, trigger native Facebook popup
-      if (fbAppId && window.FB) {
-        window.FB.login(async (response) => {
-          if (response.authResponse?.accessToken) {
-            try {
-              const { data } = await API.post('/auth/facebook', {
-                accessToken: response.authResponse.accessToken,
-                role
-              });
-              localStorage.setItem('token', data.token);
-              onSuccess && onSuccess(data.user || data);
-            } catch (err) {
-              onError && onError(err.response?.data?.message || 'Facebook authentication failed');
-            } finally {
-              setLoadingProvider(null);
-            }
-          } else {
-            setLoadingProvider(null);
-          }
-        }, { scope: 'email,public_profile' });
-        return;
+      if (!FB) {
+        throw new Error('Facebook SDK is unavailable');
       }
 
-      // Direct instant Facebook login without modal
-      const { data } = await API.post('/auth/facebook', {
-        role,
-        firstName: 'Facebook',
-        lastName: 'Resident',
-        email: 'facebook.user@nestify.com'
-      });
-      localStorage.setItem('token', data.token);
-      onSuccess && onSuccess(data.user || data);
+      FB.login((response) => {
+        if (response.authResponse?.accessToken) {
+          API.post('/auth/facebook', {
+            accessToken: response.authResponse.accessToken,
+            role
+          })
+          .then(({ data }) => {
+            localStorage.setItem('token', data.token);
+            onSuccess && onSuccess(data.user || data);
+          })
+          .catch((err) => {
+            onError && onError(err.response?.data?.message || err.message || 'Facebook account verification failed');
+          })
+          .finally(() => {
+            setLoadingProvider(null);
+          });
+        } else {
+          setLoadingProvider(null);
+          if (response.status !== 'connected') {
+            onError && onError('Facebook sign-in was cancelled or closed');
+          }
+        }
+      }, { scope: 'email,public_profile' });
     } catch (err) {
-      onError && onError(err.response?.data?.message || err.message || 'Facebook login failed');
-    } finally {
       setLoadingProvider(null);
+      onError && onError(err.message || 'Failed to open Facebook login popup');
     }
   };
 
@@ -134,10 +184,10 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
     <div className="grid grid-cols-2 gap-3.5">
       <button
         type="button"
-        onClick={handleGoogleDirectLogin}
+        onClick={handleGooglePopup}
         disabled={loadingProvider !== null}
         className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-[#202020] hover:bg-[#282828] border border-[#333333] hover:border-gray-500/50 text-gray-200 hover:text-white font-bold text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer disabled:opacity-60 shadow-sm"
-        title="Direct Sign In with Google"
+        title="Sign in with Google OAuth 2.0 Popup"
       >
         {loadingProvider === 'google' ? (
           <Loader2 size={18} className="animate-spin text-primary" />
@@ -149,10 +199,10 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
 
       <button
         type="button"
-        onClick={handleFacebookDirectLogin}
+        onClick={handleFacebookPopup}
         disabled={loadingProvider !== null}
         className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-[#202020] hover:bg-[#282828] border border-[#333333] hover:border-gray-500/50 text-gray-200 hover:text-white font-bold text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer disabled:opacity-60 shadow-sm"
-        title="Direct Sign In with Facebook"
+        title="Sign in with Facebook OAuth Popup"
       >
         {loadingProvider === 'facebook' ? (
           <Loader2 size={18} className="animate-spin text-[#1877F2]" />

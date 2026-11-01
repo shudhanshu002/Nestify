@@ -137,108 +137,81 @@ export const verifyOTPAndLogin = async (req, res, next) => {
   }
 };
 
-// @desc    Direct Google OAuth Login & Registration
+// @desc    Real Google OAuth 2.0 Login & Registration
 // @route   POST /api/v1/auth/google
 export const googleLogin = async (req, res, next) => {
   try {
-    const { idToken, credential, accessToken, role, email: clientEmail, name: clientName, avatar: clientAvatar } = req.body;
+    const { accessToken, idToken, credential, role } = req.body;
     const token = idToken || credential;
 
     let googleId = null;
-    let email = clientEmail || null;
+    let email = null;
     let given_name = null;
     let family_name = null;
-    let picture = clientAvatar || null;
+    let picture = null;
 
-    if (clientName) {
-      const parts = clientName.split(' ');
-      given_name = parts[0];
-      family_name = parts.slice(1).join(' ') || 'Resident';
-    }
-
-    // 1. If accessToken provided, fetch from Google userinfo API directly
+    // 1. If OAuth2 access_token provided (from Google OAuth 2.0 popup)
     if (accessToken) {
-      try {
-        const { data: googleUser } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        if (googleUser && googleUser.email) {
-          googleId = googleUser.sub;
-          email = googleUser.email;
-          given_name = googleUser.given_name || googleUser.name?.split(' ')[0] || 'Google';
-          family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ') || 'Resident';
-          picture = googleUser.picture || picture;
-        }
-      } catch (tokenErr) {
-        console.warn("Google accessToken fetch failed:", tokenErr.message);
+      const { data: googleUser } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (googleUser && googleUser.email) {
+        googleId = googleUser.sub;
+        email = googleUser.email.toLowerCase();
+        given_name = googleUser.given_name || googleUser.name?.split(' ')[0] || 'Resident';
+        family_name = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ') || '';
+        picture = googleUser.picture || '';
       }
-    }
-
-    // 2. If idToken or credential provided
-    if (!email && token) {
-      try {
-        if (process.env.GOOGLE_CLIENT_ID) {
-          const ticket = await client.verifyIdToken({
-            idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID,
-          });
-          const payload = ticket.getPayload();
-          googleId = payload.sub;
-          email = payload.email;
-          given_name = payload.given_name || payload.name?.split(' ')[0] || 'Google';
-          family_name = payload.family_name || payload.name?.split(' ').slice(1).join(' ') || 'Resident';
-          picture = payload.picture || picture;
-        } else {
-          const decoded = jwt.decode(token);
-          if (decoded && decoded.email) {
-            googleId = decoded.sub || `google_${Date.now()}`;
-            email = decoded.email;
-            given_name = decoded.given_name || decoded.name?.split(' ')[0] || 'Google';
-            family_name = decoded.family_name || decoded.name?.split(' ').slice(1).join(' ') || 'Resident';
-            picture = decoded.picture || picture;
-          }
-        }
-      } catch (verifyErr) {
+    } else if (token) {
+      // 2. If ID Token / Credential provided
+      if (process.env.GOOGLE_CLIENT_ID) {
+        const ticket = await client.verifyIdToken({
+          idToken: token,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        googleId = payload.sub;
+        email = payload.email.toLowerCase();
+        given_name = payload.given_name || payload.name?.split(' ')[0] || 'Resident';
+        family_name = payload.family_name || payload.name?.split(' ').slice(1).join(' ') || '';
+        picture = payload.picture || '';
+      } else {
         const decoded = jwt.decode(token);
         if (decoded && decoded.email) {
-          googleId = decoded.sub || `google_${Date.now()}`;
-          email = decoded.email;
-          given_name = decoded.given_name || decoded.name?.split(' ')[0] || 'Google';
-          family_name = decoded.family_name || decoded.name?.split(' ').slice(1).join(' ') || 'Resident';
-          picture = decoded.picture || picture;
+          googleId = decoded.sub;
+          email = decoded.email.toLowerCase();
+          given_name = decoded.given_name || decoded.name?.split(' ')[0] || 'Resident';
+          family_name = decoded.family_name || decoded.name?.split(' ').slice(1).join(' ') || '';
+          picture = decoded.picture || '';
         }
       }
     }
 
-    // 3. Direct Google login default if triggered directly without credentials
-    if (!email) {
-      email = 'google.user@nestify.com';
-      googleId = 'google_direct_auth_' + (role === 'OWNER' ? 'owner' : 'tenant');
-      given_name = 'Google';
-      family_name = role === 'OWNER' ? 'Owner' : 'Resident';
-      picture = `https://ui-avatars.com/api/?name=Google+${family_name}&background=EA4335&color=fff`;
+    if (!googleId || !email) {
+      res.status(401);
+      throw new Error('Google authentication failed: unable to verify credentials from Google servers.');
     }
 
     const publicRoles = ['TENANT', 'OWNER'];
     const sanitizedRole = publicRoles.includes(role) ? role : 'TENANT';
 
     let user = await User.findOne({ 
-      $or: [{ googleId }, { email: email.toLowerCase() }] 
+      $or: [{ googleId }, { email }] 
     });
 
     if (!user) {
       user = await User.create({
         googleId,
-        email: email.toLowerCase(),
-        firstName: given_name || 'Google',
-        lastName: family_name || 'Resident',
-        avatar: picture || '',
+        email,
+        firstName: given_name,
+        lastName: family_name,
+        avatar: picture,
         role: sanitizedRole,
         isEmailVerified: true,
       });
     } else {
       let modified = false;
-      if (!user.googleId && googleId) {
+      if (!user.googleId) {
         user.googleId = googleId;
         modified = true;
       }
@@ -269,86 +242,62 @@ export const googleLogin = async (req, res, next) => {
     });
   } catch (error) {
     res.status(401);
-    next(error);
+    next(new Error(error.response?.data?.error_description || error.message || 'Google authentication failed'));
   }
 };
 
-// @desc    Direct Facebook OAuth Login & Registration
+// @desc    Real Facebook OAuth Login & Registration
 // @route   POST /api/v1/auth/facebook
 export const facebookLogin = async (req, res, next) => {
   try {
-    const { 
-      accessToken, 
-      role, 
-      email: clientEmail, 
-      firstName: clientFirst, 
-      lastName: clientLast, 
-      id: clientId, 
-      avatar: clientAvatar 
-    } = req.body;
+    const { accessToken, role } = req.body;
 
-    let facebookId = clientId || null;
-    let email = clientEmail || null;
-    let first_name = clientFirst || null;
-    let last_name = clientLast || null;
-    let picture = clientAvatar || null;
-
-    // 1. If accessToken provided, query Facebook Graph API
-    if (accessToken) {
-      try {
-        const { data } = await axios.get(
-          `https://graph.facebook.com/me?fields=id,first_name,last_name,email,picture.type(large)&access_token=${accessToken}`
-        );
-        if (data && data.id) {
-          facebookId = data.id;
-          if (data.email) email = data.email;
-          if (data.first_name) first_name = data.first_name;
-          if (data.last_name) last_name = data.last_name;
-          if (data.picture?.data?.url) picture = data.picture.data.url;
-        }
-      } catch (fbErr) {
-        console.warn("Facebook Graph API call failed:", fbErr.message);
-      }
+    if (!accessToken) {
+      res.status(400);
+      throw new Error('Facebook access token is required');
     }
 
-    // 2. Direct Facebook login default if triggered directly without credentials
-    if (!facebookId && !email) {
-      email = 'facebook.user@nestify.com';
-      facebookId = 'fb_direct_auth_' + (role === 'OWNER' ? 'owner' : 'tenant');
-      first_name = 'Facebook';
-      last_name = role === 'OWNER' ? 'Owner' : 'Resident';
-      picture = `https://ui-avatars.com/api/?name=Facebook+${last_name}&background=1877F2&color=fff`;
+    // 1. Verify token & get real user profile from Facebook Graph API
+    const { data } = await axios.get(
+      `https://graph.facebook.com/me?fields=id,first_name,last_name,email,picture.type(large)&access_token=${accessToken}`
+    );
+
+    if (!data || !data.id) {
+      res.status(401);
+      throw new Error('Invalid or expired Facebook access token');
     }
+
+    const facebookId = data.id;
+    const email = data.email ? data.email.toLowerCase() : `fb_${facebookId}@nestify.app`;
+    const firstName = data.first_name || 'Resident';
+    const lastName = data.last_name || '';
+    const avatar = data.picture?.data?.url || '';
 
     const publicRoles = ['TENANT', 'OWNER'];
     const sanitizedRole = publicRoles.includes(role) ? role : 'TENANT';
 
-    let user = null;
-    if (email) {
-      user = await User.findOne({ $or: [{ facebookId }, { email: email.toLowerCase() }] });
-    } else if (facebookId) {
-      user = await User.findOne({ facebookId });
-    }
+    let user = await User.findOne({ 
+      $or: [{ facebookId }, { email }] 
+    });
 
     if (!user) {
-      const fallbackEmail = email ? email.toLowerCase() : `fb_${facebookId || Date.now()}@nestify.app`;
       user = await User.create({
         facebookId,
-        email: fallbackEmail,
-        firstName: first_name || 'Facebook',
-        lastName: last_name || 'Resident',
-        avatar: picture || '',
+        email,
+        firstName,
+        lastName,
+        avatar,
         role: sanitizedRole,
         isEmailVerified: true,
       });
     } else {
       let modified = false;
-      if (!user.facebookId && facebookId) {
+      if (!user.facebookId) {
         user.facebookId = facebookId;
         modified = true;
       }
-      if (!user.avatar && picture) {
-        user.avatar = picture;
+      if (!user.avatar && avatar) {
+        user.avatar = avatar;
         modified = true;
       }
       if (modified) await user.save();
@@ -370,7 +319,7 @@ export const facebookLogin = async (req, res, next) => {
     });
   } catch (error) {
     res.status(401);
-    next(error);
+    next(new Error(error.response?.data?.error?.message || error.message || 'Facebook authentication failed'));
   }
 };
 
