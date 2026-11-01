@@ -1,16 +1,28 @@
 import Conversation from '../models/conversation.model.js';
 import Message from '../models/message.model.js';
-import User from '../models/user.model.js'; // 󾠮 IMPORTANT
-import Property from '../models/property.model.js'; // 󾠯 IMPORTANT
+import User from '../models/user.model.js';
+import Property from '../models/property.model.js';
 import mongoose from 'mongoose';
 
 export const createOrAccessChat = async (senderId, receiverId, propertyId) => {
   let targetId = receiverId;
 
   // 1. Resolve Admin ID
-  if (receiverId === "ADMIN_ROLE_ID") {
-    const admin = await User.findOne({ role: 'ADMIN' });
-    if (!admin) throw new Error("ADMIN_NOT_FOUND");
+  if (receiverId === "ADMIN_ROLE_ID" || receiverId === "ADMIN" || receiverId === "support") {
+    let admin = await User.findOne({ role: 'ADMIN' });
+    if (!admin) {
+      admin = await User.findOne({ email: 'support@nestify.com' });
+      if (!admin) {
+        admin = await User.create({
+          firstName: 'Nestify',
+          lastName: 'Official Support',
+          email: 'support@nestify.com',
+          password: 'Password@123',
+          role: 'ADMIN',
+          kycStatus: 'VERIFIED'
+        });
+      }
+    }
     targetId = admin._id;
   }
 
@@ -18,7 +30,7 @@ export const createOrAccessChat = async (senderId, receiverId, propertyId) => {
   if (!mongoose.Types.ObjectId.isValid(targetId)) throw new Error("INVALID_ID");
   if (senderId.toString() === targetId.toString()) throw new Error("SELF_CHAT");
 
-  // 3. 󾠮 THE FIX: Sort IDs so [A, B] is the same as [B, A]
+  // 3. Sort IDs so [A, B] is the same as [B, A]
   const sortedParticipants = [senderId.toString(), targetId.toString()].sort();
 
   // 4. Use $all and $size to find the exact pair

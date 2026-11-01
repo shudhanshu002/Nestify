@@ -24,6 +24,23 @@ export const ChatProvider = ({ children }) => {
     }
   }, [user]);
 
+  const openChatWithAdmin = useCallback(async () => {
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+    try {
+      const { data } = await API.post('/chat/access', { receiverId: 'ADMIN_ROLE_ID' });
+      if (data.data) {
+        setSelectedChat(data.data);
+      }
+      setIsChatOpen(true);
+    } catch (err) {
+      console.warn("Direct admin chat access fallback:", err?.response?.data?.message || err.message);
+      setIsChatOpen(true);
+    }
+  }, [user]);
+
   const selectedChatRef = useRef(selectedChat);
   useEffect(() => {
     selectedChatRef.current = selectedChat;
@@ -83,7 +100,8 @@ export const ChatProvider = ({ children }) => {
       setIsChatOpen,
       unreadTotal,
       setUnreadTotal,
-      refreshUnreadCount
+      refreshUnreadCount,
+      openChatWithAdmin
     }}>
       {children}
     </ChatContext.Provider>

@@ -29,6 +29,7 @@ import MyProperties from './pages/owner/MyProperties';
 import AdminDashboard from './pages/Admin/AdminDashboard'; 
 import AdminKYC from './pages/AdminKYC';
 import Notifications from './pages/Notifications';
+import HelpCenter from './pages/HelpCenter';
 
 function App() {
   const { loading } = useContext(AuthContext);
@@ -54,6 +55,8 @@ function App() {
             <Route path="/property/:id" element={<PropertyDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/help" element={<HelpCenter />} />
+            <Route path="/help-center" element={<Navigate to="/help" replace />} />
 
             <Route element={<ProtectedRoute />}>
               <Route path="/profile" element={<Profile />} />

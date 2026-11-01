@@ -1,7 +1,8 @@
 import { useState, useEffect, useContext, useRef } from 'react';
 import { 
   Send, X, ShieldCheck, User, Building, MessageSquare, 
-  Loader2, ArrowLeft, Users, Search, Check, CheckCheck 
+  Loader2, ArrowLeft, Users, Search, Check, CheckCheck,
+  Headphones, Sparkles
 } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 import { AuthContext } from '../context/AuthContext';
@@ -24,6 +25,7 @@ const ChatHub = () => {
   const [text, setText] = useState("");
   const [fetching, setFetching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [connectingAdmin, setConnectingAdmin] = useState(false);
 
   // Admin specific states
   const [directory, setDirectory] = useState([]); 
@@ -87,117 +89,51 @@ const ChatHub = () => {
       if (socket) socket.emit("join_room", selectedChat._id);
 
       // 3. Mark messages as read in backend and reset local unread count
-      const other = selectedChat.participants?.find(
-        p => (p._id || p).toString() !== currentUser._id.toString()
-      );
-      const otherId = other?._id || other;
-
       API.patch(`/chat/read/${selectedChat._id}`)
         .then(() => {
-          // Reset local unread badge on this chat
           const uId = currentUser._id.toString();
           setChats(prev => prev.map(c => {
             if (c._id === selectedChat._id) {
-              const updatedUnread = { ...(c.unreadCount || {}) };
-              updatedUnread[uId] = 0;
-              return { ...c, unreadCount: updatedUnread };
+              const updated = { ...c };
+              if (updated.unreadCount) {
+                if (updated.unreadCount instanceof Map) {
+                  updated.unreadCount.set(uId, 0);
+                } else {
+                  updated.unreadCount = { ...updated.unreadCount, [uId]: 0 };
+                }
+              }
+              return updated;
             }
             return c;
           }));
           refreshUnreadCount();
         })
-        .catch(err => console.error("Read status error:", err));
-
-      // 4. Emit mark_as_read socket event so sender gets DOUBLE BLUE TICKS in real time
-      if (socket && otherId) {
-        socket.emit("mark_as_read", {
-          conversationId: selectedChat._id,
-          userId: currentUser._id,
-          receiverId: otherId.toString()
-        });
-      }
+        .catch(() => {});
     }
-  }, [selectedChat, socket, currentUser, refreshUnreadCount]);
+  }, [selectedChat, currentUser, socket, refreshUnreadCount]);
 
-  // 3. Real-time Socket Listeners (Messages, Delivery Ticks, Blue Read Ticks)
+  // 3. Socket event listeners for live messaging
   useEffect(() => {
     if (!socket || !currentUser) return;
 
-    // A. When incoming message arrives
     const handleNewMessage = (msg) => {
-      const isForActiveChat = selectedChat?._id === msg.conversation;
-
-      if (isForActiveChat) {
-        setMessages(prev => {
-          if (prev.some(m => m._id && m._id === msg._id)) return prev;
-          return [...prev, msg];
-        });
-
-        // Since chat is open right now, immediately mark as read
-        const other = selectedChat.participants?.find(
-          p => (p._id || p).toString() !== currentUser._id.toString()
-        );
-        const otherId = other?._id || other;
-        API.patch(`/chat/read/${selectedChat._id}`).catch(() => {});
-        if (otherId) {
-          socket.emit("mark_as_read", {
-            conversationId: selectedChat._id,
-            userId: currentUser._id,
-            receiverId: otherId.toString()
-          });
-        }
+      if (selectedChat?._id === msg.conversation) {
+        setMessages(prev => [...prev, msg]);
+        scrollToBottom();
       }
-
-      // Update chats list (lastMessage, lastMessageAt, unread badge, and move to top)
-      setChats(prev => {
-        const chatIndex = prev.findIndex(c => c._id === msg.conversation);
-        const uId = currentUser._id.toString();
-
-        if (chatIndex !== -1) {
-          const updated = [...prev];
-          const target = { ...updated[chatIndex] };
-          target.lastMessage = msg.text;
-          target.lastMessageAt = msg.createdAt || new Date().toISOString();
-
-          // Increment unread count only if user is NOT currently inside this chat
-          if (!isForActiveChat) {
-            const currentUnread = (target.unreadCount?.[uId] || 0) + 1;
-            target.unreadCount = { ...target.unreadCount, [uId]: currentUnread };
-          }
-
-          updated.splice(chatIndex, 1);
-          return [target, ...updated];
-        } else {
-          // If conversation is brand new, reload chats
-          loadChats();
-          return prev;
-        }
-      });
+      loadChats();
     };
 
-    // B. When our sent message was delivered to recipient (Double Grey Tick)
-    const handleMessageDelivered = ({ messageId, conversationId }) => {
-      setMessages(prev => prev.map(m => {
-        if ((m._id === messageId || (!messageId && m.conversation === conversationId)) && m.status !== 'READ') {
-          return { ...m, status: 'DELIVERED' };
-        }
-        return m;
-      }));
+    const handleMessageDelivered = ({ messageId }) => {
+      setMessages(prev => prev.map(m => m._id === messageId ? { ...m, status: 'DELIVERED' } : m));
     };
 
-    // C. When recipient came online and all pending messages were delivered
-    const handleAllMessagesDelivered = () => {
-      const uId = currentUser._id.toString();
-      setMessages(prev => prev.map(m => {
-        const isMine = (m.sender?._id || m.sender).toString() === uId;
-        if (isMine && m.status === 'SENT') {
-          return { ...m, status: 'DELIVERED' };
-        }
-        return m;
-      }));
+    const handleAllMessagesDelivered = ({ conversationId }) => {
+      if (selectedChat?._id === conversationId) {
+        setMessages(prev => prev.map(m => m.status === 'SENT' ? { ...m, status: 'DELIVERED' } : m));
+      }
     };
 
-    // D. When recipient read our messages (Double Blue Ticks!)
     const handleMessagesRead = ({ conversationId }) => {
       if (selectedChat?._id === conversationId) {
         const uId = currentUser._id.toString();
@@ -236,7 +172,7 @@ const ChatHub = () => {
     const receiverId = receiver?._id || receiver;
 
     if (!receiverId) {
-      return alert("Critical Error: Receiver not found in this chat session.");
+      return alert("Receiver not found in this chat session.");
     }
 
     const currentText = text.trim();
@@ -253,10 +189,8 @@ const ChatHub = () => {
       
       const newMsg = data.data;
 
-      // Add to local message list immediately
       setMessages(prev => [...prev, newMsg]);
 
-      // Emit to socket server
       if (socket) {
         socket.emit("send_message", { 
           ...newMsg, 
@@ -264,7 +198,6 @@ const ChatHub = () => {
         });
       }
 
-      // Update last message in the thread list (always ensure it is in the list and at top)
       setChats(prev => {
         const idx = prev.findIndex(c => c._id === selectedChat._id);
         const targetChat = idx !== -1 ? prev[idx] : selectedChat;
@@ -279,16 +212,29 @@ const ChatHub = () => {
 
     } catch (err) {
       const errorMsg = err.response?.data?.message || "Internal Server Error";
-      if (errorMsg.includes("SELF_CHAT")) {
-        alert("Test Error: You are logged in as this person. Log out and use a different account to test chat.");
-      } else {
-        alert("Error: " + errorMsg);
-      }
-      setText(currentText); // Restore on error
+      alert("Error: " + errorMsg);
+      setText(currentText);
     }
   };
 
-  // 5. Start chat from directory (Admin Only)
+  // 5. Connect / Chat with Admin Support
+  const handleConnectWithAdmin = async () => {
+    if (!currentUser) return;
+    try {
+      setConnectingAdmin(true);
+      const { data } = await API.post('/chat/access', { receiverId: 'ADMIN_ROLE_ID' });
+      if (data.data) {
+        setSelectedChat(data.data);
+      }
+    } catch (err) {
+      console.error("Admin chat error:", err);
+      alert(err.response?.data?.message || "Could not connect to live admin support.");
+    } finally {
+      setConnectingAdmin(false);
+    }
+  };
+
+  // 6. Start chat from directory (Admin Only)
   const handleStartFromDirectory = async (userId) => {
     try {
       const { data } = await API.post('/chat/access', { receiverId: userId });
@@ -315,223 +261,275 @@ const ChatHub = () => {
     p => (p._id || p).toString() !== currentUser?._id?.toString()
   );
 
+  const isOtherAdmin = otherUser?.role === 'ADMIN';
+
   return (
-    <div className={`fixed inset-y-0 right-0 w-full sm:w-[480px] bg-white shadow-2xl z-[300] transform transition-transform duration-500 rounded-l-[3rem] flex flex-col border-l border-gray-100 ${isChatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-      
-      {/* HEADER WITH TOGGLE */}
-      <div className="p-8 bg-gray-900 text-white rounded-tl-[3rem] flex justify-between items-center shadow-lg">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-3xl font-black italic tracking-tighter">Concierge.</h2>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" title="Connected"></span>
+    <>
+      {/* Dark backdrop overlay to smoothly close on outside click */}
+      {isChatOpen && (
+        <div 
+          onClick={() => setIsChatOpen(false)}
+          className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[290] transition-opacity duration-300"
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Main Drawer Container */}
+      <div 
+        className={`fixed inset-y-0 right-0 w-full sm:w-[470px] bg-[#141414] text-white shadow-2xl z-[300] transform transition-transform duration-300 ease-out sm:rounded-l-[2.5rem] flex flex-col border-l border-[#262626] ${
+          isChatOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {/* HEADER */}
+        <div className="p-6 sm:p-7 bg-[#181818] text-white sm:rounded-tl-[2.5rem] flex justify-between items-center border-b border-[#262626] shadow-md">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-white">Concierge.</h2>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-md shadow-emerald-500/50 animate-pulse" title="Connected"></span>
+            </div>
+            
+            {currentUser?.role === 'ADMIN' ? (
+              <div className="flex gap-4 mt-2">
+                <button 
+                  onClick={() => { setView('inbox'); setSelectedChat(null); }} 
+                  className={`text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer ${view === 'inbox' ? 'text-primary' : 'text-gray-400 hover:text-white'}`}
+                >
+                  Inbox
+                </button>
+                <button 
+                  onClick={() => { setView('directory'); setSelectedChat(null); }} 
+                  className={`text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer ${view === 'directory' ? 'text-primary' : 'text-gray-400 hover:text-white'}`}
+                >
+                  Directory
+                </button>
+              </div>
+            ) : (
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                Official Real-Time Messaging & Support
+              </p>
+            )}
           </div>
-          {currentUser?.role === 'ADMIN' && (
-            <div className="flex gap-4 mt-2">
-              <button 
-                onClick={() => { setView('inbox'); setSelectedChat(null); }} 
-                className={`text-[10px] font-black uppercase tracking-widest transition-colors ${view === 'inbox' ? 'text-primary' : 'text-gray-400 hover:text-white'}`}
-              >
-                Inbox
-              </button>
-              <button 
-                onClick={() => { setView('directory'); setSelectedChat(null); }} 
-                className={`text-[10px] font-black uppercase tracking-widest transition-colors ${view === 'directory' ? 'text-primary' : 'text-gray-400 hover:text-white'}`}
-              >
-                Directory
-              </button>
+
+          <button 
+            onClick={() => setIsChatOpen(false)} 
+            className="p-2.5 bg-[#252525] rounded-xl text-gray-300 hover:text-white hover:bg-primary transition-all active:scale-95 cursor-pointer"
+            aria-label="Close Chat"
+          >
+            <X size={18}/>
+          </button>
+        </div>
+
+        {/* BODY AREA */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {fetching ? (
+            <div className="flex-1 flex flex-col items-center justify-center opacity-50">
+              <Loader2 className="animate-spin mb-3 text-primary" size={32} />
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Syncing Messages...</p>
+            </div>
+          ) : !selectedChat ? (
+            view === 'inbox' ? (
+              /* INBOX LIST */
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Search Bar */}
+                <div className="p-4 sm:p-5 border-b border-[#262626] bg-[#181818]/70">
+                  <div className="relative">
+                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search messages or contacts..."
+                      className="w-full bg-[#202020] pl-11 pr-4 py-2.5 rounded-xl text-xs font-semibold text-white outline-none border border-[#2d2d2d] focus:border-primary transition placeholder:text-gray-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Action: Chat with Admin Support */}
+                {currentUser?.role !== 'ADMIN' && (
+                  <div className="px-5 pt-4">
+                    <button
+                      onClick={handleConnectWithAdmin}
+                      disabled={connectingAdmin}
+                      className="w-full bg-gradient-to-r from-red-950/60 to-[#1e1e1e] hover:from-primary hover:to-red-700 text-white border border-primary/40 hover:border-primary p-3.5 rounded-2xl flex items-center justify-between transition-all duration-300 shadow-lg group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/20 text-primary group-hover:bg-white group-hover:text-primary flex items-center justify-center transition">
+                          {connectingAdmin ? <Loader2 size={18} className="animate-spin" /> : <Headphones size={18} />}
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-black uppercase tracking-wide">Live Support Desk</p>
+                          <p className="text-[10px] text-gray-400 group-hover:text-white/80">Direct chat with Nestify Administrator</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-black/40 px-2.5 py-1 rounded-lg border border-white/10 group-hover:bg-white group-hover:text-black">
+                        Start
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Conversations List */}
+                <div className="flex-1 overflow-y-auto p-5 space-y-3 no-scrollbar">
+                  <p className="text-[10px] font-black uppercase text-gray-500 tracking-[0.25em] px-1">
+                    Active Conversations
+                  </p>
+                  
+                  {filteredChats.length > 0 ? filteredChats.map(chat => (
+                    <ChatCard 
+                      key={chat._id} 
+                      chat={chat} 
+                      currentUser={currentUser} 
+                      onSelect={setSelectedChat} 
+                    />
+                  )) : (
+                    <div className="text-center py-20 opacity-40 space-y-2">
+                      <MessageSquare size={44} className="mx-auto text-gray-500"/>
+                      <p className="text-xs font-black uppercase tracking-wider text-gray-400">No active chats yet</p>
+                      <p className="text-[10px] text-gray-500">Reach out to property landlords or click above to talk with support.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* ADMIN DIRECTORY LIST */
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-4 sm:p-5 border-b border-[#262626] bg-[#181818]/70">
+                  <div className="relative">
+                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search platform users..."
+                      className="w-full bg-[#202020] pl-11 pr-4 py-2.5 rounded-xl text-xs font-semibold text-white outline-none border border-[#2d2d2d] focus:border-primary transition placeholder:text-gray-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-5 space-y-2.5 no-scrollbar">
+                  <p className="text-[10px] font-black uppercase text-primary tracking-[0.25em] px-1">Platform Directory</p>
+                  {filteredDirectory.map(u => (
+                    <div 
+                      key={u._id} 
+                      onClick={() => handleStartFromDirectory(u._id)}
+                      className="p-3.5 bg-[#1f1f1f] rounded-2xl flex items-center gap-3.5 hover:bg-[#252525] cursor-pointer border border-[#2c2c2c] hover:border-primary/50 transition-all shadow-sm group"
+                    >
+                      <div className="w-10 h-10 bg-[#2a2a2a] group-hover:bg-primary text-white rounded-xl flex items-center justify-center font-black transition-all">
+                        {u.firstName?.[0] || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-xs text-white truncate">{u.firstName} {u.lastName}</p>
+                        <p className="text-[9px] font-bold text-gray-400 truncate">{u.email}</p>
+                      </div>
+                      <span className="text-[8px] font-black px-2 py-0.5 rounded bg-[#2a2a2a] text-gray-300 border border-[#383838] uppercase">
+                        {u.role}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          ) : (
+            /* ACTIVE CHAT VIEW */
+            <div className="flex-1 flex flex-col bg-[#141414]">
+              {/* Active Chat Header */}
+              <div className="p-4 sm:p-5 bg-[#181818] border-b border-[#262626] flex items-center justify-between shadow-sm">
+                <button 
+                  onClick={() => setSelectedChat(null)} 
+                  className="flex items-center gap-1.5 text-xs font-black uppercase text-gray-400 hover:text-white transition cursor-pointer"
+                >
+                  <ArrowLeft size={16}/> Back
+                </button>
+
+                <div className="text-right">
+                  <p className="text-sm font-black text-white flex items-center justify-end gap-1.5">
+                    {otherUser?.firstName} {otherUser?.lastName}
+                    {isOtherAdmin && <ShieldCheck size={14} className="text-primary" />}
+                  </p>
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <p className="text-[9px] font-black uppercase tracking-wider text-emerald-400">
+                      {isOtherAdmin ? 'Nestify Administrator' : otherUser?.role || 'Active'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Messages Container */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 no-scrollbar bg-[#111111]">
+                {messages.length === 0 ? (
+                  <div className="text-center py-20 opacity-40 space-y-2">
+                    <MessageSquare size={36} className="mx-auto text-gray-500" />
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Say hello to start the chat!</p>
+                  </div>
+                ) : (
+                  messages.map((m, i) => {
+                    const isMine = (m.sender?._id || m.sender).toString() === currentUser?._id?.toString();
+                    
+                    return (
+                      <div key={m._id || i} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                        <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-medium shadow-sm relative ${
+                          isMine 
+                            ? 'bg-primary text-white rounded-br-none shadow-red-950/40' 
+                            : 'bg-[#202020] text-gray-100 rounded-bl-none border border-[#2e2e2e]'
+                        }`}>
+                          <p className="leading-relaxed break-words whitespace-pre-wrap">{m.text}</p>
+                          
+                          {/* Timestamp & Ticks */}
+                          <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] select-none ${
+                            isMine ? 'text-white/80' : 'text-gray-400'
+                          }`}>
+                            <span>{formatMsgTime(m.createdAt)}</span>
+
+                            {isMine && (
+                              <span className="flex items-center ml-0.5">
+                                {m.status === 'READ' ? (
+                                  <CheckCheck size={14} className="text-sky-300 stroke-[2.5]" title="Read" />
+                                ) : m.status === 'DELIVERED' ? (
+                                  <CheckCheck size={14} className="text-white/70 stroke-[2]" title="Delivered" />
+                                ) : (
+                                  <Check size={14} className="text-white/70 stroke-[2]" title="Sent" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Message Input Bar */}
+              <div className="p-3.5 sm:p-4 bg-[#181818] border-t border-[#262626] flex items-center gap-2">
+                <input 
+                  value={text} 
+                  onChange={e => setText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                  className="flex-1 bg-[#222222] border border-[#303030] px-4 py-3 rounded-2xl text-xs font-medium text-white outline-none focus:border-primary transition placeholder:text-gray-500"
+                  placeholder="Type your message..."
+                  autoFocus
+                />
+                <button 
+                  onClick={handleSend} 
+                  disabled={!text.trim()}
+                  className="btn-netflix w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  aria-label="Send Message"
+                >
+                  <Send size={16}/>
+                </button>
+              </div>
             </div>
           )}
         </div>
-        <button 
-          onClick={() => setIsChatOpen(false)} 
-          className="p-3 bg-white/10 rounded-2xl hover:bg-red-500 transition-all active:scale-95"
-          aria-label="Close Chat"
-        >
-          <X size={20}/>
-        </button>
       </div>
-
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {fetching ? (
-          <div className="flex-1 flex flex-col items-center justify-center opacity-40">
-            <Loader2 className="animate-spin mb-3 text-primary" size={32} />
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">Syncing Messages...</p>
-          </div>
-        ) : !selectedChat ? (
-          view === 'inbox' ? (
-            /* INBOX LIST (WHATSAPP STYLE WITH SEARCH & BADGES) */
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                <div className="relative">
-                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search chats..."
-                    className="w-full bg-white pl-11 pr-4 py-3 rounded-2xl text-xs font-bold outline-none border border-gray-200 focus:border-primary transition"
-                  />
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-3">
-                <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.25em] mb-3 px-2">Active Conversations</p>
-                {filteredChats.length > 0 ? filteredChats.map(chat => (
-                  <ChatCard 
-                    key={chat._id} 
-                    chat={chat} 
-                    currentUser={currentUser} 
-                    onSelect={setSelectedChat} 
-                  />
-                )) : (
-                  <div className="text-center py-24 opacity-30">
-                    <MessageSquare size={48} className="mx-auto mb-3"/>
-                    <p className="text-xs font-black uppercase tracking-widest">No conversations found</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            /* ADMIN DIRECTORY LIST */
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                <div className="relative">
-                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search users..."
-                    className="w-full bg-white pl-11 pr-4 py-3 rounded-2xl text-xs font-bold outline-none border border-gray-200 focus:border-primary transition"
-                  />
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-3">
-                <p className="text-[10px] font-black uppercase text-primary tracking-[0.25em] mb-3 px-2">Platform Directory</p>
-                {filteredDirectory.map(u => (
-                  <div 
-                    key={u._id} 
-                    onClick={() => handleStartFromDirectory(u._id)}
-                    className="p-4 bg-gray-50 rounded-2xl flex items-center gap-4 hover:bg-white cursor-pointer border border-transparent hover:border-gray-100 transition-all shadow-sm group"
-                  >
-                    <div className="w-12 h-12 bg-gray-900 group-hover:bg-primary text-white rounded-2xl flex items-center justify-center font-black transition-all">
-                      {u.firstName?.[0] || '?'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-sm text-gray-900 truncate">{u.firstName} {u.lastName}</p>
-                      <p className="text-[9px] font-bold text-gray-400 truncate">{u.email}</p>
-                    </div>
-                    <span className="text-[8px] font-black px-2 py-1 rounded bg-gray-200 text-gray-600 uppercase">
-                      {u.role}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        ) : (
-          /* ACTIVE CHAT VIEW (WITH TICKS & TIMESTAMPS) */
-          <div className="flex-1 flex flex-col bg-[#F8FAFC]">
-            {/* CHAT HEADER */}
-            <div className="p-5 bg-white border-b border-gray-100 flex items-center justify-between shadow-sm">
-              <button 
-                onClick={() => setSelectedChat(null)} 
-                className="flex items-center gap-2 text-xs font-black uppercase text-gray-500 hover:text-primary transition-colors"
-              >
-                <ArrowLeft size={16}/> Back
-              </button>
-
-              <div className="text-right">
-                <p className="text-sm font-black text-gray-900">
-                  {otherUser?.firstName} {otherUser?.lastName}
-                </p>
-                <div className="flex items-center justify-end gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <p className="text-[9px] font-bold text-emerald-600 uppercase tracking-tighter">
-                    {otherUser?.role === 'ADMIN' ? 'Support' : otherUser?.role || 'Active'}
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            {/* MESSAGES SCROLL CONTAINER */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-               {messages.length === 0 ? (
-                 <div className="text-center py-20 opacity-30">
-                   <MessageSquare size={40} className="mx-auto mb-2 text-gray-400" />
-                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Say hello to start the chat!</p>
-                 </div>
-               ) : (
-                 messages.map((m, i) => {
-                   const isMine = (m.sender?._id || m.sender).toString() === currentUser?._id?.toString();
-                   
-                   return (
-                     <div key={m._id || i} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                        <div className={`max-w-[85%] px-5 py-3 rounded-2xl text-sm font-medium shadow-sm relative group ${
-                          isMine 
-                            ? 'bg-gray-900 text-white rounded-br-none' 
-                            : 'bg-white text-gray-800 rounded-bl-none border border-gray-100'
-                        }`}>
-                           <p className="leading-relaxed break-words whitespace-pre-wrap">{m.text}</p>
-                           
-                           {/* TIMESTAMP & STATUS TICKS */}
-                           <div className={`flex items-center justify-end gap-1.5 mt-1.5 text-[10px] select-none ${
-                             isMine ? 'text-gray-400' : 'text-gray-400'
-                           }`}>
-                             <span>{formatMsgTime(m.createdAt)}</span>
-
-                             {isMine && (
-                               <span className="flex items-center ml-0.5">
-                                 {m.status === 'READ' ? (
-                                   // Double Blue Tick (WhatsApp Style Sky Blue)
-                                   <CheckCheck size={16} className="text-sky-400 stroke-[2.5]" title="Read" />
-                                 ) : m.status === 'DELIVERED' ? (
-                                   // Double Grey Tick
-                                   <CheckCheck size={16} className="text-gray-400 stroke-[2]" title="Delivered" />
-                                 ) : (
-                                   // Single Grey Tick
-                                   <Check size={16} className="text-gray-400 stroke-[2]" title="Sent" />
-                                 )}
-                               </span>
-                             )}
-                           </div>
-                        </div>
-                     </div>
-                   );
-                 })
-               )}
-               <div ref={messagesEndRef} />
-            </div>
-
-            {/* MESSAGE INPUT */}
-            <div className="p-5 bg-white border-t border-gray-100 flex items-center gap-3">
-               <input 
-                 value={text} 
-                 onChange={e => setText(e.target.value)}
-                 onKeyDown={e => {
-                   if (e.key === 'Enter' && !e.shiftKey) {
-                     e.preventDefault();
-                     handleSend();
-                   }
-                 }}
-                 className="flex-1 bg-gray-100 px-5 py-4 rounded-2xl text-sm font-medium outline-none focus:ring-2 ring-primary transition-all placeholder:text-gray-400"
-                 placeholder="Type a message..."
-                 autoFocus
-               />
-               <button 
-                 onClick={handleSend} 
-                 disabled={!text.trim()}
-                 className="p-4 bg-gray-900 text-white rounded-2xl hover:bg-primary transition-all shadow-xl active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                 aria-label="Send Message"
-               >
-                 <Send size={18}/>
-               </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+    </>
   );
 };
 
