@@ -2,20 +2,20 @@ import { useEffect, useState } from 'react';
 import API from '../../api/client';
 import { 
   Plus, Loader2, ChevronRight, ArrowLeft, 
-  CheckCircle, Clock, AlertOctagon, UploadCloud, FileText, X, MapPin 
+  CheckCircle2, Clock, AlertOctagon, UploadCloud, FileText, X, MapPin 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const MyProperties = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('VERIFIED'); // Default view
-  const [selectedProp, setSelectedProp] = useState(null); // For Resubmit Modal
+  const [activeTab, setActiveTab] = useState('VERIFIED');
+  const [selectedProp, setSelectedProp] = useState(null);
 
   const fetchMyProperties = async () => {
     try {
       const { data } = await API.get('/properties/my-listings'); 
-      setProperties(data.data);
+      setProperties(data.data || []);
     } catch (err) { 
       console.error("Fetch Error:", err); 
     } finally { 
@@ -27,10 +27,8 @@ const MyProperties = () => {
     fetchMyProperties(); 
   }, []);
 
-  // Filter logic for tabs
   const filteredProperties = properties.filter(p => p.verificationStatus === activeTab);
 
-  // Status Counters
   const stats = {
     verified: properties.filter(p => p.verificationStatus === 'VERIFIED').length,
     pending: properties.filter(p => p.verificationStatus === 'PENDING').length,
@@ -38,112 +36,136 @@ const MyProperties = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12 text-white">
       {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
         <div>
-          <Link to="/owner/dashboard" className="flex items-center gap-2 text-gray-400 font-black text-[10px] uppercase mb-2 hover:text-primary transition">
+          <Link to="/owner/dashboard" className="flex items-center gap-1.5 text-gray-400 font-bold text-xs uppercase mb-2 hover:text-white transition">
             <ArrowLeft size={14}/> Back to Occupancy
           </Link>
-          <h1 className="text-5xl font-black text-gray-900 italic tracking-tighter">Inventory.</h1>
+          <h1 className="text-2xl sm:text-4xl font-black text-white italic tracking-tight">
+            Inventory & Buildings
+          </h1>
         </div>
-        <Link to="/owner/add-property" className="bg-gray-900 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-2 shadow-2xl active:scale-95 transition hover:bg-primary">
-          <Plus size={20} /> New Building
+        <Link 
+          to="/owner/add-property" 
+          className="btn-netflix px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg active:scale-95 transition"
+        >
+          <Plus size={16} /> List New PG
         </Link>
       </div>
 
-      {/* 󾠮 TAB SYSTEM: CLEANER NAVIGATION */}
-      <div className="flex bg-gray-100 p-2 rounded-[2rem] mb-10 w-fit">
+      {/* TAB SYSTEM: COMPACT BADGES */}
+      <div className="flex bg-[#1e1e1e] p-1.5 rounded-xl border border-[#2e2e2e] mb-6 w-fit gap-1">
         <button 
           onClick={() => setActiveTab('VERIFIED')}
-          className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase transition-all flex items-center gap-2 ${activeTab === 'VERIFIED' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+          className={`px-4 py-2 rounded-lg font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'VERIFIED' 
+              ? 'btn-netflix text-white shadow-sm' 
+              : 'text-gray-400 hover:text-white'
+          }`}
         >
-          <CheckCircle size={14}/> Live ({stats.verified})
+          <CheckCircle2 size={13}/> Live ({stats.verified})
         </button>
         <button 
           onClick={() => setActiveTab('PENDING')}
-          className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase transition-all flex items-center gap-2 ${activeTab === 'PENDING' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+          className={`px-4 py-2 rounded-lg font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'PENDING' 
+              ? 'bg-amber-600 text-white shadow-sm' 
+              : 'text-gray-400 hover:text-white'
+          }`}
         >
-          <Clock size={14}/> Pending ({stats.pending})
+          <Clock size={13}/> Pending ({stats.pending})
         </button>
         <button 
           onClick={() => setActiveTab('REJECTED')}
-          className={`px-8 py-3 rounded-2xl font-black text-[10px] uppercase transition-all flex items-center gap-2 ${activeTab === 'REJECTED' ? 'bg-white text-red-500 shadow-sm' : 'text-gray-400'}`}
+          className={`px-4 py-2 rounded-lg font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
+            activeTab === 'REJECTED' 
+              ? 'bg-red-600 text-white shadow-sm' 
+              : 'text-gray-400 hover:text-white'
+          }`}
         >
-          <AlertOctagon size={14}/> Rejected ({stats.rejected})
+          <AlertOctagon size={13}/> Rejected ({stats.rejected})
         </button>
       </div>
 
       {loading ? (
         <div className="py-20 text-center">
-          <Loader2 className="animate-spin mx-auto text-primary" size={40} />
+          <Loader2 className="animate-spin mx-auto text-primary" size={36} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-4">
           {filteredProperties.length > 0 ? filteredProperties.map(pg => (
-            <div key={pg._id} className="bg-white p-8 rounded-[3.5rem] border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 group">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div 
+              key={pg._id} 
+              className="bg-[#181818] p-5 sm:p-6 rounded-2xl border border-[#2a2a2a] shadow-xl hover:border-[#383838] transition-all group"
+            >
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
                 
                 {/* BUILDING INFO */}
-                <div className="flex items-center gap-8 w-full md:w-auto">
-                  <div className="relative">
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                  <div className="relative shrink-0">
                     <img 
                       src={pg.images?.[0]?.url || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=300'} 
-                      className={`w-32 h-32 rounded-[2.5rem] object-cover shadow-2xl transition-all duration-700 ${pg.verificationStatus === 'REJECTED' ? 'grayscale opacity-50' : ''}`} 
+                      alt={pg.title}
+                      className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-md border border-[#333333] ${
+                        pg.verificationStatus === 'REJECTED' ? 'grayscale opacity-60' : ''
+                      }`} 
                     />
                     {pg.verificationStatus === 'VERIFIED' && (
-                      <div className="absolute -top-2 -right-2 bg-green-500 text-white p-1.5 rounded-full border-4 border-white">
-                        <CheckCircle size={14} />
+                      <div className="absolute -top-1.5 -right-1.5 bg-emerald-500 text-white p-1 rounded-full border-2 border-[#181818]">
+                        <CheckCircle2 size={11} />
                       </div>
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-black text-2xl text-gray-900 leading-none mb-2">{pg.title}</h3>
-                    <p className="text-gray-400 text-xs font-bold flex items-center gap-1 mb-4">
-                      <MapPin size={12}/> {pg.location?.city || "Location Pending"}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-black text-base sm:text-lg text-white leading-tight mb-1 truncate">{pg.title}</h3>
+                    <p className="text-gray-400 text-xs font-medium flex items-center gap-1 mb-2">
+                      <MapPin size={12} className="text-primary shrink-0"/> 
+                      <span className="truncate">{pg.location?.address ? `${pg.location.address}, ` : ''}{pg.location?.city || "Location Pending"}</span>
                     </p>
                     
                     {/* SHOW REASON IF REJECTED */}
                     {pg.verificationStatus === 'REJECTED' && (
-                      <div className="inline-block px-4 py-2 bg-red-50 border border-red-100 rounded-xl">
-                        <p className="text-[10px] font-black text-red-500 uppercase">
-                          Reason: <span className="italic font-bold text-gray-700 normal-case">"{pg.rejectionReason || "Documents unclear."}"</span>
+                      <div className="inline-block px-2.5 py-1 bg-red-950/40 border border-red-900/40 rounded-lg">
+                        <p className="text-[10px] font-bold text-red-400">
+                          Reason: <span className="text-gray-300 font-medium">"{pg.rejectionReason || "Documents unclear."}"</span>
                         </p>
                       </div>
                     )}
 
                     {/* SHOW PENDING NOTICE */}
                     {pg.verificationStatus === 'PENDING' && (
-                      <p className="text-[10px] font-black text-orange-500 uppercase flex items-center gap-1">
-                        <Clock size={12}/> Currently Under Review
-                      </p>
+                      <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                        <Clock size={11}/> Currently Under Review
+                      </span>
                     )}
                   </div>
                 </div>
 
                 {/* ACTION BUTTONS */}
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                   {pg.verificationStatus === 'REJECTED' ? (
                     <button 
                       onClick={() => setSelectedProp(pg)}
-                      className="flex-1 md:flex-none bg-red-500 text-white px-8 py-5 rounded-3xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-red-600 shadow-lg shadow-red-100 transition active:scale-95"
+                      className="btn-netflix px-4 py-2 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-1.5 shadow-md shadow-red-950/40 cursor-pointer"
                     >
-                      <UploadCloud size={16} /> Try Again / Resubmit
+                      <UploadCloud size={14} /> Resubmit
                     </button>
                   ) : (
                     <>
                       <Link 
                         to={`/owner/add-room/${pg._id}`} 
-                        className="flex-1 md:flex-none bg-gray-50 text-gray-500 px-6 py-5 rounded-3xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-gray-900 hover:text-white transition"
+                        className="btn-netflix-secondary px-3.5 py-2 rounded-xl font-bold text-xs uppercase flex items-center justify-center gap-1.5 cursor-pointer"
                       >
-                        <Plus size={16} /> Inventory
+                        <Plus size={14} /> Inventory
                       </Link>
                       {pg.verificationStatus === 'VERIFIED' && (
                         <Link 
                           to={`/property/${pg._id}`} 
-                          className="flex-1 md:flex-none bg-white border-2 border-gray-900 text-gray-900 px-6 py-5 rounded-3xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-gray-900 hover:text-white transition"
+                          className="px-3.5 py-2 rounded-xl bg-[#222222] hover:bg-[#282828] border border-[#333333] text-gray-200 hover:text-white font-bold text-xs uppercase flex items-center justify-center gap-1 cursor-pointer transition"
                         >
-                          Preview <ChevronRight size={16} />
+                          Preview <ChevronRight size={13} />
                         </Link>
                       )}
                     </>
@@ -152,23 +174,23 @@ const MyProperties = () => {
               </div>
             </div>
           )) : (
-            <div className="py-32 text-center bg-gray-50 rounded-[4rem] border-4 border-dashed border-gray-100">
-               <p className="font-black text-gray-300 uppercase tracking-widest text-sm italic">
-                 No {activeTab.toLowerCase()} listings in the Matrix.
+            <div className="py-20 text-center bg-[#181818] rounded-2xl border border-[#2a2a2a] p-8">
+               <p className="font-bold text-gray-400 text-xs uppercase tracking-wider">
+                 No {activeTab.toLowerCase()} listings in your inventory.
                </p>
             </div>
           )}
         </div>
       )}
 
-      {/* 󾠱 RESUBMIT MODAL */}
+      {/* RESUBMIT MODAL */}
       {selectedProp && (
         <ResubmitModal 
           property={selectedProp} 
           onClose={() => setSelectedProp(null)} 
           onSuccess={() => { 
             fetchMyProperties(); 
-            setActiveTab('PENDING'); // Move user to pending tab to see progress
+            setActiveTab('PENDING');
             setSelectedProp(null); 
           }}
         />
@@ -177,7 +199,7 @@ const MyProperties = () => {
   );
 };
 
-// --- MODAL COMPONENT ---
+// --- MODAL COMPONENT (DARK THEME) ---
 const ResubmitModal = ({ property, onClose, onSuccess }) => {
   const [file, setFile] = useState(null);
   const [upLoading, setUpLoading] = useState(false);
@@ -201,37 +223,47 @@ const ResubmitModal = ({ property, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[600] flex items-center justify-center p-6">
-      <div className="bg-white max-w-lg w-full rounded-[4rem] p-12 space-y-8 animate-in zoom-in duration-300">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[600] flex items-center justify-center p-4 animate-in fade-in duration-200 text-white">
+      <div className="bg-[#181818] border border-[#2e2e2e] max-w-md w-full rounded-3xl p-6 sm:p-8 space-y-6 relative shadow-2xl">
         <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-3xl font-black italic">Fix Listing.</h2>
-            <p className="text-[10px] font-black uppercase text-gray-400 mt-1">Property: {property.title}</p>
+            <h2 className="text-xl font-black italic text-white">Fix Listing Proof</h2>
+            <p className="text-xs text-gray-400 mt-0.5 truncate max-w-xs">{property.title}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-            <X size={24}/>
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-white hover:bg-[#252525] rounded-xl transition cursor-pointer">
+            <X size={18}/>
           </button>
         </div>
         
-        <div className="border-4 border-dashed border-blue-50 bg-blue-50/50 p-12 rounded-[3rem] text-center relative cursor-pointer group transition-colors hover:border-primary/30">
+        <div className="border-2 border-dashed border-[#383838] hover:border-primary/50 bg-[#202020] p-8 rounded-2xl text-center relative cursor-pointer group transition">
           <input 
             type="file" 
             className="absolute inset-0 opacity-0 cursor-pointer" 
             onChange={(e) => setFile(e.target.files[0])} 
           />
-          <FileText size={40} className="mx-auto text-blue-300 group-hover:text-primary transition-all" />
-          <p className="mt-4 text-[10px] font-black uppercase text-gray-500 tracking-widest">
-            {file ? file.name : "Select Clear Ownership Proof"}
+          <FileText size={32} className="mx-auto text-primary mb-2 transition-transform group-hover:scale-105" />
+          <p className="text-xs font-bold text-gray-300">
+            {file ? file.name : "Select Ownership Proof (Registry / Tax Receipt)"}
           </p>
+          <p className="text-[10px] text-gray-500 mt-1">PDF or image files</p>
         </div>
 
-        <button 
-          onClick={handleAction} 
-          disabled={upLoading}
-          className="w-full bg-gray-900 text-white py-6 rounded-3xl font-black uppercase text-sm shadow-xl active:scale-95 transition flex items-center justify-center gap-3 disabled:opacity-50"
-        >
-          {upLoading ? <Loader2 className="animate-spin" /> : "Send for Admin Review"}
-        </button>
+        <div className="flex items-center justify-end gap-2.5 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleAction} 
+            disabled={upLoading}
+            className="btn-netflix px-5 py-2.5 rounded-xl font-black text-xs uppercase shadow-md shadow-red-950/40 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {upLoading ? <Loader2 className="animate-spin" size={14} /> : "Submit for Review"}
+          </button>
+        </div>
       </div>
     </div>
   );
