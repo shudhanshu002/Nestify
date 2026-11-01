@@ -16,6 +16,9 @@ const AdminHome = ({ user }) => {
   const [kycFilter, setKycFilter] = useState('ALL');
   const [expandedOwners, setExpandedOwners] = useState({});
   const [verifyingPropId, setVerifyingPropId] = useState(null);
+  const [rejectingProp, setRejectingProp] = useState(null);
+  const [rejectionNote, setRejectionNote] = useState('');
+  const [isRevokeMode, setIsRevokeMode] = useState(false);
 
   const handleChatWithOwner = async (e, ownerId) => {
     e.stopPropagation();
@@ -485,8 +488,9 @@ const AdminHome = ({ user }) => {
                                         <button
                                           disabled={verifyingPropId === pg._id}
                                           onClick={() => {
-                                            const reason = prompt("Enter reason for revoking approval:");
-                                            if (reason !== null) handleVerifyProperty(pg._id, 'REJECTED', reason || 'Listing revoked by administrator.');
+                                            setRejectingProp(pg);
+                                            setIsRevokeMode(true);
+                                            setRejectionNote('');
                                           }}
                                           className="text-[9px] font-black uppercase text-gray-400 hover:text-primary transition underline cursor-pointer"
                                           title="Revoke Verification"
@@ -520,8 +524,9 @@ const AdminHome = ({ user }) => {
                                         <button 
                                           disabled={verifyingPropId === pg._id}
                                           onClick={() => {
-                                            const reason = prompt("Enter rejection reason for owner:");
-                                            if (reason !== null) handleVerifyProperty(pg._id, 'REJECTED', reason || 'Listing details require revision.');
+                                            setRejectingProp(pg);
+                                            setIsRevokeMode(false);
+                                            setRejectionNote('');
                                           }}
                                           className="bg-primary/20 text-primary hover:bg-primary hover:text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 border border-primary/30 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                                         >
@@ -566,6 +571,81 @@ const AdminHome = ({ user }) => {
           </div>
         )}
       </section>
+
+      {/* REJECTION / REVOCATION MODAL */}
+      {rejectingProp && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
+          <div className="bg-[#181818] max-w-md w-full rounded-2xl border border-[#2e2e2e] shadow-2xl p-6 text-white space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/30 px-2 py-0.5 rounded">
+                  {isRevokeMode ? "Revoke Property Listing" : "Reject Property Listing"}
+                </span>
+                <h3 className="text-lg font-black text-white tracking-tight mt-1.5">
+                  {rejectingProp.title}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setRejectingProp(null)} 
+                className="p-1.5 bg-[#252525] rounded-xl text-gray-400 hover:text-white transition cursor-pointer"
+              >
+                <X size={16}/>
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400">
+              Select or provide a reason explaining why this listing is being {isRevokeMode ? "revoked" : "rejected"}:
+            </p>
+
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                "Incomplete ownership deed",
+                "Room specs mismatch description",
+                "Safety & hygiene compliance issue",
+                "Landlord unreachable / invalid phone"
+              ].map((preset, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setRejectionNote(preset)}
+                  className="text-[9px] font-bold bg-[#251a1a] text-red-200 hover:bg-red-950 px-2.5 py-1 rounded-lg border border-red-900/50 transition cursor-pointer"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              rows={3}
+              value={rejectionNote}
+              onChange={(e) => setRejectionNote(e.target.value)}
+              placeholder="Detailed reason for owner notification..."
+              className="w-full bg-[#202020] p-3 rounded-xl text-xs text-white placeholder-gray-500 border border-[#333] outline-none focus:border-primary"
+            />
+
+            <div className="flex gap-2.5 pt-2 border-t border-[#262626]">
+              <button
+                disabled={verifyingPropId === rejectingProp._id}
+                onClick={async () => {
+                  const reason = rejectionNote.trim() || (isRevokeMode ? 'Listing revoked by administrator.' : 'Listing details require revision.');
+                  const pId = rejectingProp._id;
+                  setRejectingProp(null);
+                  await handleVerifyProperty(pId, 'REJECTED', reason);
+                }}
+                className="flex-1 btn-netflix py-2.5 rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer active:scale-95 disabled:opacity-50"
+              >
+                {isRevokeMode ? "Confirm Revocation" : "Confirm Rejection"}
+              </button>
+              <button
+                onClick={() => setRejectingProp(null)}
+                className="px-4 bg-[#252525] text-gray-300 hover:text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

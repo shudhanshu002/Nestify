@@ -351,8 +351,9 @@ const AdminKYC = () => {
                       <button 
                         disabled={actionInProgress}
                         onClick={() => {
-                          const r = prompt("Enter Rejection Reason for Owner:");
-                          if (r) handleAction('property', prop._id, 'REJECTED', r);
+                          setSelectedReview({ type: 'property', data: prop });
+                          setShowRejectInput(true);
+                          setRejectionReason('');
                         }}
                         className="bg-primary/20 text-primary hover:bg-primary hover:text-white border border-primary/30 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition active:scale-95 disabled:opacity-50 cursor-pointer"
                       >
@@ -375,50 +376,64 @@ const AdminKYC = () => {
         </div>
       )}
 
-      {/* 4. MODAL: DETAILED USER IDENTITY INSPECTION */}
-      {selectedReview && selectedReview.type === 'user' && (
+      {/* 4. MODAL: DETAILED IDENTITY / DEED INSPECTION */}
+      {selectedReview && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
           <div className="bg-[#181818] max-w-4xl w-full rounded-2xl border border-[#2e2e2e] shadow-2xl overflow-hidden flex flex-col md:flex-row text-white animate-in zoom-in-95 duration-200">
             
             {/* LEFT: DOCUMENT IMAGE PREVIEW */}
             <div className="md:w-3/5 bg-[#121212] flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-r border-[#262626] relative">
-              {selectedReview.data.kycDocuments?.[0]?.fileUrl ? (
-                <>
-                  <img 
-                    src={selectedReview.data.kycDocuments[0].fileUrl} 
-                    className="max-h-[460px] w-full object-contain rounded-xl border border-[#333]" 
-                    alt="Govt ID Proof"
-                  />
-                  <div className="mt-4 flex gap-2">
-                    <button 
-                      onClick={() => window.open(selectedReview.data.kycDocuments[0].fileUrl, '_blank')}
-                      className="btn-netflix-secondary px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <ExternalLink size={12}/> Open Full Resolution
-                    </button>
+              {(() => {
+                const docUrl = selectedReview.type === 'user' 
+                  ? selectedReview.data.kycDocuments?.[0]?.fileUrl 
+                  : selectedReview.data.legalDocuments?.[0]?.fileUrl;
+
+                return docUrl ? (
+                  <>
+                    <img 
+                      src={docUrl} 
+                      className="max-h-[460px] w-full object-contain rounded-xl border border-[#333]" 
+                      alt="Document Proof"
+                    />
+                    <div className="mt-4 flex gap-2">
+                      <button 
+                        onClick={() => window.open(docUrl, '_blank')}
+                        className="btn-netflix-secondary px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <ExternalLink size={12}/> Open Full Resolution
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-20 text-gray-500 space-y-2">
+                    <AlertCircle size={36} className="mx-auto" />
+                    <p className="text-xs font-black uppercase">Document File Missing</p>
                   </div>
-                </>
-              ) : (
-                <div className="text-center py-20 text-gray-500 space-y-2">
-                  <AlertCircle size={36} className="mx-auto" />
-                  <p className="text-xs font-black uppercase">Document File Missing</p>
-                </div>
-              )}
+                );
+              })()}
             </div>
             
-            {/* RIGHT: USER METADATA & ACTIONS */}
+            {/* RIGHT: METADATA & ACTIONS */}
             <div className="md:w-2/5 p-6 flex flex-col justify-between space-y-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <span className="text-[9px] font-black uppercase tracking-wider bg-primary/20 text-primary px-2.5 py-0.5 rounded border border-primary/30">
-                      {selectedReview.data.kycDocuments?.[0]?.docType || 'GOVT_ID'} Verification
+                      {selectedReview.type === 'user' 
+                        ? `${selectedReview.data.kycDocuments?.[0]?.docType || 'GOVT_ID'} Verification`
+                        : `${selectedReview.data.category || 'PG'} Deed Inspection`}
                     </span>
                     <h3 className="text-xl font-black text-white tracking-tight mt-2">
-                      {selectedReview.data.firstName} {selectedReview.data.lastName}
+                      {selectedReview.type === 'user' 
+                        ? `${selectedReview.data.firstName} ${selectedReview.data.lastName}`
+                        : selectedReview.data.title}
                     </h3>
-                    <p className="text-xs text-gray-400 font-semibold mt-0.5">{selectedReview.data.email}</p>
-                    {selectedReview.data.phone && (
+                    <p className="text-xs text-gray-400 font-semibold mt-0.5">
+                      {selectedReview.type === 'user' 
+                        ? selectedReview.data.email
+                        : `${selectedReview.data.location?.address ? selectedReview.data.location.address + ', ' : ''}${selectedReview.data.location?.city || ''}`}
+                    </p>
+                    {selectedReview.type === 'user' && selectedReview.data.phone && (
                       <p className="text-xs text-gray-500 font-medium">{selectedReview.data.phone}</p>
                     )}
                   </div>
@@ -431,14 +446,29 @@ const AdminKYC = () => {
                 </div>
 
                 <div className="bg-[#202020] p-3 rounded-xl border border-[#2e2e2e] space-y-1 text-xs">
-                  <div className="flex justify-between text-gray-400 font-bold">
-                    <span>Account Role:</span>
-                    <span className="text-white uppercase font-black">{selectedReview.data.role}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400 font-bold">
-                    <span>KYC Status:</span>
-                    <span className="text-amber-400 font-black">{selectedReview.data.kycStatus || 'PENDING'}</span>
-                  </div>
+                  {selectedReview.type === 'user' ? (
+                    <>
+                      <div className="flex justify-between text-gray-400 font-bold">
+                        <span>Account Role:</span>
+                        <span className="text-white uppercase font-black">{selectedReview.data.role}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400 font-bold">
+                        <span>KYC Status:</span>
+                        <span className="text-amber-400 font-black">{selectedReview.data.kycStatus || 'PENDING'}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-gray-400 font-bold">
+                        <span>Owner:</span>
+                        <span className="text-white font-black">{selectedReview.data.owner?.firstName} {selectedReview.data.owner?.lastName || ''}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-400 font-bold">
+                        <span>Current Status:</span>
+                        <span className="text-amber-400 font-black">{selectedReview.data.verificationStatus || 'PENDING'}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* REJECTION REASON SECTION */}
@@ -461,7 +491,7 @@ const AdminKYC = () => {
                       rows={2}
                       value={rejectionReason}
                       onChange={(e) => setRejectionReason(e.target.value)}
-                      placeholder="Specific note explaining what user must re-upload..."
+                      placeholder="Specific note explaining what must be re-submitted..."
                       className="w-full bg-[#1c1414] p-2.5 rounded-lg text-xs text-white placeholder-gray-500 border border-red-900/40 outline-none focus:border-primary"
                     />
                   </div>
@@ -474,10 +504,10 @@ const AdminKYC = () => {
                   <>
                     <button 
                       disabled={actionInProgress}
-                      onClick={() => handleAction('user', selectedReview.data._id, 'VERIFIED')} 
+                      onClick={() => handleAction(selectedReview.type, selectedReview.data._id, 'VERIFIED')} 
                       className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 disabled:opacity-50 transition"
                     >
-                      <CheckCircle2 size={16}/> Confirm & Verify Identity
+                      <CheckCircle2 size={16}/> {selectedReview.type === 'user' ? 'Confirm & Verify Identity' : 'Approve & Publish PG'}
                     </button>
                     <button 
                       disabled={actionInProgress}
@@ -491,7 +521,7 @@ const AdminKYC = () => {
                   <div className="flex gap-2">
                     <button 
                       disabled={actionInProgress || !rejectionReason.trim()}
-                      onClick={() => handleAction('user', selectedReview.data._id, 'REJECTED', rejectionReason)} 
+                      onClick={() => handleAction(selectedReview.type, selectedReview.data._id, 'REJECTED', rejectionReason)} 
                       className="flex-1 btn-netflix py-2.5 rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer active:scale-95 disabled:opacity-50"
                     >
                       Submit Rejection
@@ -506,7 +536,7 @@ const AdminKYC = () => {
                 )}
 
                 <p className="text-[10px] text-gray-500 font-bold text-center">
-                  Verification updates user status across the platform immediately.
+                  Verification updates status across the platform immediately.
                 </p>
               </div>
 
