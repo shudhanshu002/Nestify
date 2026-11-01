@@ -1,23 +1,37 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useContext } from 'react';
 import API from '../api/client';
+import { AuthContext } from '../context/AuthContext';
+import { useChat } from '../context/ChatContext';
 import { 
   Bell, CheckCircle, XCircle, Clock, Loader2, ArrowLeft, 
   Wrench, ShieldCheck, CheckCheck, Trash2, CalendarCheck, 
-  AlertCircle, ChevronRight, Inbox, Sparkles
+  ChevronRight, Inbox
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Notifications = () => {
+  const { user } = useContext(AuthContext);
+  const { socket } = useChat();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL'); // ALL, UNREAD, MAINTENANCE, BOOKINGS
   const [actionLoading, setActionLoading] = useState(false);
   const navigate = useNavigate();
 
+  const syncUnreadCount = (notifs) => {
+    const unread = notifs.filter(n => !n.isRead).length;
+    window.dispatchEvent(new CustomEvent('notification_count_updated', { detail: unread }));
+    if (socket && user?._id) {
+      socket.emit('notification_read', { userId: user._id });
+    }
+  };
+
   const fetchNotifs = async () => {
     try {
       const { data } = await API.get('/notifications');
-      setNotifications(data.data || []);
+      const list = data.data || [];
+      setNotifications(list);
+      syncUnreadCount(list);
     } catch (err) { 
       console.error("Fetch notifications failed:", err); 
     } finally { 
@@ -33,7 +47,9 @@ const Notifications = () => {
     try {
       setActionLoading(true);
       await API.put('/notifications/mark-read');
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      const updated = notifications.map(n => ({ ...n, isRead: true }));
+      setNotifications(updated);
+      syncUnreadCount(updated);
     } catch (err) {
       console.error("Mark all read failed:", err);
     } finally {
@@ -45,7 +61,11 @@ const Notifications = () => {
     e?.stopPropagation();
     try {
       await API.put(`/notifications/${id}/read`);
-      setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+      setNotifications(prev => {
+        const updated = prev.map(n => n._id === id ? { ...n, isRead: true } : n);
+        syncUnreadCount(updated);
+        return updated;
+      });
     } catch (err) {
       console.error("Mark single read failed:", err);
     }
@@ -55,7 +75,11 @@ const Notifications = () => {
     e?.stopPropagation();
     try {
       await API.delete(`/notifications/${id}`);
-      setNotifications(prev => prev.filter(n => n._id !== id));
+      setNotifications(prev => {
+        const updated = prev.filter(n => n._id !== id);
+        syncUnreadCount(updated);
+        return updated;
+      });
     } catch (err) {
       console.error("Delete notification failed:", err);
     }
@@ -67,6 +91,7 @@ const Notifications = () => {
       setActionLoading(true);
       await API.delete('/notifications');
       setNotifications([]);
+      syncUnreadCount([]);
     } catch (err) {
       console.error("Clear all notifications failed:", err);
     } finally {
@@ -140,24 +165,57 @@ const Notifications = () => {
     };
   };
 
-  const handleActionClick = (n) => {
+  // Role-aware action navigation that prevents any 404 unauthorized errors
+  const handleActionClick = (n, e) => {
+    e?.stopPropagation();
+
+    // Mark as read when navigating
+    if (!n.isRead) {
+      markSingleRead(n._id);
+    }
+
     const title = n.title || '';
     const type = n.type || '';
+    const userRole = user?.role || 'TENANT';
 
-    if (title.includes('Rejected')) {
-      navigate('/owner/my-properties');
-    } else if (type === 'MAINTENANCE' || title.includes('Ticket')) {
-      if (title.includes('New Maintenance Ticket')) {
+    if (userRole === 'OWNER') {
+      if (title.includes('Rejected') || type === 'PROPERTY_VERIFICATION') {
+        navigate('/owner/my-properties');
+      } else if (type === 'MAINTENANCE' || title.includes('Ticket')) {
         navigate('/owner/dashboard');
+      } else if (title.includes('KYC') || type === 'KYC_UPDATE') {
+        navigate('/verify-identity');
       } else {
-        navigate('/my-bookings');
+        navigate('/owner/dashboard');
       }
+      return;
+    }
+
+    if (userRole === 'ADMIN') {
+      if (title.includes('KYC') || type === 'KYC_UPDATE' || title.includes('Verification')) {
+        navigate('/admin/verify-users');
+      } else {
+        navigate('/admin/dashboard');
+      }
+      return;
+    }
+
+    // TENANT role
+    if (type === 'MAINTENANCE' || title.includes('Ticket')) {
+      navigate('/my-bookings');
     } else if (type === 'BOOKING' || title.includes('Booking') || title.includes('Extend')) {
       navigate('/my-bookings');
     } else if (title.includes('KYC') || type === 'KYC_UPDATE') {
       navigate('/verify-identity');
     } else {
       navigate('/my-bookings');
+    }
+  };
+
+  const handleCardClick = (n) => {
+    // Clicking the card marks it as read immediately and removes the red unread border
+    if (!n.isRead) {
+      markSingleRead(n._id);
     }
   };
 
@@ -294,19 +352,16 @@ const Notifications = () => {
             return (
               <div
                 key={n._id}
-                onClick={() => {
-                  if (isUnread) markSingleRead(n._id);
-                  handleActionClick(n);
-                }}
+                onClick={() => handleCardClick(n)}
                 className={`group relative flex items-start gap-3.5 p-3.5 sm:p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
                   isUnread
-                    ? 'bg-[#1c1c1c] border-primary/40 hover:border-primary/70 shadow-lg shadow-black/40 ring-1 ring-primary/20'
+                    ? 'bg-[#1c1c1c] border-primary/50 hover:border-primary/80 shadow-lg shadow-black/40 ring-1 ring-primary/30'
                     : 'bg-[#161616] border-[#262626] hover:bg-[#1a1a1a] hover:border-[#383838]'
                 }`}
               >
                 {/* Visual Unread Glow Indicator */}
                 {isUnread && (
-                  <span className="absolute top-4 left-2 w-1.5 h-1.5 rounded-full bg-primary ring-2 ring-primary/40"></span>
+                  <span className="absolute top-4 left-2 w-1.5 h-1.5 rounded-full bg-primary ring-2 ring-primary/40 animate-pulse"></span>
                 )}
 
                 {/* Compact Icon Badge */}
@@ -341,32 +396,38 @@ const Notifications = () => {
 
                   {/* Contextual Action Pill */}
                   <div className="flex items-center justify-between gap-3 mt-2.5 pt-2 border-t border-[#242424]">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary group-hover:translate-x-0.5 transition-transform">
-                      {n.title.includes('Rejected')
-                        ? 'Fix Listing Now'
-                        : n.type === 'MAINTENANCE' || n.title.includes('Ticket')
-                        ? (n.title.includes('New Maintenance Ticket') ? 'View Owner Portal' : 'View in My Bookings')
-                        : n.title.includes('KYC')
-                        ? 'View Identity Status'
-                        : 'View Details'}
+                    <button
+                      type="button"
+                      onClick={(e) => handleActionClick(n, e)}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:text-red-400 group-hover:translate-x-0.5 transition-transform cursor-pointer"
+                    >
+                      <span>
+                        {user?.role === 'OWNER'
+                          ? (n.title.includes('Rejected') ? 'Fix Listing Now' : 'Open Owner Portal')
+                          : user?.role === 'ADMIN'
+                          ? 'Review in Admin Matrix'
+                          : (n.type === 'MAINTENANCE' || n.title.includes('Ticket') ? 'View in My Bookings' : 'View Booking Details')}
+                      </span>
                       <ChevronRight size={12} />
-                    </span>
+                    </button>
 
                     {/* Inline Quick Actions */}
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {isUnread && (
                         <button
+                          type="button"
                           onClick={(e) => markSingleRead(n._id, e)}
                           title="Mark as read"
-                          className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-[#282828] transition"
+                          className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-[#282828] transition cursor-pointer"
                         >
                           <CheckCheck size={13} />
                         </button>
                       )}
                       <button
+                        type="button"
                         onClick={(e) => deleteNotification(n._id, e)}
                         title="Delete notification"
-                        className="p-1 rounded-lg text-gray-400 hover:text-red-400 hover:bg-[#282828] transition"
+                        className="p-1 rounded-lg text-gray-400 hover:text-red-400 hover:bg-[#282828] transition cursor-pointer"
                       >
                         <Trash2 size={13} />
                       </button>

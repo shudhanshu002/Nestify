@@ -36,6 +36,14 @@ export const initSocket = (io) => {
       if (roomId) socket.join(roomId);
     });
 
+    // Real-time Notification unread count sync
+    socket.on('notification_read', ({ userId }) => {
+      const targetUser = (userId || currentUserId)?.toString();
+      if (targetUser) {
+        io.to(targetUser).emit('unread_notification_count_changed');
+      }
+    });
+
     // Messaging
     socket.on('send_message', async (payload) => {
       // payload: { _id, sender, receiverId, text, conversation, ... }

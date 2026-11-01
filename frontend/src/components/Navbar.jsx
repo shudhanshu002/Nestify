@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { 
@@ -13,6 +13,7 @@ const Navbar = () => {
   const { user, logout, wishlistIds } = useContext(AuthContext);
   const { setSelectedChat, setIsChatOpen, socket } = useChat();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [adminChatLoading, setAdminChatLoading] = useState(false);
@@ -45,7 +46,7 @@ const Navbar = () => {
     };
   }, [isOpen]);
 
-  // 1. Notification Logic with real-time socket updates
+  // 1. Notification Logic with real-time socket & route change updates
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
@@ -58,7 +59,21 @@ const Navbar = () => {
 
     if (user) fetchNotifs();
 
-    if (!socket) return;
+    // Listen to in-app custom event for instant 0ms badge update
+    const handleCountEvent = (e) => {
+      if (typeof e.detail === 'number') {
+        setUnreadCount(e.detail);
+      } else {
+        fetchNotifs();
+      }
+    };
+    window.addEventListener('notification_count_updated', handleCountEvent);
+
+    if (!socket) {
+      return () => {
+        window.removeEventListener('notification_count_updated', handleCountEvent);
+      };
+    }
 
     const handleNewNotif = () => {
       setUnreadCount(prev => prev + 1);
@@ -72,10 +87,11 @@ const Navbar = () => {
     socket.on('unread_notification_count_changed', handleRefreshCount);
 
     return () => {
+      window.removeEventListener('notification_count_updated', handleCountEvent);
       socket.off('notification', handleNewNotif);
       socket.off('unread_notification_count_changed', handleRefreshCount);
     };
-  }, [user, socket]);
+  }, [user, socket, location.pathname]);
 
   // Scroll to top helper when navigating from dropdown
   const handleMenuClick = () => {
