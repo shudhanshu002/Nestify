@@ -1,5 +1,5 @@
-import { useEffect, useContext, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useContext, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { LogOut, ArrowRight, Home, CheckCircle2 } from 'lucide-react';
 import Logo from '../components/Logo';
@@ -7,25 +7,27 @@ import Logo from '../components/Logo';
 const Logout = () => {
   const { logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(3);
+  const loggedOutRef = useRef(false);
 
   useEffect(() => {
-    // Perform session logout
-    logout();
+    if (!loggedOutRef.current) {
+      loggedOutRef.current = true;
+      logout();
+    }
 
-    // Auto-redirect timer
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(interval);
-          navigate('/', { replace: true });
+          clearInterval(timer);
+          navigate('/login', { replace: true });
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, [logout, navigate]);
 
   return (
@@ -50,27 +52,29 @@ const Logout = () => {
             Your session has been securely terminated. Thank you for staying with Nestify.
           </p>
 
-          <div className="flex items-center justify-center gap-2 text-xs text-gray-500 mb-8 font-medium">
+          <div className="flex items-center justify-center gap-2 text-xs text-gray-400 mb-8 font-medium">
             <CheckCircle2 size={14} className="text-emerald-400" />
-            <span>Redirecting to homepage in {countdown}s</span>
+            <span>Redirecting to login in {countdown}s</span>
           </div>
 
           <div className="w-full grid grid-cols-2 gap-3">
-            <Link
-              to="/login"
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
               className="btn-netflix py-3 rounded-2xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-red-950/40"
             >
               <span>Sign Back In</span>
               <ArrowRight size={14} />
-            </Link>
+            </button>
 
-            <Link
-              to="/"
+            <button
+              type="button"
+              onClick={() => navigate('/')}
               className="py-3 rounded-2xl font-bold text-xs sm:text-sm bg-[#222222] hover:bg-[#282828] border border-[#333333] text-gray-300 hover:text-white flex items-center justify-center gap-2 transition cursor-pointer"
             >
               <Home size={14} />
               <span>Explore Stays</span>
-            </Link>
+            </button>
           </div>
         </div>
       </div>
@@ -79,4 +83,3 @@ const Logout = () => {
 };
 
 export default Logout;
-

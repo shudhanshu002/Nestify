@@ -31,7 +31,6 @@ export const AuthProvider = ({ children }) => {
         const { data } = await API.get('/users/profile'); 
         const userData = data.data || data;
         setUser(userData);
-        // Load wishlist for tenant/users
         fetchWishlistIds();
       } catch (err) {
         localStorage.removeItem('token');
@@ -46,16 +45,16 @@ export const AuthProvider = ({ children }) => {
     else setLoading(false);
   }, [fetchWishlistIds]);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const { data } = await API.post('/auth/login', { email, password });
     localStorage.setItem('token', data.token);
     const userData = data.user || data;
     setUser(userData);
     fetchWishlistIds();
     return userData;
-  };
+  }, [fetchWishlistIds]);
 
-  const googleLogin = async (credentialOrToken, role = 'TENANT') => {
+  const googleLogin = useCallback(async (credentialOrToken, role = 'TENANT') => {
     const payload = typeof credentialOrToken === 'string'
       ? { credential: credentialOrToken, role }
       : { ...credentialOrToken, role };
@@ -65,9 +64,9 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     fetchWishlistIds();
     return userData;
-  };
+  }, [fetchWishlistIds]);
 
-  const facebookLogin = async (authData, role = 'TENANT') => {
+  const facebookLogin = useCallback(async (authData, role = 'TENANT') => {
     const payload = typeof authData === 'string'
       ? { accessToken: authData, role }
       : { ...authData, role };
@@ -77,16 +76,16 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     fetchWishlistIds();
     return userData;
-  };
+  }, [fetchWishlistIds]);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     setUser(null);
     setWishlistIds(new Set());
-  };
+  }, []);
 
   // Central toggle wishlist with optimistic UI updates
-  const toggleWishlist = async (propertyId) => {
+  const toggleWishlist = useCallback(async (propertyId) => {
     if (!user) {
       return { success: false, requireLogin: true };
     }
@@ -95,7 +94,6 @@ export const AuthProvider = ({ children }) => {
     const propIdStr = propertyId.toString();
     const wasLiked = wishlistIds.has(propIdStr);
 
-    // 1. Optimistic update
     setWishlistIds(prev => {
       const updated = new Set(prev);
       if (wasLiked) {
@@ -113,7 +111,6 @@ export const AuthProvider = ({ children }) => {
         isLiked: data.isFavorite !== undefined ? data.isFavorite : !wasLiked 
       };
     } catch (err) {
-      // Rollback on error
       setWishlistIds(prev => {
         const rollback = new Set(prev);
         if (wasLiked) rollback.add(propIdStr);
@@ -123,12 +120,12 @@ export const AuthProvider = ({ children }) => {
       console.error('Toggle Wishlist Error:', err);
       return { success: false, error: err };
     }
-  };
+  }, [user, wishlistIds]);
 
-  const isWishlisted = (propertyId) => {
+  const isWishlisted = useCallback((propertyId) => {
     if (!propertyId) return false;
     return wishlistIds.has(propertyId.toString());
-  };
+  }, [wishlistIds]);
 
   return (
     <AuthContext.Provider value={{ 
