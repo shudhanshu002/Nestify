@@ -5,7 +5,7 @@ import { useChat } from '../../context/ChatContext';
 import { 
   ShieldCheck, ShieldAlert, Search, CheckCircle2, Clock, 
   AlertOctagon, Star, MapPin, Loader2, Bed, 
-  ExternalLink, Check, X, ChevronDown, ChevronUp, Users, Building, Mail, Phone, Sparkles, MessageSquare
+  ExternalLink, Check, X, ChevronDown, ChevronUp, Users, Building, Mail, Phone, Sparkles, MessageSquare, BarChart3
 } from 'lucide-react';
 
 const AdminHome = ({ user }) => {
@@ -148,7 +148,7 @@ const AdminHome = ({ user }) => {
               to="/admin/dashboard" 
               className="btn-netflix-secondary px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition active:scale-95"
             >
-              <ShieldAlert size={16} /> Analytics
+              <BarChart3 size={16} /> Performance & Analytics
             </Link>
           </div>
         </div>

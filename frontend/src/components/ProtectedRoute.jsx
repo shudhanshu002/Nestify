@@ -1,5 +1,5 @@
 import { useContext } from 'react';
-import { Navigate, useLocation, Outlet } from 'react-router-dom'; // 󾠮 Import Outlet
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -7,7 +7,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const location = useLocation();
 
   if (loading) return (
-    <div className="flex h-screen items-center justify-center bg-gray-50">
+    <div className="flex h-screen items-center justify-center bg-[#141414]">
       <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary"></div>
     </div>
   );
@@ -16,11 +16,14 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/404" replace />; // Or an unauthorized page
+  if (allowedRoles.length > 0) {
+    const userRole = (user.role || '').toUpperCase();
+    const isAllowed = allowedRoles.some(r => r.toUpperCase() === userRole);
+    if (!isAllowed) {
+      return <Navigate to="/404" replace />;
+    }
   }
 
-  // 󾠯 FIX: Render 'children' if passed directly, otherwise render the 'Outlet'
   return children ? children : <Outlet />;
 };
 

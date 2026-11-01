@@ -65,9 +65,6 @@ function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/verify-identity" element={<KYCVerification />} />
-              {user?.role === 'ADMIN' && (
-                <Route path="/admin/verify-users" element={<AdminKYC />} />
-              )}
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['TENANT']} />}>
@@ -86,6 +83,9 @@ function App() {
 
             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/analytics" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/verify-users" element={<AdminKYC />} />
+              <Route path="/verify-users" element={<Navigate to="/admin/verify-users" replace />} />
             </Route>
 
             <Route path="/404" element={<NotFound />} />

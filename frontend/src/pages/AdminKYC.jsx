@@ -1,30 +1,35 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import API from '../api/client';
 import { 
   CheckCircle2, XCircle, FileText, Loader2, ShieldCheck, 
-  User, Building, MapPin, ExternalLink, X, Eye, AlertCircle 
+  User, Building, MapPin, ExternalLink, X, Eye, AlertCircle,
+  Search, ArrowLeft, Check, Sparkles, Filter, RefreshCw
 } from 'lucide-react';
 
 const AdminKYC = () => {
-  const [view, setView] = useState('users'); // Switch between 'users' and 'properties'
+  const [view, setView] = useState('users'); // 'users' or 'properties'
   const [userQueue, setUserQueue] = useState([]);
   const [propQueue, setPropQueue] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedReview, setSelectedReview] = useState(null); // Modal state for detailed review
+  const [search, setSearch] = useState('');
+  const [selectedReview, setSelectedReview] = useState(null); // Modal state
+  const [actionInProgress, setActionInProgress] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [actionSuccessMsg, setActionSuccessMsg] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 󾠮 Concurrent fetching for both queues
       const [uRes, pRes] = await Promise.all([
         API.get('/users/admin/kyc-queue'),
         API.get('/properties/admin/pending')
       ]);
-      
       setUserQueue(uRes.data.data || []);
       setPropQueue(pRes.data.data || []);
     } catch (err) {
-      console.error("Matrix Sync Error:", err);
+      console.error("KYC Queue Sync Error:", err);
     } finally {
       setLoading(false);
     }
@@ -36,220 +41,480 @@ const AdminKYC = () => {
 
   const handleAction = async (type, id, status, reason = "") => {
     try {
-      // 󾠯 Dynamic endpoint selection
+      setActionInProgress(true);
       const endpoint = type === 'user' 
         ? `/users/admin/verify/${id}` 
         : `/properties/admin/verify/${id}`;
 
       await API.put(endpoint, { status, reason });
       
-      alert(`Action recorded: ${status}`);
+      setActionSuccessMsg(
+        status === 'VERIFIED' 
+          ? `Successfully approved ${type === 'user' ? 'user identity' : 'property listing'}!` 
+          : `Item marked as rejected with reason provided.`
+      );
+      setTimeout(() => setActionSuccessMsg(''), 4000);
+
       setSelectedReview(null);
-      fetchData(); // Refresh both counts and lists
+      setShowRejectInput(false);
+      setRejectionReason('');
+      fetchData(); // Refresh counts and queues
     } catch (err) {
-      alert("Matrix Action Failed. Check your connection.");
+      alert(err.response?.data?.message || "Action failed. Please verify network connection.");
+    } finally {
+      setActionInProgress(false);
     }
   };
 
-  if (loading) return (
-    <div className="flex h-screen flex-col items-center justify-center bg-gray-50">
-      <Loader2 className="animate-spin text-primary mb-4" size={48}/>
-      <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Syncing with Matrix...</p>
-    </div>
-  );
+  // Filter queues by search query
+  const filteredUsers = userQueue.filter(u => {
+    const q = search.toLowerCase().trim();
+    if (!q) return true;
+    const name = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const docType = (u.kycDocuments?.[0]?.docType || '').toLowerCase();
+    const role = (u.role || '').toLowerCase();
+    return name.includes(q) || email.includes(q) || docType.includes(q) || role.includes(q);
+  });
+
+  const filteredProps = propQueue.filter(p => {
+    const q = search.toLowerCase().trim();
+    if (!q) return true;
+    const title = (p.title || '').toLowerCase();
+    const city = (p.location?.city || '').toLowerCase();
+    const address = (p.location?.address || '').toLowerCase();
+    const ownerName = `${p.owner?.firstName || ''} ${p.owner?.lastName || ''}`.toLowerCase();
+    return title.includes(q) || city.includes(q) || address.includes(q) || ownerName.includes(q);
+  });
+
+  const rejectionPresets = [
+    "Blurry or unreadable photo / document",
+    "Name on ID does not match account name",
+    "Document is expired or invalid",
+    "Unsupported government document type",
+    "Ownership proof deed is missing or incomplete"
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-16">
-      {/* HEADER & VIEW TOGGLE */}
-      <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-10 text-white space-y-8">
+      
+      {/* 1. TOP HEADER & BREADCRUMB */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#262626] pb-6">
         <div>
-          <h1 className="text-6xl font-black italic tracking-tighter">The Matrix.</h1>
-          <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest mt-2">Compliance & Platform Integrity</p>
+          <div className="flex items-center gap-2 mb-2">
+            <Link 
+              to="/" 
+              className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-gray-400 hover:text-white transition"
+            >
+              <ArrowLeft size={14} /> Admin Home
+            </Link>
+            <span className="text-gray-600">•</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <ShieldCheck size={12} /> Compliance & Verification
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black italic tracking-tight text-white">
+            Identity & Property Verification
+          </h1>
+          <p className="text-gray-400 text-xs sm:text-sm font-medium mt-1">
+            Audit government IDs, inspect ownership deeds, and approve pending platform listings.
+          </p>
         </div>
+
+        {/* REFRESH QUEUE BUTTON */}
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          className="btn-netflix-secondary px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition cursor-pointer active:scale-95"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin text-primary" : ""} />
+          Refresh Queue
+        </button>
+      </div>
+
+      {/* SUCCESS TOAST MESSAGE */}
+      {actionSuccessMsg && (
+        <div className="bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 px-4 py-3 rounded-xl flex items-center gap-2.5 text-xs font-bold animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+          <span>{actionSuccessMsg}</span>
+        </div>
+      )}
+
+      {/* 2. TAB CONTROLS & SEARCH BAR */}
+      <div className="bg-[#181818] p-4 sm:p-5 rounded-2xl border border-[#2a2a2a] shadow-xl flex flex-col md:flex-row gap-4 items-center justify-between">
         
-        <div className="flex bg-white p-2 rounded-[2rem] shadow-2xl shadow-blue-100/50 border border-gray-100">
+        {/* VIEW PILLS */}
+        <div className="flex items-center gap-2 w-full md:w-auto">
           <button 
-            onClick={() => setView('users')} 
-            className={`px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase transition-all flex items-center gap-2 ${view === 'users' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-50'}`}
+            onClick={() => { setView('users'); setSearch(''); }} 
+            className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+              view === 'users' 
+                ? 'btn-netflix shadow-md text-white' 
+                : 'bg-[#202020] text-gray-300 border border-[#303030] hover:text-white hover:bg-[#282828]'
+            }`}
           >
-            <User size={14}/> Users ({userQueue.length})
+            <User size={14}/> User Identity ({userQueue.length})
           </button>
           <button 
-            onClick={() => setView('properties')} 
-            className={`px-8 py-4 rounded-[1.5rem] font-black text-xs uppercase transition-all flex items-center gap-2 ${view === 'properties' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:bg-gray-50'}`}
+            onClick={() => { setView('properties'); setSearch(''); }} 
+            className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+              view === 'properties' 
+                ? 'btn-netflix shadow-md text-white' 
+                : 'bg-[#202020] text-gray-300 border border-[#303030] hover:text-white hover:bg-[#282828]'
+            }`}
           >
-            <Building size={14}/> Properties ({propQueue.length})
+            <Building size={14}/> Property Deeds ({propQueue.length})
           </button>
+        </div>
+
+        {/* SEARCH BOX */}
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
+          <input 
+            type="text" 
+            placeholder={view === 'users' ? "Search users by name, email, role..." : "Search PGs by title, city, owner..."} 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-[#202020] rounded-xl font-medium text-xs sm:text-sm text-white placeholder-gray-500 outline-none focus:border-primary border border-[#303030] transition"
+          />
         </div>
       </div>
 
-      {/* VIEW: USERS */}
-      {view === 'users' ? (
-        <div className="bg-white rounded-[3.5rem] shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="px-10 py-6 text-[10px] font-black uppercase text-gray-400">Identity Details</th>
-                <th className="px-10 py-6 text-[10px] font-black uppercase text-gray-400">Doc Type</th>
-                <th className="px-10 py-6 text-[10px] font-black uppercase text-gray-400 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {userQueue.map(u => (
-                <tr key={u._id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-10 py-8">
-                    <p className="font-black text-gray-900 text-lg">{u.firstName} {u.lastName}</p>
-                    <p className="text-xs font-medium text-gray-400">{u.email}</p>
-                  </td>
-                  <td className="px-10 py-8">
-                    <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-xl text-[10px] font-black tracking-wider border border-blue-100">
-                      {u.kycDocuments?.[0]?.docType || 'GOVT_ID'}
-                    </span>
-                  </td>
-                  <td className="px-10 py-8 text-right">
-                    <button 
-                      onClick={() => setSelectedReview({ type: 'user', data: u })}
-                      className="bg-gray-900 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase hover:bg-primary hover:shadow-lg transition-all"
-                    >
-                      Review Identity
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {userQueue.length === 0 && (
-            <div className="py-24 text-center">
-              <ShieldCheck size={48} className="mx-auto text-gray-100 mb-4" />
-              <p className="font-black text-gray-200 italic uppercase text-xl">User Queue is Clear.</p>
+      {/* 3. CONTENT AREA */}
+      {loading ? (
+        <div className="py-24 flex flex-col items-center justify-center space-y-3">
+          <Loader2 className="animate-spin text-primary" size={40} />
+          <p className="text-[11px] font-black uppercase tracking-widest text-gray-400">Loading Compliance Queue...</p>
+        </div>
+      ) : view === 'users' ? (
+        
+        /* USER KYC QUEUE */
+        <div className="space-y-4">
+          <div className="flex justify-between items-center px-1">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+              Pending User Identities ({filteredUsers.length})
+            </p>
+          </div>
+
+          {filteredUsers.length > 0 ? (
+            <div className="bg-[#181818] rounded-2xl border border-[#2a2a2a] shadow-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-[#202020] border-b border-[#2a2a2a]">
+                    <tr>
+                      <th className="px-5 py-3.5 text-[10px] font-black uppercase text-gray-400 tracking-wider">User Account</th>
+                      <th className="px-5 py-3.5 text-[10px] font-black uppercase text-gray-400 tracking-wider">Role</th>
+                      <th className="px-5 py-3.5 text-[10px] font-black uppercase text-gray-400 tracking-wider">Document Type</th>
+                      <th className="px-5 py-3.5 text-[10px] font-black uppercase text-gray-400 tracking-wider">Submitted</th>
+                      <th className="px-5 py-3.5 text-[10px] font-black uppercase text-gray-400 tracking-wider text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#262626]">
+                    {filteredUsers.map(u => {
+                      const doc = u.kycDocuments?.[0];
+                      return (
+                        <tr key={u._id} className="hover:bg-[#202020]/60 transition-colors">
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <img 
+                                src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.firstName + ' ' + (u.lastName || ''))}&background=E50914&color=fff`} 
+                                alt={u.firstName}
+                                className="w-10 h-10 rounded-xl object-cover border border-[#333]" 
+                              />
+                              <div>
+                                <p className="font-black text-white text-sm">{u.firstName} {u.lastName}</p>
+                                <p className="text-xs text-gray-400">{u.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                              u.role === 'OWNER' 
+                                ? 'bg-primary/20 text-primary border-primary/30' 
+                                : 'bg-blue-950/60 text-blue-400 border-blue-800/40'
+                            }`}>
+                              {u.role || 'TENANT'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="bg-[#242424] text-gray-200 border border-[#383838] px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                              {doc?.docType || 'GOVT_ID'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-xs font-medium text-gray-400">
+                            {doc?.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recent'}
+                          </td>
+                          <td className="px-5 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button 
+                                onClick={() => {
+                                  setSelectedReview({ type: 'user', data: u });
+                                  setShowRejectInput(false);
+                                  setRejectionReason('');
+                                }}
+                                className="btn-netflix px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-md active:scale-95"
+                              >
+                                <Eye size={12}/> Inspect ID
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="py-20 text-center bg-[#181818] rounded-2xl border border-[#2a2a2a] p-8">
+              <ShieldCheck size={44} className="mx-auto text-emerald-500 mb-3" />
+              <h3 className="text-xl font-black text-white tracking-tight">Identity Queue is Clear</h3>
+              <p className="font-bold text-gray-400 text-xs mt-1 uppercase tracking-widest max-w-md mx-auto">
+                No user KYC submissions are currently pending approval.
+              </p>
             </div>
           )}
         </div>
       ) : (
-        /* VIEW: PROPERTIES */
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {propQueue.map(prop => (
-            <div key={prop._id} className="bg-white p-10 rounded-[4rem] shadow-2xl border border-gray-100 flex flex-col gap-8 group">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="text-3xl font-black italic tracking-tighter text-gray-900">{prop.title}</h4>
-                  <p className="text-xs font-bold text-gray-400 flex items-center gap-1 mt-1">
-                    <MapPin size={12}/> {prop.location?.city || 'Address Pending'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1">Listed By</p>
-                  <p className="text-sm font-bold text-gray-900">{prop.owner?.firstName} {prop.owner?.lastName}</p>
-                </div>
-              </div>
 
-              {/* 󾠰 LEGAL DOCUMENT PREVIEW */}
-              <div className="aspect-video bg-gray-50 rounded-[3rem] overflow-hidden border-2 border-dashed border-gray-200 group-hover:border-primary/30 transition-colors relative">
-                 {prop.legalDocuments?.[0]?.fileUrl ? (
-                   <>
-                    <img src={prop.legalDocuments[0].fileUrl} className="w-full h-full object-contain p-6" alt="Legal Proof" />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all backdrop-blur-[2px]">
-                        <button 
-                          onClick={() => window.open(prop.legalDocuments[0].fileUrl, '_blank')} 
-                          className="bg-white text-gray-900 px-6 py-3 rounded-2xl font-black text-xs uppercase flex items-center gap-2 shadow-2xl"
-                        >
-                          <ExternalLink size={16} /> Open Document
-                        </button>
+        /* PROPERTY VERIFICATION QUEUE */
+        <div className="space-y-4">
+          <div className="flex justify-between items-center px-1">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+              Pending Property Listings ({filteredProps.length})
+            </p>
+          </div>
+
+          {filteredProps.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredProps.map(prop => {
+                const legalDoc = prop.legalDocuments?.[0];
+                return (
+                  <div 
+                    key={prop._id} 
+                    className="bg-[#181818] p-5 sm:p-6 rounded-2xl border border-[#2a2a2a] shadow-xl space-y-4 text-white hover:border-primary/40 transition"
+                  >
+                    {/* PROPERTY & OWNER HEADER */}
+                    <div className="flex justify-between items-start gap-3">
+                      <div>
+                        <span className="text-[9px] font-black uppercase tracking-wider bg-amber-950/60 text-amber-400 px-2 py-0.5 rounded border border-amber-800/40">
+                          {prop.category || 'PG'} • Pending Review
+                        </span>
+                        <h4 className="text-lg font-black text-white tracking-tight mt-1.5">{prop.title}</h4>
+                        <p className="text-xs font-bold text-gray-400 flex items-center gap-1 mt-0.5">
+                          <MapPin size={12} className="text-primary shrink-0"/> 
+                          <span>{prop.location?.address ? `${prop.location.address}, ` : ''}{prop.location?.city || 'Address Pending'}</span>
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Listed By</span>
+                        <p className="text-xs font-bold text-white mt-0.5">{prop.owner?.firstName} {prop.owner?.lastName}</p>
+                        <p className="text-[10px] text-gray-400">{prop.owner?.email}</p>
+                      </div>
                     </div>
-                   </>
-                 ) : (
-                   <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-                      <AlertCircle size={32} className="mb-2" />
-                      <p className="font-black text-[10px] uppercase">No Document Found</p>
-                   </div>
-                 )}
-              </div>
 
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => handleAction('property', prop._id, 'VERIFIED')}
-                  className="flex-1 bg-green-500 text-white py-6 rounded-[2rem] font-black text-[10px] uppercase shadow-xl shadow-green-100 hover:bg-green-600 transition-all"
-                >
-                  Approve PG
-                </button>
-                <button 
-                  onClick={() => {
-                    const r = prompt("Enter Rejection Reason (sent to owner):");
-                    if(r) handleAction('property', prop._id, 'REJECTED', r);
-                  }}
-                  className="px-8 bg-red-50 text-red-500 rounded-[2rem] font-black text-[10px] uppercase hover:bg-red-100 transition-all"
-                >
-                  Reject
-                </button>
-              </div>
+                    {/* LEGAL DOCUMENT PREVIEW */}
+                    <div className="bg-[#141414] rounded-xl overflow-hidden border border-[#2e2e2e] relative group aspect-[16/9] flex items-center justify-center">
+                      {legalDoc?.fileUrl ? (
+                        <>
+                          <img 
+                            src={legalDoc.fileUrl} 
+                            className="w-full h-full object-contain p-3" 
+                            alt="Legal Proof Deed" 
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all backdrop-blur-[2px]">
+                            <button 
+                              onClick={() => window.open(legalDoc.fileUrl, '_blank')} 
+                              className="btn-netflix px-4 py-2 rounded-xl font-black text-xs uppercase flex items-center gap-1.5 shadow-xl cursor-pointer"
+                            >
+                              <ExternalLink size={14} /> View Full Document
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-gray-500 py-10">
+                          <AlertCircle size={28} className="mb-1 text-gray-400" />
+                          <p className="font-black text-xs uppercase">No Deed Attached</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* ACTION BUTTONS */}
+                    <div className="flex gap-2.5 pt-2 border-t border-[#262626]">
+                      <button 
+                        disabled={actionInProgress}
+                        onClick={() => handleAction('property', prop._id, 'VERIFIED')}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                      >
+                        <Check size={14} /> Approve PG
+                      </button>
+                      <button 
+                        disabled={actionInProgress}
+                        onClick={() => {
+                          const r = prompt("Enter Rejection Reason for Owner:");
+                          if (r) handleAction('property', prop._id, 'REJECTED', r);
+                        }}
+                        className="bg-primary/20 text-primary hover:bg-primary hover:text-white border border-primary/30 px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition active:scale-95 disabled:opacity-50 cursor-pointer"
+                      >
+                        <X size={14} /> Reject
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-          {propQueue.length === 0 && (
-            <div className="col-span-2 py-32 bg-white rounded-[4rem] border-2 border-dashed border-gray-100 text-center">
-              <Building size={48} className="mx-auto text-gray-100 mb-4" />
-              <p className="font-black text-gray-200 italic uppercase text-xl">Property Queue is Clear.</p>
+          ) : (
+            <div className="py-20 text-center bg-[#181818] rounded-2xl border border-[#2a2a2a] p-8">
+              <Building size={44} className="mx-auto text-emerald-500 mb-3" />
+              <h3 className="text-xl font-black text-white tracking-tight">Property Queue is Clear</h3>
+              <p className="font-bold text-gray-400 text-xs mt-1 uppercase tracking-widest max-w-md mx-auto">
+                No pending property listings waiting for verification.
+              </p>
             </div>
           )}
         </div>
       )}
 
-      {/* MODAL FOR USER IDENTITY REVIEW */}
+      {/* 4. MODAL: DETAILED USER IDENTITY INSPECTION */}
       {selectedReview && selectedReview.type === 'user' && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[1000] flex items-center justify-center p-6">
-          <div className="bg-white max-w-5xl w-full rounded-[4rem] overflow-hidden flex flex-col md:flex-row shadow-2xl animate-in zoom-in duration-300">
-             {/* LEFT: IMAGE VIEW */}
-             <div className="md:w-3/5 bg-gray-100 flex items-center justify-center p-12 border-r border-gray-100">
-                <img 
-                  src={selectedReview.data.kycDocuments?.[0]?.fileUrl} 
-                  className="max-h-[600px] rounded-3xl shadow-2xl border-8 border-white object-contain" 
-                  alt="Govt ID Proof"
-                />
-             </div>
-             
-             {/* RIGHT: ACTIONS */}
-             <div className="md:w-2/5 p-16 space-y-10 flex flex-col justify-center">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
+          <div className="bg-[#181818] max-w-4xl w-full rounded-2xl border border-[#2e2e2e] shadow-2xl overflow-hidden flex flex-col md:flex-row text-white animate-in zoom-in-95 duration-200">
+            
+            {/* LEFT: DOCUMENT IMAGE PREVIEW */}
+            <div className="md:w-3/5 bg-[#121212] flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-r border-[#262626] relative">
+              {selectedReview.data.kycDocuments?.[0]?.fileUrl ? (
+                <>
+                  <img 
+                    src={selectedReview.data.kycDocuments[0].fileUrl} 
+                    className="max-h-[460px] w-full object-contain rounded-xl border border-[#333]" 
+                    alt="Govt ID Proof"
+                  />
+                  <div className="mt-4 flex gap-2">
+                    <button 
+                      onClick={() => window.open(selectedReview.data.kycDocuments[0].fileUrl, '_blank')}
+                      className="btn-netflix-secondary px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ExternalLink size={12}/> Open Full Resolution
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-20 text-gray-500 space-y-2">
+                  <AlertCircle size={36} className="mx-auto" />
+                  <p className="text-xs font-black uppercase">Document File Missing</p>
+                </div>
+              )}
+            </div>
+            
+            {/* RIGHT: USER METADATA & ACTIONS */}
+            <div className="md:w-2/5 p-6 flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
                 <div className="flex justify-between items-start">
-                   <div>
-                    <h3 className="text-4xl font-black italic tracking-tighter text-gray-900 leading-none">
-                      {selectedReview.data.firstName}'s Identity
+                  <div>
+                    <span className="text-[9px] font-black uppercase tracking-wider bg-primary/20 text-primary px-2.5 py-0.5 rounded border border-primary/30">
+                      {selectedReview.data.kycDocuments?.[0]?.docType || 'GOVT_ID'} Verification
+                    </span>
+                    <h3 className="text-xl font-black text-white tracking-tight mt-2">
+                      {selectedReview.data.firstName} {selectedReview.data.lastName}
                     </h3>
-                    <p className="text-primary font-black uppercase text-[10px] tracking-[0.3em] mt-4">
-                      {selectedReview.data.kycDocuments?.[0]?.docType || 'ID'} VERIFICATION
-                    </p>
-                   </div>
-                   <button 
-                    onClick={() => setSelectedReview(null)} 
-                    className="p-3 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-900"
-                   >
-                    <X size={24}/>
-                   </button>
-                </div>
-
-                <div className="space-y-4">
+                    <p className="text-xs text-gray-400 font-semibold mt-0.5">{selectedReview.data.email}</p>
+                    {selectedReview.data.phone && (
+                      <p className="text-xs text-gray-500 font-medium">{selectedReview.data.phone}</p>
+                    )}
+                  </div>
                   <button 
-                    onClick={() => handleAction('user', selectedReview.data._id, 'VERIFIED')} 
-                    className="w-full bg-gray-900 text-white py-6 rounded-[2rem] font-black text-sm uppercase flex items-center justify-center gap-3 hover:bg-primary hover:shadow-2xl transition-all"
+                    onClick={() => { setSelectedReview(null); setShowRejectInput(false); }} 
+                    className="p-1.5 bg-[#252525] rounded-xl text-gray-400 hover:text-white hover:bg-primary transition cursor-pointer"
                   >
-                    <CheckCircle2 size={20}/> Confirm & Verify
-                  </button>
-                  <button 
-                    onClick={() => {
-                      const r = prompt("Reason for rejection:");
-                      if(r) handleAction('user', selectedReview.data._id, 'REJECTED', r);
-                    }} 
-                    className="w-full bg-red-50 text-red-500 py-6 rounded-[2rem] font-black text-sm uppercase hover:bg-red-100 transition-all"
-                  >
-                    Mark as Invalid
+                    <X size={16}/>
                   </button>
                 </div>
 
-                <p className="text-[10px] text-gray-400 font-bold text-center italic">
-                  Approving this will instantly unlock full platform features for this user.
+                <div className="bg-[#202020] p-3 rounded-xl border border-[#2e2e2e] space-y-1 text-xs">
+                  <div className="flex justify-between text-gray-400 font-bold">
+                    <span>Account Role:</span>
+                    <span className="text-white uppercase font-black">{selectedReview.data.role}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400 font-bold">
+                    <span>KYC Status:</span>
+                    <span className="text-amber-400 font-black">{selectedReview.data.kycStatus || 'PENDING'}</span>
+                  </div>
+                </div>
+
+                {/* REJECTION REASON SECTION */}
+                {showRejectInput && (
+                  <div className="space-y-2.5 p-3.5 bg-[#241a1a] rounded-xl border border-red-900/40 animate-in fade-in">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-red-400">Select or Enter Reason:</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {rejectionPresets.slice(0, 3).map((preset, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setRejectionReason(preset)}
+                          className="text-[9px] font-bold bg-[#331c1c] text-red-200 hover:bg-red-950 px-2 py-1 rounded border border-red-900/60 transition cursor-pointer"
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      placeholder="Specific note explaining what user must re-upload..."
+                      className="w-full bg-[#1c1414] p-2.5 rounded-lg text-xs text-white placeholder-gray-500 border border-red-900/40 outline-none focus:border-primary"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ACTION BUTTONS */}
+              <div className="space-y-2.5 pt-4 border-t border-[#262626]">
+                {!showRejectInput ? (
+                  <>
+                    <button 
+                      disabled={actionInProgress}
+                      onClick={() => handleAction('user', selectedReview.data._id, 'VERIFIED')} 
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-lg active:scale-95 disabled:opacity-50 transition"
+                    >
+                      <CheckCircle2 size={16}/> Confirm & Verify Identity
+                    </button>
+                    <button 
+                      disabled={actionInProgress}
+                      onClick={() => setShowRejectInput(true)} 
+                      className="w-full bg-primary/20 text-primary hover:bg-primary hover:text-white border border-primary/30 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer transition active:scale-95"
+                    >
+                      Reject Submission
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex gap-2">
+                    <button 
+                      disabled={actionInProgress || !rejectionReason.trim()}
+                      onClick={() => handleAction('user', selectedReview.data._id, 'REJECTED', rejectionReason)} 
+                      className="flex-1 btn-netflix py-2.5 rounded-xl font-black text-xs uppercase tracking-wider cursor-pointer active:scale-95 disabled:opacity-50"
+                    >
+                      Submit Rejection
+                    </button>
+                    <button 
+                      onClick={() => setShowRejectInput(false)} 
+                      className="px-4 bg-[#252525] text-gray-300 hover:text-white rounded-xl text-xs font-black uppercase cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+
+                <p className="text-[10px] text-gray-500 font-bold text-center">
+                  Verification updates user status across the platform immediately.
                 </p>
-             </div>
+              </div>
+
+            </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

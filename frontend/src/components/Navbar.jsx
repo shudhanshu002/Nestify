@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { 
   User, LogOut, LayoutDashboard, Home, Heart, ShieldCheck, 
-  HelpCircle, ChevronDown, Bell, Headphones, Loader2 
+  HelpCircle, ChevronDown, Bell, Headphones, Loader2, BarChart3 
 } from 'lucide-react';
 import API from '../api/client';
 import Logo from './Logo';
@@ -278,19 +278,21 @@ const Navbar = () => {
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
                         onClick={handleMenuClick}
                       >
-                        <LayoutDashboard size={18} /> Platform Analytics
+                        <BarChart3 size={18} className="text-primary" /> Performance & Analytics
                       </Link>
                     </>
                   )}
 
                   <div className="border-t border-[#282828] mt-2 pt-2">
-                    <Link 
-                      to="/help" 
-                      onClick={handleMenuClick} 
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-400 hover:text-white hover:bg-[#242424] rounded-xl transition"
-                    >
-                      <HelpCircle size={18} /> Help Center
-                    </Link>
+                    {user.role !== 'ADMIN' && (
+                      <Link 
+                        to="/help" 
+                        onClick={handleMenuClick} 
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-400 hover:text-white hover:bg-[#242424] rounded-xl transition"
+                      >
+                        <HelpCircle size={18} /> Help Center
+                      </Link>
+                    )}
                     <button 
                       onClick={handleSignOut} 
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-primary hover:bg-primary/10 rounded-xl transition cursor-pointer"

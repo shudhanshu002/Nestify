@@ -2,6 +2,8 @@ import express from 'express';
 import Property from '../models/property.model.js'; 
 import Room from '../models/room.model.js';
 import User from '../models/user.model.js';
+import Maintenance from '../models/maintenance.model.js';
+import Notification from '../models/notification.model.js';
 import { resolveDispute, getSystemActivity } from '../services/admin.service.js';
 import { protect, authorize } from '../middlewares/auth.middleware.js';
 
@@ -10,10 +12,53 @@ const router = express.Router();
 // Only Admins can access these - applies to every route below
 router.use(protect, authorize('ADMIN'));
 
-router.get('/dashboard', async (req, res, next) => {
+const handleDashboardAnalytics = async (req, res, next) => {
   try {
     const stats = await getSystemActivity();
     res.json({ success: true, data: stats });
+  } catch (error) {
+    next(error);
+  }
+};
+
+router.get('/dashboard', handleDashboardAnalytics);
+router.get('/analytics', handleDashboardAnalytics);
+
+// Admin: Escalate an SLA-breached ticket to the property owner
+router.post('/tickets/:id/escalate', async (req, res, next) => {
+  try {
+    const ticket = await Maintenance.findById(req.params.id)
+      .populate('property')
+      .populate('tenant', 'firstName lastName');
+
+    if (!ticket) return res.status(404).json({ success: false, message: "Ticket not found" });
+
+    const ownerId = ticket.property?.owner;
+    if (ownerId) {
+      const shortId = `#${ticket._id.toString().slice(-6).toUpperCase()}`;
+      const note = req.body.note || "Admin has escalated this ticket due to SLA breach (>24 hours). Urgent action required.";
+
+      ticket.adminNotes = note;
+      ticket.priority = 'HIGH';
+      await ticket.save();
+
+      const notification = await Notification.create({
+        recipient: ownerId,
+        title: `🚨 URGENT SLA Escalation: Ticket ${shortId}`,
+        message: `${note} PG: "${ticket.property?.title || 'Your PG'}". Tenant: ${ticket.tenant?.firstName || 'Resident'}.`,
+        type: 'MAINTENANCE',
+        relatedId: ticket._id
+      });
+
+      const io = req.app.get('io');
+      if (io) {
+        io.to(ownerId.toString()).emit('ticket_escalated', { ticket, notification });
+        io.to(ownerId.toString()).emit('notification', notification);
+        io.to(ownerId.toString()).emit('unread_notification_count_changed');
+      }
+    }
+
+    res.status(200).json({ success: true, message: "Escalation notice dispatched to property owner.", data: ticket });
   } catch (error) {
     next(error);
   }
