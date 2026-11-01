@@ -52,7 +52,31 @@ export const AuthProvider = ({ children }) => {
     const userData = data.user || data;
     setUser(userData);
     fetchWishlistIds();
-    return data;
+    return userData;
+  };
+
+  const googleLogin = async (credentialOrToken, role = 'TENANT') => {
+    const payload = typeof credentialOrToken === 'string'
+      ? { credential: credentialOrToken, role }
+      : { ...credentialOrToken, role };
+    const { data } = await API.post('/auth/google', payload);
+    localStorage.setItem('token', data.token);
+    const userData = data.user || data;
+    setUser(userData);
+    fetchWishlistIds();
+    return userData;
+  };
+
+  const facebookLogin = async (authData, role = 'TENANT') => {
+    const payload = typeof authData === 'string'
+      ? { accessToken: authData, role }
+      : { ...authData, role };
+    const { data } = await API.post('/auth/facebook', payload);
+    localStorage.setItem('token', data.token);
+    const userData = data.user || data;
+    setUser(userData);
+    fetchWishlistIds();
+    return userData;
   };
 
   const logout = () => {
@@ -111,6 +135,8 @@ export const AuthProvider = ({ children }) => {
       user, 
       setUser, 
       login, 
+      googleLogin,
+      facebookLogin,
       logout, 
       loading,
       wishlistIds,

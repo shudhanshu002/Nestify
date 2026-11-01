@@ -15,6 +15,7 @@ import SearchResults from './pages/SearchResults';
 import PropertyDetail from './pages/PropertyDetail';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Logout from './pages/Logout';
 import NotFound from './pages/NotFound';
 import Profile from './pages/Profile';
 import KYCVerification from './pages/KYCVerification';
@@ -32,8 +33,7 @@ import Notifications from './pages/Notifications';
 import HelpCenter from './pages/HelpCenter';
 
 function App() {
-  const { loading } = useContext(AuthContext);
-  const { user } = useContext(AuthContext);
+  const { loading, user } = useContext(AuthContext);
 
   if (loading) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-[#141414]">
@@ -55,6 +55,7 @@ function App() {
             <Route path="/property/:id" element={<PropertyDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/logout" element={<Logout />} />
             <Route path="/help" element={<HelpCenter />} />
             <Route path="/help-center" element={<Navigate to="/help" replace />} />
 
@@ -63,8 +64,8 @@ function App() {
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/verify-identity" element={<KYCVerification />} />
               {user?.role === 'ADMIN' && (
-        <Route path="/admin/verify-users" element={<AdminKYC />} />
-      )}
+                <Route path="/admin/verify-users" element={<AdminKYC />} />
+              )}
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={['TENANT']} />}>
@@ -89,7 +90,7 @@ function App() {
             <Route path="*" element={<Navigate to="/404" replace />} />
           </Routes>
 
-          {/* 󾠮 ChatLauncher handles the floating bubble & drawer logic internally */}
+          {/* Floating Chat Launcher Drawer */}
           <ChatLauncher />
         </main>
         <Footer />

@@ -10,12 +10,18 @@ const profileSchema = new mongoose.Schema({
 
 const userSchema = new mongoose.Schema({
     firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
+    lastName: { type: String, default: '', trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
     password: { type: String, sparse: true },
     role: { type: String, enum: ['TENANT', 'OWNER', 'ADMIN'], default: 'TENANT' },
+    phone: { type: String, sparse: true },
+    avatar: { type: String, default: '' },
+    googleId: { type: String, sparse: true },
+    facebookId: { type: String, sparse: true },
+    isEmailVerified: { type: Boolean, default: false },
+    isPhoneVerified: { type: Boolean, default: false },
     
-    // 󾠮 FIXED: KYC Fields (Must match controller)
+    // KYC Fields
     kycStatus: { 
       type: String, 
       enum: ['NOT_SUBMITTED', 'PENDING', 'VERIFIED', 'REJECTED'], 
@@ -35,12 +41,14 @@ const userSchema = new mongoose.Schema({
 
 userSchema.pre('save', async function(next) {
     if(!this.isModified('password')) return next();
+    if(!this.password) return next();
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
 });
 
 userSchema.methods.matchPassword = async function(enteredPassword) {
+    if(!this.password) return false;
     return await bcrypt.compare(enteredPassword, this.password);
-}
+};
 
 export default mongoose.model('User', userSchema);
