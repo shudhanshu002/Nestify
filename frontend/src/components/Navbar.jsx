@@ -77,6 +77,14 @@ const Navbar = () => {
     };
   }, [user, socket]);
 
+  // Scroll to top helper when navigating from dropdown
+  const handleMenuClick = () => {
+    setIsOpen(false);
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  };
+
   // 2. Chat with Admin support handler (for Tenant and Owner)
   const handleChatWithAdmin = async () => {
     setIsOpen(false);
@@ -95,7 +103,7 @@ const Navbar = () => {
   };
 
   const handleSignOut = () => {
-    setIsOpen(false);
+    handleMenuClick();
     logout();
     navigate('/login');
   };
@@ -103,14 +111,19 @@ const Navbar = () => {
   return (
     <nav className="bg-[#141414]/95 backdrop-blur-md border-b border-[#262626] py-3.5 px-4 sm:px-8 flex justify-between items-center sticky top-0 z-50 transition-all shadow-xl">
       {/* Brand Logo with 3D Red Canopy Wordmark */}
-      <Logo size="md" />
+      <div onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })} className="cursor-pointer">
+        <Logo size="md" />
+      </div>
 
       <div className="flex items-center gap-5 sm:gap-6">
         {/* THE NOTIFICATION BELL */}
         {user && (
           <div 
             className="relative cursor-pointer p-2 rounded-xl hover:bg-[#222222] transition-colors group" 
-            onClick={() => navigate('/notifications')}
+            onClick={() => {
+              handleMenuClick();
+              navigate('/notifications');
+            }}
             title="Notifications"
           >
             <Bell size={21} className="text-gray-300 group-hover:text-primary transition-colors" />
@@ -162,7 +175,7 @@ const Navbar = () => {
                   {/* --- SHARED --- */}
                   <Link 
                     to="/profile" 
-                    onClick={() => setIsOpen(false)} 
+                    onClick={handleMenuClick} 
                     className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-primary/15 hover:border-l-2 hover:border-primary rounded-xl transition group"
                   >
                     <User size={18} className="text-gray-400 group-hover:text-primary transition-colors" /> My Profile
@@ -173,14 +186,14 @@ const Navbar = () => {
                     <>
                       <Link 
                         to="/my-bookings" 
-                        onClick={() => setIsOpen(false)} 
+                        onClick={handleMenuClick} 
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
                       >
                         <Home size={18} className="text-gray-400" /> My Bookings
                       </Link>
                       <Link 
                         to="/profile?tab=wishlist" 
-                        onClick={() => setIsOpen(false)} 
+                        onClick={handleMenuClick} 
                         className="flex items-center justify-between px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition group"
                       >
                         <div className="flex items-center gap-3">
@@ -200,14 +213,14 @@ const Navbar = () => {
                     <>
                       <Link 
                         to="/owner/dashboard" 
-                        onClick={() => setIsOpen(false)} 
+                        onClick={handleMenuClick} 
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
                       >
                         <LayoutDashboard size={18} className="text-gray-400" /> Dashboard
                       </Link>
                       <Link 
                         to="/verify-identity" 
-                        onClick={() => setIsOpen(false)} 
+                        onClick={handleMenuClick} 
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
                       >
                         <ShieldCheck size={18} className="text-secondary" /> Verification
@@ -240,14 +253,14 @@ const Navbar = () => {
                       <Link 
                         to="/admin/verify-users" 
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-primary rounded-xl transition"
-                        onClick={() => setIsOpen(false)}
+                        onClick={handleMenuClick}
                       >
                         <ShieldCheck size={18} /> KYC Approval Queue
                       </Link>
                       <Link 
                         to="/admin/dashboard" 
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
-                        onClick={() => setIsOpen(false)}
+                        onClick={handleMenuClick}
                       >
                         <LayoutDashboard size={18} /> Platform Analytics
                       </Link>
@@ -257,7 +270,7 @@ const Navbar = () => {
                   <div className="border-t border-[#282828] mt-2 pt-2">
                     <Link 
                       to="/help" 
-                      onClick={() => setIsOpen(false)} 
+                      onClick={handleMenuClick} 
                       className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-400 hover:text-white hover:bg-[#242424] rounded-xl transition"
                     >
                       <HelpCircle size={18} /> Help Center
@@ -276,6 +289,7 @@ const Navbar = () => {
             <div className="flex items-center gap-3">
               <Link 
                 to="/login" 
+                onClick={handleMenuClick}
                 className="btn-netflix px-5 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black tracking-wide shadow-md shadow-red-950/40"
               >
                 Sign In

@@ -32,6 +32,12 @@ const Profile = () => {
   }, [searchParams]);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, [activeTab]);
+
+  useEffect(() => {
     const fetchWishlist = async () => {
       if (activeTab !== 'wishlist' || !user || user.role === 'OWNER') return;
       setDataLoading(true);

@@ -8,6 +8,7 @@ import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import ChatLauncher from './components/chat/ChatLauncher'; 
 import Footer from './components/Footer'; 
+import ScrollToTop from './components/ScrollToTop';
 
 // --- PAGES ---
 import Home from './pages/Home';
@@ -46,6 +47,7 @@ function App() {
 
   return (
     <ChatProvider>
+      <ScrollToTop />
       <div className="min-h-screen flex flex-col justify-between bg-[#141414] text-white font-sans antialiased selection:bg-primary selection:text-white">
         <Navbar />
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
