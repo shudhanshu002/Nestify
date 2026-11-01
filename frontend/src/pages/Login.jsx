@@ -2,8 +2,7 @@ import { useState, useContext } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { 
-  Mail, Lock, Loader2, LogIn, Eye, EyeOff, 
-  Sparkles, ShieldCheck, UserCheck, Check 
+  Mail, Lock, Loader2, LogIn, Eye, EyeOff 
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import SocialAuthButtons from '../components/auth/SocialAuthButtons';
@@ -40,17 +39,6 @@ const Login = () => {
     navigate(userData.role === 'OWNER' ? '/owner/dashboard' : from, { replace: true });
   };
 
-  const handleQuickDemoFill = (role) => {
-    if (role === 'TENANT') {
-      setFormData({ email: 'rahul.sharma@example.com', password: 'password123' });
-    } else if (role === 'OWNER') {
-      setFormData({ email: 'suresh.patel@example.com', password: 'password123' });
-    } else if (role === 'ADMIN') {
-      setFormData({ email: 'support@nestify.com', password: 'password123' });
-    }
-    setError('');
-  };
-
   return (
     <div className="flex min-h-[85vh] items-center justify-center px-4 py-8 sm:py-12 text-white">
       <div className="w-full max-w-md space-y-7 bg-[#181818]/95 backdrop-blur-xl p-7 sm:p-9 rounded-[2.5rem] shadow-2xl border border-[#2a2a2a] text-white relative overflow-hidden">
@@ -71,7 +59,7 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Social Authentication: Google & Facebook */}
+        {/* Direct Social Authentication: Google & Facebook */}
         <div className="space-y-2">
           <SocialAuthButtons 
             role="TENANT"
@@ -174,38 +162,6 @@ const Login = () => {
             <span>Sign In</span>
           </button>
         </form>
-
-        {/* Demo Fast Login Pills */}
-        <div className="p-3 bg-[#1e1e1e] rounded-2xl border border-[#2b2b2b]">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider flex items-center gap-1">
-              <Sparkles size={11} className="text-amber-400" /> Fast Fill Demo Account
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickDemoFill('TENANT')}
-              className="py-1 px-2 rounded-xl bg-[#262626] hover:bg-[#303030] border border-[#383838] text-[11px] font-bold text-gray-300 hover:text-white transition text-center"
-            >
-              Tenant
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoFill('OWNER')}
-              className="py-1 px-2 rounded-xl bg-[#262626] hover:bg-[#303030] border border-[#383838] text-[11px] font-bold text-emerald-400 hover:text-emerald-300 transition text-center"
-            >
-              Owner
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickDemoFill('ADMIN')}
-              className="py-1 px-2 rounded-xl bg-[#262626] hover:bg-[#303030] border border-[#383838] text-[11px] font-bold text-primary hover:text-red-300 transition text-center"
-            >
-              Admin
-            </button>
-          </div>
-        </div>
 
         {/* Bottom Switch Link */}
         <p className="text-center text-xs sm:text-sm font-medium text-gray-400">

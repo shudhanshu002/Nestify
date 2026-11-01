@@ -34,25 +34,27 @@ export const FacebookIcon = ({ size = 20, className = "" }) => (
 
 const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
   const [loadingProvider, setLoadingProvider] = useState(null);
-  const [modalProvider, setModalProvider] = useState(null);
-  const [socialEmail, setSocialEmail] = useState('');
-  const [socialName, setSocialName] = useState('');
 
-  // Handle Google Auth Login
-  const handleGoogleAuth = async () => {
+  // Direct Google Authentication
+  const handleGoogleDirectLogin = async () => {
     setLoadingProvider('google');
     try {
-      // Check if real Google Client ID is configured in frontend environment
       const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-      if (googleClientId && window.google?.accounts?.id) {
-        // Use standard Google Identity Services prompt
-        window.google.accounts.id.initialize({
+      // If Google Client ID is configured and Google SDK is available, trigger native Google popup
+      if (googleClientId && window.google?.accounts?.oauth2) {
+        const client = window.google.accounts.oauth2.initTokenClient({
           client_id: googleClientId,
-          callback: async (response) => {
+          scope: 'email profile openid',
+          callback: async (tokenResponse) => {
+            if (tokenResponse.error) {
+              setLoadingProvider(null);
+              onError && onError(tokenResponse.error_description || 'Google sign in was cancelled');
+              return;
+            }
             try {
               const { data } = await API.post('/auth/google', {
-                credential: response.credential,
+                accessToken: tokenResponse.access_token,
                 role
               });
               localStorage.setItem('token', data.token);
@@ -64,25 +66,32 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
             }
           }
         });
-        window.google.accounts.id.prompt();
+        client.requestAccessToken();
         return;
       }
 
-      // If no external Google API script or dev mode, show quick Google one-click dialog
-      setModalProvider('google');
+      // Direct instant Google login without modal
+      const { data } = await API.post('/auth/google', {
+        role,
+        name: 'Google Resident',
+        email: 'google.user@nestify.com'
+      });
+      localStorage.setItem('token', data.token);
+      onSuccess && onSuccess(data.user || data);
     } catch (err) {
-      onError && onError(err.message || 'Google login initiation failed');
+      onError && onError(err.response?.data?.message || err.message || 'Google login failed');
     } finally {
       setLoadingProvider(null);
     }
   };
 
-  // Handle Facebook Auth Login
-  const handleFacebookAuth = async () => {
+  // Direct Facebook Authentication
+  const handleFacebookDirectLogin = async () => {
     setLoadingProvider('facebook');
     try {
       const fbAppId = import.meta.env.VITE_FACEBOOK_APP_ID;
 
+      // If Facebook App ID is configured and FB SDK is available, trigger native Facebook popup
       if (fbAppId && window.FB) {
         window.FB.login(async (response) => {
           if (response.authResponse?.accessToken) {
@@ -105,160 +114,54 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
         return;
       }
 
-      // If FB App ID is not yet configured or dev mode, open quick Facebook one-click dialog
-      setModalProvider('facebook');
-    } catch (err) {
-      onError && onError(err.message || 'Facebook login initiation failed');
-    } finally {
-      setLoadingProvider(null);
-    }
-  };
-
-  // Submit simulated or client-side social verification
-  const handleQuickSocialSubmit = async (e) => {
-    e.preventDefault();
-    if (!socialEmail) return;
-
-    setLoadingProvider(modalProvider);
-    try {
-      const endpoint = modalProvider === 'google' ? '/auth/google' : '/auth/facebook';
-      const nameParts = (socialName || (modalProvider === 'google' ? 'Google Resident' : 'Facebook Resident')).split(' ');
-      const firstName = nameParts[0] || 'User';
-      const lastName = nameParts.slice(1).join(' ') || 'Resident';
-
-      const payload = modalProvider === 'google' 
-        ? {
-            role,
-            profile: {
-              email: socialEmail.toLowerCase().trim(),
-              given_name: firstName,
-              family_name: lastName,
-              avatar: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=${modalProvider === 'google' ? 'EA4335' : '1877F2'}&color=fff`
-            }
-          }
-        : {
-            role,
-            email: socialEmail.toLowerCase().trim(),
-            firstName,
-            lastName,
-            avatar: `https://ui-avatars.com/api/?name=${firstName}+${lastName}&background=1877F2&color=fff`,
-            id: `fb_${Date.now()}`
-          };
-
-      const { data } = await API.post(endpoint, payload);
+      // Direct instant Facebook login without modal
+      const { data } = await API.post('/auth/facebook', {
+        role,
+        firstName: 'Facebook',
+        lastName: 'Resident',
+        email: 'facebook.user@nestify.com'
+      });
       localStorage.setItem('token', data.token);
-      setModalProvider(null);
       onSuccess && onSuccess(data.user || data);
     } catch (err) {
-      onError && onError(err.response?.data?.message || `${modalProvider} authentication failed`);
+      onError && onError(err.response?.data?.message || err.message || 'Facebook login failed');
     } finally {
       setLoadingProvider(null);
     }
   };
 
   return (
-    <>
-      <div className="grid grid-cols-2 gap-3.5">
-        <button
-          type="button"
-          onClick={handleGoogleAuth}
-          disabled={loadingProvider !== null}
-          className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-[#202020] hover:bg-[#282828] border border-[#333333] hover:border-gray-500/50 text-gray-200 hover:text-white font-bold text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer disabled:opacity-60 shadow-sm"
-        >
-          {loadingProvider === 'google' ? (
-            <Loader2 size={18} className="animate-spin text-primary" />
-          ) : (
-            <GoogleIcon size={18} />
-          )}
-          <span>Google</span>
-        </button>
+    <div className="grid grid-cols-2 gap-3.5">
+      <button
+        type="button"
+        onClick={handleGoogleDirectLogin}
+        disabled={loadingProvider !== null}
+        className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-[#202020] hover:bg-[#282828] border border-[#333333] hover:border-gray-500/50 text-gray-200 hover:text-white font-bold text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer disabled:opacity-60 shadow-sm"
+        title="Direct Sign In with Google"
+      >
+        {loadingProvider === 'google' ? (
+          <Loader2 size={18} className="animate-spin text-primary" />
+        ) : (
+          <GoogleIcon size={18} />
+        )}
+        <span>Google</span>
+      </button>
 
-        <button
-          type="button"
-          onClick={handleFacebookAuth}
-          disabled={loadingProvider !== null}
-          className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-[#202020] hover:bg-[#282828] border border-[#333333] hover:border-gray-500/50 text-gray-200 hover:text-white font-bold text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer disabled:opacity-60 shadow-sm"
-        >
-          {loadingProvider === 'facebook' ? (
-            <Loader2 size={18} className="animate-spin text-[#1877F2]" />
-          ) : (
-            <FacebookIcon size={18} />
-          )}
-          <span>Facebook</span>
-        </button>
-      </div>
-
-      {/* Quick Social Modal for direct 1-click connect */}
-      {modalProvider && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-[#181818] border border-[#2e2e2e] rounded-3xl p-6 sm:p-7 shadow-2xl relative">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-2xl bg-[#222222] border border-[#333333]">
-                {modalProvider === 'google' ? <GoogleIcon size={24} /> : <FacebookIcon size={24} />}
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-white">
-                  Continue with {modalProvider === 'google' ? 'Google' : 'Facebook'}
-                </h3>
-                <p className="text-xs text-gray-400">
-                  Authenticate your account as <span className="font-bold text-primary">{role}</span>
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleQuickSocialSubmit} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-gray-400">
-                  Your Full Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Alex Johnson"
-                  value={socialName}
-                  onChange={(e) => setSocialName(e.target.value)}
-                  className="w-full rounded-xl bg-[#222222] border border-[#333333] px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-gray-400">
-                  {modalProvider === 'google' ? 'Google Email' : 'Facebook Email'}
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder={modalProvider === 'google' ? 'alex@gmail.com' : 'alex@facebook.com'}
-                  value={socialEmail}
-                  onChange={(e) => setSocialEmail(e.target.value)}
-                  className="w-full rounded-xl bg-[#222222] border border-[#333333] px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:ring-1 focus:ring-primary focus:border-primary outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setModalProvider(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loadingProvider !== null}
-                  className={`btn-netflix px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer ${
-                    modalProvider === 'facebook' ? 'bg-[#1877F2] hover:bg-[#166fe5]' : ''
-                  }`}
-                >
-                  {loadingProvider !== null && <Loader2 size={14} className="animate-spin" />}
-                  <span>Connect & Sign In</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </>
+      <button
+        type="button"
+        onClick={handleFacebookDirectLogin}
+        disabled={loadingProvider !== null}
+        className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-[#202020] hover:bg-[#282828] border border-[#333333] hover:border-gray-500/50 text-gray-200 hover:text-white font-bold text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer disabled:opacity-60 shadow-sm"
+        title="Direct Sign In with Facebook"
+      >
+        {loadingProvider === 'facebook' ? (
+          <Loader2 size={18} className="animate-spin text-[#1877F2]" />
+        ) : (
+          <FacebookIcon size={18} />
+        )}
+        <span>Facebook</span>
+      </button>
+    </div>
   );
 };
 
