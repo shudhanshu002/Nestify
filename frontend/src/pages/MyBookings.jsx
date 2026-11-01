@@ -337,8 +337,8 @@ const MyBookings = () => {
 
                 {/* Bottom Options Toolbar: Beside the picture */}
                 <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#242424]">
-                  {/* 1. EXTEND RENT / STAY (If checked in) */}
-                  {book.status === 'CHECKED_IN' && (
+                  {/* 1. EXTEND RENT / STAY (If checked in or confirmed) */}
+                  {(book.status === 'CHECKED_IN' || book.status === 'CONFIRMED') && (
                     <button 
                       onClick={() => setSelectedExtendBooking(book)}
                       className="bg-emerald-950/60 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-800/50 px-3.5 py-2 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition duration-200 shadow-sm active:scale-95 cursor-pointer"

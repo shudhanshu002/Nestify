@@ -112,11 +112,11 @@ export const createBooking = async (req, res, next) => {
   }
 };
 
-// @desc    Check availability for extending a stay (CHECKED_IN only)
-// @route   POST /api/v1/bookings/:id/check-extension
+// @desc    Check availability for extending a stay (CHECKED_IN or CONFIRMED)
+// @route   GET or POST /api/v1/bookings/:id/check-extend
 export const checkExtensionAvailability = async (req, res, next) => {
   try {
-    const { newCheckOutDate } = req.body;
+    const newCheckOutDate = req.query.newCheckOutDate || req.body.newCheckOutDate;
     if (!newCheckOutDate) {
       return res.status(400).json({ success: false, message: "New check-out date is required" });
     }
@@ -134,11 +134,11 @@ export const checkExtensionAvailability = async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Unauthorized to extend this booking" });
     }
 
-    // Condition: User must be currently checked in
-    if (booking.status !== 'CHECKED_IN') {
+    // Condition: User must be currently checked in or confirmed
+    if (!['CHECKED_IN', 'CONFIRMED'].includes(booking.status)) {
       return res.status(400).json({ 
         success: false, 
-        message: "Stay extension is only available for guests who are currently checked in." 
+        message: "Stay extension is only available for active or confirmed stays." 
       });
     }
 
@@ -173,8 +173,7 @@ export const checkExtensionAvailability = async (req, res, next) => {
       booking._id
     );
 
-    res.status(200).json({
-      success: true,
+    const payload = {
       available: availableUnits > 0,
       availableUnits,
       totalInventory: roomDoc.totalInventory,
@@ -184,17 +183,23 @@ export const checkExtensionAvailability = async (req, res, next) => {
       dailyRate,
       additionalAmount,
       newTotalAmount: booking.totalAmount + additionalAmount
+    };
+
+    res.status(200).json({
+      success: true,
+      ...payload,
+      data: payload
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Extend stay check-out date and record payment (CHECKED_IN only)
+// @desc    Extend stay check-out date and record payment (CHECKED_IN or CONFIRMED)
 // @route   POST /api/v1/bookings/:id/extend
 export const extendStay = async (req, res, next) => {
   try {
-    const { newCheckOutDate } = req.body;
+    const newCheckOutDate = req.body.newCheckOutDate || req.query.newCheckOutDate;
     if (!newCheckOutDate) {
       return res.status(400).json({ success: false, message: "New check-out date is required" });
     }
@@ -212,11 +217,11 @@ export const extendStay = async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Unauthorized" });
     }
 
-    // Must be currently checked in
-    if (booking.status !== 'CHECKED_IN') {
+    // Must be currently checked in or confirmed
+    if (!['CHECKED_IN', 'CONFIRMED'].includes(booking.status)) {
       return res.status(400).json({ 
         success: false, 
-        message: "Stay extension is only available for guests who are currently checked in." 
+        message: "Stay extension is only available for active or confirmed stays." 
       });
     }
 

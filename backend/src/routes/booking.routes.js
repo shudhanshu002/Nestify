@@ -22,7 +22,11 @@ router.get('/owner-bookings', getOwnerBookings);
 router.patch('/:id/status', updateBookingStatus);
 router.get('/:id/receipt', getBookingReceipt);
 
-// Stay Extension Endpoints (Active CHECKED_IN Guests)
+// Stay Extension Endpoints (Active / Confirmed Stays)
+// Supports both GET/POST and /check-extend /check-extension aliases
+router.get('/:id/check-extend', checkExtensionAvailability);
+router.post('/:id/check-extend', checkExtensionAvailability);
+router.get('/:id/check-extension', checkExtensionAvailability);
 router.post('/:id/check-extension', checkExtensionAvailability);
 router.post('/:id/extend', extendStay);
 

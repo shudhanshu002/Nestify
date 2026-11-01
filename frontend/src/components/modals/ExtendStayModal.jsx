@@ -29,16 +29,17 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
         const { data } = await API.get(`/bookings/${booking._id}/check-extend`, {
           params: { newCheckOutDate: selectedDate }
         });
-        setAvailabilityData(data.data);
+        const result = data?.data || data;
+        setAvailabilityData(result);
       } catch (err) {
-        setErrorMsg(err.response?.data?.message || "Failed to verify room inventory.");
+        setErrorMsg(err.response?.data?.message || "Failed to verify room inventory for requested dates.");
         setAvailabilityData(null);
       } finally {
         setChecking(false);
       }
     };
 
-    const timer = setTimeout(checkAvailability, 300);
+    const timer = setTimeout(checkAvailability, 250);
     return () => clearTimeout(timer);
   }, [selectedDate, booking._id]);
 
@@ -54,8 +55,9 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
       const { data } = await API.post(`/bookings/${booking._id}/extend`, {
         newCheckOutDate: selectedDate
       });
+      const result = data?.data || data;
       alert(`🎉 Extension Confirmed!\nYour stay has been extended until ${new Date(selectedDate).toLocaleDateString()}.\nPayment of ₹${availabilityData.additionalAmount.toLocaleString()} recorded.`);
-      if (onSuccess) onSuccess(data.data);
+      if (onSuccess) onSuccess(result);
       onClose();
     } catch (err) {
       alert(err.response?.data?.message || "Failed to extend stay.");
@@ -65,11 +67,16 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#181818] text-white w-full max-w-xl rounded-[3rem] p-6 sm:p-10 shadow-2xl border border-[#2e2e2e] space-y-6 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-        
+    <div 
+      className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="bg-[#181818] text-white w-full max-w-lg rounded-[2.5rem] p-6 sm:p-8 shadow-2xl border border-[#2e2e2e] space-y-5 animate-in zoom-in-95 duration-200 max-h-[92vh] overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      >
         {/* HEADER */}
-        <div className="flex justify-between items-start pb-4 border-b border-[#282828]">
+        <div className="flex justify-between items-start pb-3 border-b border-[#282828]">
           <div>
             <div className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-primary tracking-widest mb-1">
               <Sparkles size={12} className="text-amber-400" /> Active Residency Extension
@@ -84,13 +91,14 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
           <button 
             onClick={onClose}
             className="p-2.5 rounded-2xl bg-[#242424] hover:bg-[#333] text-gray-300 hover:text-white transition cursor-pointer"
+            aria-label="Close extension modal"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* CURRENT STAY SUMMARY */}
-        <div className="grid grid-cols-2 gap-3 p-4 bg-[#242424] rounded-2xl border border-[#333333] text-xs">
+        <div className="grid grid-cols-2 gap-3 p-3.5 bg-[#222222] rounded-2xl border border-[#303030] text-xs">
           <div>
             <span className="text-[10px] font-black uppercase text-gray-400 block tracking-wider">Scheduled Check-in</span>
             <p className="font-black text-gray-200 mt-0.5">{new Date(booking.checkInDate).toLocaleDateString()}</p>
@@ -102,8 +110,8 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
         </div>
 
         {/* EXTENSION OPTIONS */}
-        <div className="space-y-3">
-          <label className="text-[11px] font-black uppercase text-gray-400 tracking-widest block">
+        <div className="space-y-2.5">
+          <label className="text-[10px] font-black uppercase text-gray-400 tracking-widest block">
             Choose Extension Duration
           </label>
           
@@ -121,10 +129,10 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
                   type="button"
                   key={preset.days}
                   onClick={() => handlePresetDays(preset.days)}
-                  className={`py-2.5 px-3 rounded-2xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+                  className={`py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition cursor-pointer ${
                     isSelected 
                       ? 'btn-netflix shadow-md text-white' 
-                      : 'bg-[#242424] text-gray-300 border border-[#333333] hover:bg-[#2c2c2c] hover:text-white'
+                      : 'bg-[#222222] text-gray-300 border border-[#303030] hover:bg-[#2c2c2c] hover:text-white'
                   }`}
                 >
                   {preset.label}
@@ -134,8 +142,8 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
           </div>
 
           {/* Custom Date Input */}
-          <div className="p-4 bg-[#242424] rounded-2xl border border-[#333333] space-y-1">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">
+          <div className="p-3.5 bg-[#222222] rounded-2xl border border-[#303030] space-y-1">
+            <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">
               Or Select Exact New Check-Out Date
             </label>
             <input 
@@ -149,25 +157,25 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
         </div>
 
         {/* AVAILABILITY & CONFLICT STATUS BOX */}
-        <div className="p-5 rounded-2xl border border-[#2e2e2e] bg-[#1a1a1a] transition-all">
+        <div className="p-4 sm:p-5 rounded-2xl border border-[#2e2e2e] bg-[#1a1a1a] transition-all">
           {checking ? (
             <div className="flex items-center gap-3 py-3 justify-center text-primary">
               <Loader2 size={18} className="animate-spin" />
               <span className="text-xs font-black uppercase tracking-widest">Checking Room Inventory...</span>
             </div>
           ) : errorMsg ? (
-            <div className="flex items-start gap-3 text-primary bg-primary/10 p-4 rounded-xl border border-primary/20">
-              <AlertCircle size={20} className="shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 text-primary bg-primary/10 p-3.5 rounded-xl border border-primary/20">
+              <AlertCircle size={18} className="shrink-0 mt-0.5" />
               <div>
-                <p className="font-black text-xs uppercase tracking-wider">Extension Blocked</p>
+                <p className="font-black text-xs uppercase tracking-wider">Extension Notice</p>
                 <p className="text-xs mt-0.5 font-medium">{errorMsg}</p>
               </div>
             </div>
           ) : availabilityData?.available ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-[#282828]">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between pb-2.5 border-b border-[#282828]">
                 <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase text-emerald-400 bg-emerald-950/50 px-3 py-1 rounded-full border border-emerald-800/40">
-                  <CheckCircle size={14} className="text-emerald-400" />
+                  <CheckCircle size={13} className="text-emerald-400" />
                   Available ({availabilityData.availableUnits} of {availabilityData.totalInventory} units free)
                 </span>
                 <span className="text-xs font-bold text-gray-400">
@@ -183,23 +191,25 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
                 </div>
                 <div className="flex justify-between text-gray-400 font-bold">
                   <span>Room Tariff Rate</span>
-                  <span className="font-mono text-white">₹{availabilityData.dailyRate.toLocaleString()} / day</span>
+                  <span className="font-mono text-white">₹{availabilityData.dailyRate?.toLocaleString()} / day</span>
                 </div>
                 <div className="flex justify-between text-gray-400 font-bold">
                   <span>New Scheduled Check-out</span>
-                  <span className="font-mono text-emerald-400 font-black">{new Date(availabilityData.newCheckOutDate).toLocaleDateString()}</span>
+                  <span className="font-mono text-emerald-400 font-black">
+                    {new Date(availabilityData.newCheckOutDate).toLocaleDateString()}
+                  </span>
                 </div>
-                <div className="flex justify-between items-center pt-3 border-t border-[#282828]">
-                  <span className="font-black text-sm text-white uppercase">Extension Rent Due</span>
+                <div className="flex justify-between items-center pt-2.5 border-t border-[#282828]">
+                  <span className="font-black text-xs text-white uppercase">Extension Rent Due</span>
                   <span className="text-2xl font-black text-primary font-mono">
-                    ₹{availabilityData.additionalAmount.toLocaleString()}
+                    ₹{availabilityData.additionalAmount?.toLocaleString()}
                   </span>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="flex items-start gap-3 text-primary bg-primary/10 p-4 rounded-xl border border-primary/20">
-              <AlertCircle size={20} className="shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 text-primary bg-primary/10 p-3.5 rounded-xl border border-primary/20">
+              <AlertCircle size={18} className="shrink-0 mt-0.5" />
               <div>
                 <p className="font-black text-xs uppercase tracking-wider">No Rooms Available</p>
                 <p className="text-xs mt-0.5 font-medium">
@@ -214,7 +224,7 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
         <button
           disabled={checking || submitting || !availabilityData?.available}
           onClick={handleConfirmExtension}
-          className="w-full btn-netflix py-4 rounded-2xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 disabled:opacity-40 active:scale-95 cursor-pointer"
+          className="w-full btn-netflix py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 disabled:opacity-40 active:scale-95 cursor-pointer"
         >
           {submitting ? (
             <>
@@ -222,15 +232,14 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
               <span>Processing Extension & Payment...</span>
             </>
           ) : !availabilityData?.available ? (
-            <span>Sold Out for Selected Window</span>
+            <span>Unavailable for Selected Window</span>
           ) : (
             <>
-              <CreditCard size={16} />
+              <CreditCard size={15} />
               <span>Confirm & Pay Extension (₹{availabilityData?.additionalAmount?.toLocaleString()})</span>
             </>
           )}
         </button>
-
       </div>
     </div>
   );
