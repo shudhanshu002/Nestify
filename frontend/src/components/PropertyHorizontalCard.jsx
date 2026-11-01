@@ -33,7 +33,11 @@ const PropertyHorizontalCard = ({ property }) => {
     ? property.images 
     : [{ url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600' }];
 
-  const basePrice = property.basePrice || (property.rooms?.[0]?.basePrice) || 7500;
+  const roomPrices = (property.rooms || []).map(r => r.basePrice).filter(p => typeof p === 'number' && p > 0);
+  const basePrice = roomPrices.length > 0 
+    ? Math.min(...roomPrices) 
+    : (property.basePrice > 0 ? property.basePrice : 7500);
+  const hasMultipleRooms = (property.rooms || []).length > 1;
   const originalPrice = Math.round(basePrice * 1.32 / 100) * 100;
   const discountPercent = Math.round(((originalPrice - basePrice) / originalPrice) * 100);
 
@@ -208,7 +212,10 @@ const PropertyHorizontalCard = ({ property }) => {
         {/* Pricing & Booking CTA Strip */}
         <div className="flex items-end justify-between mt-6 pt-4 border-t border-[#282828]">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
+                {hasMultipleRooms ? "Starts from" : "Rent"}
+              </span>
               <span className="text-xs text-gray-500 font-bold line-through">₹{originalPrice.toLocaleString()}</span>
               <span className="text-[11px] font-black text-primary bg-primary/20 border border-primary/30 px-2 py-0.5 rounded-lg">
                 {discountPercent}% OFF

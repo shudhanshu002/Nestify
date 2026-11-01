@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ShieldCheck, Upload, CheckCircle2, AlertCircle, FileText, Clock, XCircle } from 'lucide-react';
-import API from '../../api/client';
+import { ShieldCheck, Upload, CheckCircle2, AlertCircle, FileText, Clock, XCircle, Building } from 'lucide-react';
+import API from '../api/client';
 
 const KYCSection = ({ user, onUpdate }) => {
   const [loading, setLoading] = useState(false);
@@ -14,10 +14,10 @@ const KYCSection = ({ user, onUpdate }) => {
     setLoading(true);
     const formData = new FormData();
     formData.append('docType', docType);
-    formData.append('document', file); // Your backend should handle this via Multer/Cloudinary
+    formData.append('document', file);
 
     try {
-      const { data } = await API.post('/users/submit-kyc', formData);
+      const { data } = await API.post('/users/kyc-upload', formData);
       alert("Documents uploaded for review.");
       if (onUpdate) onUpdate(data.data);
     } catch (err) {
@@ -28,27 +28,27 @@ const KYCSection = ({ user, onUpdate }) => {
   };
 
   const getStatusUI = () => {
-    switch (user.kycStatus) {
+    switch (user?.kycStatus) {
       case 'VERIFIED':
         return {
-          icon: <CheckCircle2 className="text-green-500" size={40} />,
-          bg: 'bg-green-50',
-          text: 'Verification Complete',
-          desc: 'Your identity has been verified by the Matrix. You have full access.'
+          icon: <CheckCircle2 className="text-emerald-400" size={32} />,
+          bg: 'bg-emerald-950/40 border border-emerald-800/40 text-emerald-300',
+          text: 'Identity Verified & Compliant',
+          desc: 'Your identity has been authenticated. You have unrestricted access to all platform features.'
         };
       case 'PENDING':
         return {
-          icon: <Clock className="text-blue-500" size={40} />,
-          bg: 'bg-blue-50',
+          icon: <Clock className="text-amber-400" size={32} />,
+          bg: 'bg-amber-950/40 border border-amber-800/40 text-amber-300',
           text: 'Under Review',
-          desc: 'Our admins are checking your documents. Expect a result in 24 hours.'
+          desc: 'Our compliance team is verifying your document. Approval typically completes within 12-24 hours.'
         };
       case 'REJECTED':
         return {
-          icon: <XCircle className="text-red-500" size={40} />,
-          bg: 'bg-red-50',
-          text: 'Verification Failed',
-          desc: user.kycRejectionReason || 'Documents were unclear. Please re-upload.'
+          icon: <XCircle className="text-red-400" size={32} />,
+          bg: 'bg-red-950/40 border border-red-800/40 text-red-300',
+          text: 'Verification Incomplete',
+          desc: user.kycRejectionReason || 'The uploaded file was unclear. Please upload a clear photo or scan.'
         };
       default:
         return null;
@@ -58,32 +58,34 @@ const KYCSection = ({ user, onUpdate }) => {
   const statusUI = getStatusUI();
 
   return (
-    <section className="bg-white rounded-[3rem] p-10 border border-gray-100 shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between mb-8">
+    <section className="bg-[#181818] rounded-2xl p-6 sm:p-8 border border-[#2a2a2a] text-white shadow-xl space-y-6">
+      <div className="flex items-center justify-between pb-4 border-b border-[#262626]">
         <div>
-          <h3 className="text-2xl font-black italic tracking-tighter">Trust & Identity.</h3>
-          <p className="text-xs text-gray-400 font-medium uppercase tracking-widest mt-1">KYC Compliance</p>
+          <span className="text-[10px] font-black uppercase text-primary tracking-wider block">Identity Compliance</span>
+          <h3 className="text-xl sm:text-2xl font-black italic tracking-tight text-white">Trust & Verification</h3>
         </div>
-        <ShieldCheck size={32} className={user.kycStatus === 'VERIFIED' ? 'text-primary' : 'text-gray-200'} />
+        <div className={`p-2.5 rounded-xl border ${user?.kycStatus === 'VERIFIED' ? 'bg-emerald-950/50 border-emerald-800/50 text-emerald-400' : 'bg-[#222222] border-[#333333] text-gray-400'}`}>
+          <ShieldCheck size={24} />
+        </div>
       </div>
 
       {statusUI ? (
-        <div className={`${statusUI.bg} p-8 rounded-[2.5rem] flex items-center gap-6 animate-in fade-in zoom-in duration-500`}>
+        <div className={`${statusUI.bg} p-6 rounded-xl flex items-center gap-4 animate-in fade-in duration-200`}>
           {statusUI.icon}
           <div>
-            <h4 className="font-black text-gray-900">{statusUI.text}</h4>
-            <p className="text-xs text-gray-500 font-medium leading-relaxed">{statusUI.desc}</p>
+            <h4 className="font-bold text-sm text-white">{statusUI.text}</h4>
+            <p className="text-xs text-gray-300 font-medium leading-relaxed mt-0.5">{statusUI.desc}</p>
           </div>
         </div>
       ) : (
-        <form onSubmit={handleUpload} className="space-y-6">
+        <form onSubmit={handleUpload} className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase text-gray-400 ml-4">Select ID Type</label>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-gray-400 block">Select ID Type</label>
               <select 
                 value={docType}
                 onChange={(e) => setDocType(e.target.value)}
-                className="w-full bg-gray-50 p-4 rounded-2xl outline-none font-bold text-sm"
+                className="w-full bg-[#202020] border border-[#333333] focus:border-primary text-white p-3 rounded-xl outline-none font-bold text-xs cursor-pointer"
               >
                 <option value="AADHAAR">Aadhaar Card</option>
                 <option value="PAN">PAN Card</option>
@@ -91,18 +93,18 @@ const KYCSection = ({ user, onUpdate }) => {
               </select>
             </div>
             
-            <div className="relative group">
-              <label className="text-[10px] font-black uppercase text-gray-400 ml-4">Document Image</label>
-              <div className="mt-2 flex items-center justify-center w-full h-[56px] bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 group-hover:border-primary transition-all">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-gray-400 block">Upload Document Image</label>
+              <div className="relative flex items-center justify-center w-full h-[46px] bg-[#202020] rounded-xl border border-dashed border-[#383838] hover:border-primary transition group">
                 <input 
                   type="file" 
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   onChange={(e) => setFile(e.target.files[0])}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
-                <div className="flex items-center gap-2 text-gray-400 group-hover:text-primary">
-                  <Upload size={16} />
-                  <span className="text-xs font-black uppercase">{file ? file.name.substring(0, 15) + '...' : 'Choose File'}</span>
+                <div className="flex items-center gap-2 text-gray-400 group-hover:text-white text-xs font-bold">
+                  <Upload size={14} className="text-primary" />
+                  <span className="truncate max-w-[200px]">{file ? file.name : 'Choose File'}</span>
                 </div>
               </div>
             </div>
@@ -110,21 +112,23 @@ const KYCSection = ({ user, onUpdate }) => {
 
           <button 
             type="submit"
-            disabled={loading}
-            className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black hover:bg-primary transition shadow-xl disabled:opacity-50"
+            disabled={loading || !file}
+            className="w-full btn-netflix py-3 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-red-950/40 disabled:opacity-50 cursor-pointer"
           >
-            {loading ? 'Processing...' : 'Submit Identity Proof'}
+            {loading ? 'Submitting File...' : 'Submit Identity Document'}
           </button>
         </form>
       )}
 
-      {user.role === 'OWNER' && user.kycStatus === 'VERIFIED' && (
-        <div className="mt-8 pt-8 border-t border-gray-100">
-           <div className="flex items-center gap-2 text-primary mb-4">
-             <Building size={16}/>
-             <span className="text-[10px] font-black uppercase tracking-widest">Property Ownership Proofs</span>
-           </div>
-           <p className="text-xs text-gray-400 font-medium mb-4">You can upload property-specific documents during the "Add Property" flow for admin verification.</p>
+      {user?.role === 'OWNER' && user?.kycStatus === 'VERIFIED' && (
+        <div className="pt-4 border-t border-[#262626]">
+          <div className="flex items-center gap-1.5 text-primary mb-1">
+            <Building size={14}/>
+            <span className="text-[10px] font-black uppercase tracking-wider">Property Ownership Verification</span>
+          </div>
+          <p className="text-xs text-gray-400">
+            Ownership documents (Electricity bills, registry, property tax receipts) can be submitted directly during the "List New PG" flow.
+          </p>
         </div>
       )}
     </section>

@@ -11,6 +11,7 @@ import {
   Wind, Coffee, Zap, Shirt, Sparkles, Droplets, Building, Tv,
   Flame, ArrowLeft, Bed, Clock, Award, Info
 } from 'lucide-react';
+import CustomDatePicker from '../components/common/CustomDatePicker';
 
 // Fallback high-res curated photography for PG and Coliving spaces
 const FALLBACK_PROPERTY_IMAGES = [
@@ -831,25 +832,28 @@ const PropertyDetail = () => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3.5 bg-[#222222] rounded-2xl border border-[#303030]">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider block mb-1">Check-In</label>
-                    <input 
-                      type="date" 
-                      className="w-full bg-transparent font-bold text-xs outline-none text-white cursor-pointer" 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <CustomDatePicker 
+                      label="Move-In Date"
                       min={new Date().toISOString().split('T')[0]} 
                       value={dates.checkIn} 
-                      onChange={e => setDates({...dates, checkIn: e.target.value})}
+                      onChange={val => {
+                        const nextOut = val >= dates.checkOut 
+                          ? new Date(new Date(val).getTime() + 86400000).toISOString().split('T')[0]
+                          : dates.checkOut;
+                        setDates({ checkIn: val, checkOut: nextOut });
+                      }}
+                      align="left"
                     />
                   </div>
-                  <div className="p-3.5 bg-[#222222] rounded-2xl border border-[#303030]">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider block mb-1">Check-Out</label>
-                    <input 
-                      type="date" 
-                      className="w-full bg-transparent font-bold text-xs outline-none text-white cursor-pointer" 
+                  <div>
+                    <CustomDatePicker 
+                      label="Move-Out Date"
                       min={dates.checkIn} 
                       value={dates.checkOut} 
-                      onChange={e => setDates({...dates, checkOut: e.target.value})}
+                      onChange={val => setDates({...dates, checkOut: val})}
+                      align="right"
                     />
                   </div>
                 </div>

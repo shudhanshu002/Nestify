@@ -4,6 +4,7 @@ import {
   CreditCard, Loader2, Sparkles, Bed, ArrowRight 
 } from 'lucide-react';
 import API from '../../api/client';
+import CustomDatePicker from '../common/CustomDatePicker';
 
 const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
   const currentCheckOut = new Date(booking.checkOutDate);
@@ -142,16 +143,13 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
           </div>
 
           {/* Custom Date Input */}
-          <div className="p-3.5 bg-[#222222] rounded-2xl border border-[#303030] space-y-1">
-            <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">
-              Or Select Exact New Check-Out Date
-            </label>
-            <input 
-              type="date"
+          <div>
+            <CustomDatePicker 
+              label="Or Select Exact New Check-Out Date"
               min={minDateStr}
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full bg-transparent font-bold text-sm text-white outline-none cursor-pointer"
+              onChange={(val) => setSelectedDate(val)}
+              showShortcuts={false}
             />
           </div>
         </div>

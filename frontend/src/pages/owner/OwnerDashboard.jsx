@@ -10,6 +10,8 @@ import {
   ChevronDown, ChevronUp, Sparkles, Filter, Users, Eye
 } from 'lucide-react';
 import ReceiptModal from '../../components/modals/ReceiptModal';
+import CustomDatePicker from '../../components/common/CustomDatePicker';
+import CustomDateTimePicker from '../../components/common/CustomDateTimePicker';
 
 const OwnerDashboard = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -346,20 +348,14 @@ const OwnerDashboard = () => {
                 </select>
               </div>
 
-              {/* Date Inspector Picker */}
+              {/* Date Inspector Picker with Custom Calendar */}
               <div className="w-full lg:w-auto flex-1">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5 flex items-center gap-1.5">
-                  <Calendar size={12} className="text-primary"/> Check Date Occupancy
-                </label>
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="date" 
-                    value={targetDate} 
-                    onChange={(e) => handleDateChange(e.target.value)}
-                    className="flex-1 bg-[#222222] border border-[#333333] text-white text-xs font-bold rounded-xl py-2.5 px-3.5 focus:border-primary outline-none cursor-pointer transition"
-                  />
-                  {occupancyLoading && <Loader2 size={16} className="animate-spin text-primary" />}
-                </div>
+                <CustomDatePicker 
+                  label="Check Date Occupancy"
+                  value={targetDate}
+                  onChange={handleDateChange}
+                  showShortcuts={false}
+                />
               </div>
 
               {/* Quick Date Shortcuts */}
@@ -905,11 +901,9 @@ const OwnerDashboard = () => {
 
                           {actionBooking === b._id ? (
                             <div className="flex flex-col gap-1.5 items-end">
-                              <input 
-                                type="datetime-local" 
-                                className="p-1 bg-[#141414] border border-primary text-[10px] rounded text-white outline-none" 
+                              <CustomDateTimePicker 
                                 value={customActionDate} 
-                                onChange={e => setCustomActionDate(e.target.value)} 
+                                onChange={setCustomActionDate} 
                               />
                               <button 
                                 onClick={() => handleStatusUpdate(b._id, b.status === 'CONFIRMED' ? 'CHECKED_IN' : 'COMPLETED')} 

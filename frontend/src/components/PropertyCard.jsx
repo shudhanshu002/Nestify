@@ -15,7 +15,11 @@ const PropertyCard = ({ property, onWishlistToggle }) => {
     ? property.images 
     : [{ url: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500' }];
 
-  const basePrice = property.basePrice || (property.rooms?.[0]?.basePrice) || 6999;
+  const roomPrices = (property.rooms || []).map(r => r.basePrice).filter(p => typeof p === 'number' && p > 0);
+  const basePrice = roomPrices.length > 0 
+    ? Math.min(...roomPrices) 
+    : (property.basePrice > 0 ? property.basePrice : 6999);
+  const hasMultipleRooms = (property.rooms || []).length > 1;
   const originalPrice = Math.round(basePrice * 1.30 / 100) * 100;
   const discountPercent = Math.round(((originalPrice - basePrice) / originalPrice) * 100);
   const rating = property.averageRating || 4.6;
@@ -119,9 +123,12 @@ const PropertyCard = ({ property, onWishlistToggle }) => {
         {/* Pricing Box */}
         <div className="pt-4 border-t border-[#282828] flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">
+                {hasMultipleRooms ? "Starts from" : "Rent"}
+              </span>
               <span className="text-[11px] text-gray-500 line-through">₹{originalPrice.toLocaleString()}</span>
-              <span className="text-[10px] font-black text-primary bg-primary/20 border border-primary/30 px-1.5 py-0.2 rounded">
+              <span className="text-[9px] font-black text-primary bg-primary/20 border border-primary/30 px-1 py-0.2 rounded">
                 {discountPercent}% OFF
               </span>
             </div>

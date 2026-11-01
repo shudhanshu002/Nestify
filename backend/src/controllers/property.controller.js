@@ -106,6 +106,18 @@ export const addRoomToProperty = async (req, res, next) => {
       images: roomImages // 󾠮 CRITICAL: Images assigned here
     });
 
+    // 5. Keep Property basePrice synchronized with lowest room price
+    try {
+      const allRooms = await Room.find({ property: propertyId });
+      const validPrices = allRooms.map(r => r.basePrice).filter(p => typeof p === 'number' && p > 0);
+      if (validPrices.length > 0) {
+        parentProperty.basePrice = Math.min(...validPrices);
+        await parentProperty.save();
+      }
+    } catch (priceSyncErr) {
+      console.warn("Base price sync error:", priceSyncErr.message);
+    }
+
     res.status(201).json({
       success: true,
       message: `${room.roomType} inventory added successfully!`,

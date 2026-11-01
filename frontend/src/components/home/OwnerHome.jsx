@@ -255,38 +255,56 @@ const OwnerHome = ({ user }) => {
                       )}
                     </div>
 
-                    {/* Base Price & Actions */}
-                    <div className="pt-2.5 border-t border-[#262626] flex items-center justify-between">
-                      <div>
-                        <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider block">Base Tariff</span>
-                        <p className="text-lg font-black text-white font-mono">
-                          ₹{(pg.basePrice || (pg.rooms?.[0]?.basePrice) || 0).toLocaleString()}
-                          <span className="text-[10px] font-normal text-gray-400">/mo</span>
-                        </p>
-                      </div>
+                    {/* Room Pricing & Actions */}
+                    {(() => {
+                      const roomPrices = (pg.rooms || []).map(r => r.basePrice).filter(p => typeof p === 'number' && p > 0);
+                      const minPrice = roomPrices.length > 0 ? Math.min(...roomPrices) : (pg.basePrice || 0);
+                      const maxPrice = roomPrices.length > 0 ? Math.max(...roomPrices) : (pg.basePrice || 0);
+                      const hasRooms = roomPrices.length > 0;
+                      const hasMultiple = roomPrices.length > 1;
 
-                      <div className="flex gap-1.5">
-                        <Link 
-                          to={`/property/${pg._id}`}
-                          className="btn-netflix-secondary px-3 py-1.5 rounded-lg text-[11px] font-black uppercase transition"
-                        >
-                          View
-                        </Link>
-                        <Link 
-                          to={`/owner/dashboard?tab=occupancy&propertyId=${pg._id}`}
-                          className="btn-netflix-secondary px-3 py-1.5 rounded-lg text-[11px] font-black uppercase transition flex items-center gap-1"
-                          title="Inspect Room Schedule & Bookings"
-                        >
-                          <Calendar size={11} /> Dates
-                        </Link>
-                        <Link 
-                          to="/owner/my-properties"
-                          className="btn-netflix px-3 py-1.5 rounded-lg text-[11px] font-black uppercase transition shadow-sm"
-                        >
-                          Manage
-                        </Link>
-                      </div>
-                    </div>
+                      return (
+                        <div className="pt-2.5 border-t border-[#262626] flex items-center justify-between">
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider block">
+                              {hasMultiple ? `Starts from (₹${minPrice.toLocaleString()} - ₹${maxPrice.toLocaleString()})` : "Monthly Rent"}
+                            </span>
+                            <p className="text-lg font-black text-white font-mono">
+                              {hasRooms ? (
+                                <>
+                                  ₹{minPrice.toLocaleString()}
+                                  <span className="text-[10px] font-normal text-gray-400">/mo</span>
+                                </>
+                              ) : (
+                                <span className="text-xs text-amber-400 font-sans font-bold">Price Pending</span>
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="flex gap-1.5">
+                            <Link 
+                              to={`/property/${pg._id}`}
+                              className="btn-netflix-secondary px-3 py-1.5 rounded-lg text-[11px] font-black uppercase transition"
+                            >
+                              View
+                            </Link>
+                            <Link 
+                              to={`/owner/dashboard?tab=occupancy&propertyId=${pg._id}`}
+                              className="btn-netflix-secondary px-3 py-1.5 rounded-lg text-[11px] font-black uppercase transition flex items-center gap-1"
+                              title="Inspect Room Schedule & Bookings"
+                            >
+                              <Calendar size={11} /> Dates
+                            </Link>
+                            <Link 
+                              to="/owner/my-properties"
+                              className="btn-netflix px-3 py-1.5 rounded-lg text-[11px] font-black uppercase transition shadow-sm"
+                            >
+                              Manage
+                            </Link>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                   </div>
                 </div>
