@@ -31,21 +31,20 @@ export const protect = async (req, res, next) => {
   return next(error);
 };
 
-// Middleware to restrict access based on roles
+// Middleware to restrict access based on roles (case-insensitive)
 export const authorize = (...roles) => {
+  const upperRoles = roles.map(r => r.toUpperCase());
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    if (!req.user || !upperRoles.includes((req.user.role || '').toUpperCase())) {
       res.status(403);
-      return next(new Error(`Role ${req.user.role} is not authorized to access this route`));
+      return next(new Error(`Role ${req.user?.role} is not authorized to access this route`));
     }
     next();
   };
 };
 
 export const isAdmin = (req, res, next) => {
-  // 1. Check if user exists (attached by 'protect' middleware)
-  // 2. Check if the role is exactly 'ADMIN'
-  if (req.user && req.user.role === 'ADMIN') {
+  if (req.user && (req.user.role || '').toUpperCase() === 'ADMIN') {
     next(); // Identity confirmed. Proceed to the controller.
   } else {
     // Access Denied

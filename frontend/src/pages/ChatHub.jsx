@@ -62,14 +62,22 @@ const ChatHub = () => {
     }
   };
 
+  const loadDirectory = async () => {
+    if (!currentUser || currentUser.role?.toUpperCase() !== 'ADMIN') return;
+    try {
+      const res = await API.get('/chat/admin/directory');
+      setDirectory(res.data.data || []);
+    } catch (err) {
+      console.error("Directory Sync Error:", err);
+    }
+  };
+
   useEffect(() => {
     if (isChatOpen && currentUser) {
       loadChats();
 
-      if (currentUser.role === 'ADMIN') {
-        API.get('/chat/admin/directory')
-          .then(res => setDirectory(res.data.data || []))
-          .catch(err => console.error("Directory Sync Error:", err));
+      if (currentUser.role?.toUpperCase() === 'ADMIN') {
+        loadDirectory();
       }
     }
   }, [isChatOpen, currentUser]);
@@ -238,10 +246,16 @@ const ChatHub = () => {
   const handleStartFromDirectory = async (userId) => {
     try {
       const { data } = await API.post('/chat/access', { receiverId: userId });
-      setSelectedChat(data.data);
+      if (data.data) {
+        setSelectedChat(data.data);
+        setChats(prev => {
+          const exists = prev.some(c => c._id === data.data._id);
+          return exists ? prev : [data.data, ...prev];
+        });
+      }
       setView('inbox'); 
     } catch (err) {
-      alert("Could not initialize chat with this user.");
+      alert(err.response?.data?.message || "Could not initialize chat with this user.");
     }
   };
 
@@ -254,7 +268,9 @@ const ChatHub = () => {
 
   const filteredDirectory = directory.filter(u => {
     const name = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
-    return name.includes(searchQuery.toLowerCase()) || (u.role || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const email = (u.email || '').toLowerCase();
+    const role = (u.role || '').toLowerCase();
+    return name.includes(searchQuery.toLowerCase()) || email.includes(searchQuery.toLowerCase()) || role.includes(searchQuery.toLowerCase());
   });
 
   const otherUser = selectedChat?.participants?.find(
@@ -262,6 +278,7 @@ const ChatHub = () => {
   );
 
   const isOtherAdmin = otherUser?.role === 'ADMIN';
+  const isAdmin = currentUser?.role?.toUpperCase() === 'ADMIN';
 
   return (
     <>
@@ -281,26 +298,36 @@ const ChatHub = () => {
         }`}
       >
         {/* HEADER */}
-        <div className="p-6 sm:p-7 bg-[#181818] text-white sm:rounded-tl-[2.5rem] flex justify-between items-center border-b border-[#262626] shadow-md">
+        <div className="p-5 sm:p-6 bg-[#181818] text-white sm:rounded-tl-[2.5rem] flex justify-between items-center border-b border-[#262626] shadow-md">
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-white">Concierge.</h2>
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-md shadow-emerald-500/50 animate-pulse" title="Connected"></span>
             </div>
             
-            {currentUser?.role === 'ADMIN' ? (
-              <div className="flex gap-4 mt-2">
+            {isAdmin ? (
+              <div className="flex gap-2 mt-2.5">
                 <button 
                   onClick={() => { setView('inbox'); setSelectedChat(null); }} 
-                  className={`text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer ${view === 'inbox' ? 'text-primary' : 'text-gray-400 hover:text-white'}`}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+                    view === 'inbox' 
+                      ? 'bg-primary text-white shadow-md' 
+                      : 'bg-[#252525] text-gray-400 hover:text-white'
+                  }`}
                 >
-                  Inbox
+                  <MessageSquare size={12} />
+                  Inbox ({chats.length})
                 </button>
                 <button 
-                  onClick={() => { setView('directory'); setSelectedChat(null); }} 
-                  className={`text-[10px] font-black uppercase tracking-widest transition-colors cursor-pointer ${view === 'directory' ? 'text-primary' : 'text-gray-400 hover:text-white'}`}
+                  onClick={() => { setView('directory'); setSelectedChat(null); loadDirectory(); }} 
+                  className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+                    view === 'directory' 
+                      ? 'bg-primary text-white shadow-md' 
+                      : 'bg-[#252525] text-gray-400 hover:text-white'
+                  }`}
                 >
-                  Directory
+                  <Users size={12} />
+                  Directory ({directory.length})
                 </button>
               </div>
             ) : (
@@ -345,7 +372,7 @@ const ChatHub = () => {
                 </div>
 
                 {/* Quick Action: Chat with Admin Support */}
-                {currentUser?.role !== 'ADMIN' && (
+                {!isAdmin && (
                   <div className="px-5 pt-4">
                     <button
                       onClick={handleConnectWithAdmin}
@@ -374,18 +401,38 @@ const ChatHub = () => {
                     Active Conversations
                   </p>
                   
-                  {filteredChats.length > 0 ? filteredChats.map(chat => (
-                    <ChatCard 
-                      key={chat._id} 
-                      chat={chat} 
-                      currentUser={currentUser} 
-                      onSelect={setSelectedChat} 
-                    />
-                  )) : (
-                    <div className="text-center py-20 opacity-40 space-y-2">
-                      <MessageSquare size={44} className="mx-auto text-gray-500"/>
-                      <p className="text-xs font-black uppercase tracking-wider text-gray-400">No active chats yet</p>
-                      <p className="text-[10px] text-gray-500">Reach out to property landlords or click above to talk with support.</p>
+                  {filteredChats.length > 0 ? (
+                    filteredChats.map(chat => (
+                      <ChatCard 
+                        key={chat._id} 
+                        chat={chat} 
+                        currentUser={currentUser} 
+                        onSelect={setSelectedChat} 
+                      />
+                    ))
+                  ) : isAdmin ? (
+                    <div className="text-center py-16 px-4 space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mx-auto">
+                        <Users size={24} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wider text-white">No active admin chats</p>
+                        <p className="text-[11px] text-gray-400 max-w-xs mx-auto mt-1">
+                          You have no ongoing conversations. Browse the platform directory to message any registered landlord or tenant directly.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => { setView('directory'); loadDirectory(); }}
+                        className="btn-netflix px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider inline-flex items-center gap-2 cursor-pointer shadow-lg active:scale-95"
+                      >
+                        <Users size={14} /> Open Platform Directory ({directory.length})
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-16 px-4 space-y-2 opacity-50">
+                      <MessageSquare size={36} className="mx-auto text-gray-400"/>
+                      <p className="text-xs font-black uppercase tracking-wider text-gray-300">No active chats yet</p>
+                      <p className="text-[11px] text-gray-400 max-w-xs mx-auto">Reach out to property landlords on any PG listing, or click Live Support Desk above.</p>
                     </div>
                   )}
                 </div>
@@ -407,25 +454,51 @@ const ChatHub = () => {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5 space-y-2.5 no-scrollbar">
-                  <p className="text-[10px] font-black uppercase text-primary tracking-[0.25em] px-1">Platform Directory</p>
-                  {filteredDirectory.map(u => (
-                    <div 
-                      key={u._id} 
-                      onClick={() => handleStartFromDirectory(u._id)}
-                      className="p-3.5 bg-[#1f1f1f] rounded-2xl flex items-center gap-3.5 hover:bg-[#252525] cursor-pointer border border-[#2c2c2c] hover:border-primary/50 transition-all shadow-sm group"
-                    >
-                      <div className="w-10 h-10 bg-[#2a2a2a] group-hover:bg-primary text-white rounded-xl flex items-center justify-center font-black transition-all">
-                        {u.firstName?.[0] || '?'}
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-[10px] font-black uppercase text-primary tracking-[0.25em]">Platform Directory</p>
+                    <span className="text-[10px] text-gray-400 font-bold">{filteredDirectory.length} Users</span>
+                  </div>
+
+                  {filteredDirectory.length > 0 ? (
+                    filteredDirectory.map(u => (
+                      <div 
+                        key={u._id} 
+                        onClick={() => handleStartFromDirectory(u._id)}
+                        className="p-3.5 bg-[#1f1f1f] rounded-2xl flex items-center gap-3.5 hover:bg-[#252525] cursor-pointer border border-[#2c2c2c] hover:border-primary/50 transition-all shadow-sm group"
+                      >
+                        <div className="w-10 h-10 bg-[#2a2a2a] group-hover:bg-primary text-white rounded-xl flex items-center justify-center font-black transition-all">
+                          {u.firstName?.[0] || '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-black text-xs text-white truncate">{u.firstName} {u.lastName}</p>
+                            {u.kycStatus === 'VERIFIED' && (
+                              <ShieldCheck size={12} className="text-emerald-400 shrink-0" title="KYC Verified" />
+                            )}
+                          </div>
+                          <p className="text-[9px] font-bold text-gray-400 truncate">{u.email}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[8px] font-black px-2 py-0.5 rounded uppercase border ${
+                            u.role === 'OWNER' 
+                              ? 'bg-primary/20 text-primary border-primary/30' 
+                              : 'bg-[#2a2a2a] text-gray-300 border-[#383838]'
+                          }`}>
+                            {u.role}
+                          </span>
+                          <span className="text-[10px] font-black text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                            Chat &rarr;
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-xs text-white truncate">{u.firstName} {u.lastName}</p>
-                        <p className="text-[9px] font-bold text-gray-400 truncate">{u.email}</p>
-                      </div>
-                      <span className="text-[8px] font-black px-2 py-0.5 rounded bg-[#2a2a2a] text-gray-300 border border-[#383838] uppercase">
-                        {u.role}
-                      </span>
+                    ))
+                  ) : (
+                    <div className="text-center py-16 px-4 space-y-2 opacity-60">
+                      <Users size={36} className="mx-auto text-gray-400" />
+                      <p className="text-xs font-black uppercase tracking-wider text-white">No Users Found</p>
+                      <p className="text-[11px] text-gray-400">No registered landlords or tenants match your search.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )

@@ -30,19 +30,20 @@ export const createOrAccessChat = async (senderId, receiverId, propertyId) => {
   if (!mongoose.Types.ObjectId.isValid(targetId)) throw new Error("INVALID_ID");
   if (senderId.toString() === targetId.toString()) throw new Error("SELF_CHAT");
 
-  // 3. Sort IDs so [A, B] is the same as [B, A]
-  const sortedParticipants = [senderId.toString(), targetId.toString()].sort();
+  // 3. Ensure valid ObjectIds for querying and creation
+  const id1 = new mongoose.Types.ObjectId(senderId);
+  const id2 = new mongoose.Types.ObjectId(targetId);
 
-  // 4. Use $all and $size to find the exact pair
+  // 4. Find conversation between these two participants
   let chat = await Conversation.findOne({
-    participants: { $all: sortedParticipants, $size: 2 },
+    participants: { $all: [id1, id2] },
     property: propertyId || null 
   }).populate('participants', 'firstName lastName role avatar');
 
   if (!chat) {
     // 5. Create if not found
     chat = await Conversation.create({
-      participants: sortedParticipants,
+      participants: [id1, id2],
       property: propertyId || null,
     });
     chat = await chat.populate('participants', 'firstName lastName role avatar');

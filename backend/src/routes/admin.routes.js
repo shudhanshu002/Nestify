@@ -20,36 +20,37 @@ router.get('/dashboard', async (req, res, next) => {
 });
 
 // @desc    Get all owners along with their listed PGs, rooms, and ratings
-// @route   GET /api/v1/admin/owners-directory
-router.get('/owners-directory', async (req, res, next) => {
+// @route   GET /api/v1/admin/owners-directory and /api/v1/admin/owners-overview
+const handleOwnersOverview = async (req, res, next) => {
   try {
-    // 1. Fetch all owners (users with role OWNER, COMPANY_ADMIN, or COMPANY_MANAGER)
+    // 1. Fetch all distinct owner IDs from properties + users with role OWNER, COMPANY_ADMIN, or COMPANY_MANAGER
+    const distinctPropertyOwnerIds = await Property.distinct('owner');
+    
     const owners = await User.find({ 
-      role: { $in: ['OWNER', 'COMPANY_ADMIN', 'COMPANY_MANAGER'] } 
+      $or: [
+        { role: { $in: ['OWNER', 'COMPANY_ADMIN', 'COMPANY_MANAGER'] } },
+        { _id: { $in: distinctPropertyOwnerIds.filter(Boolean) } }
+      ]
     }).select('-password').sort('-createdAt');
 
     const ownerIds = owners.map(o => o._id);
 
-    // 2. Fetch all properties listed by these owners
-    const properties = await Property.find({ 
-      owner: { $in: ownerIds } 
-    }).populate('owner', 'firstName lastName email avatar phone').sort('-createdAt');
+    // 2. Fetch all properties listed across the platform
+    const properties = await Property.find({})
+      .populate('owner', 'firstName lastName email avatar phone role')
+      .sort('-createdAt');
 
-    const propertyIds = properties.map(p => p._id);
-
-    // 3. Fetch all rooms for these properties
-    const rooms = await Room.find({ 
-      property: { $in: propertyIds } 
-    });
+    // 3. Fetch all rooms
+    const rooms = await Room.find({});
 
     // 4. Map properties and rooms to each owner
     const ownersData = owners.map(owner => {
       const ownerObj = owner.toObject();
       const ownerProperties = properties
-        .filter(p => (p.owner?._id || p.owner).toString() === owner._id.toString())
+        .filter(p => (p.owner?._id || p.owner)?.toString() === owner._id.toString())
         .map(p => {
           const propObj = p.toObject();
-          propObj.rooms = rooms.filter(r => r.property.toString() === p._id.toString());
+          propObj.rooms = rooms.filter(r => r.property?.toString() === p._id.toString());
           return propObj;
         });
 
@@ -62,12 +63,16 @@ router.get('/owners-directory', async (req, res, next) => {
     res.status(200).json({
       success: true,
       count: ownersData.length,
+      totalProperties: properties.length,
       data: ownersData
     });
   } catch (error) {
     next(error);
   }
-});
+};
+
+router.get('/owners-directory', handleOwnersOverview);
+router.get('/owners-overview', handleOwnersOverview);
 
 router.put('/disputes/:id/resolve', async (req, res, next) => {
   try {

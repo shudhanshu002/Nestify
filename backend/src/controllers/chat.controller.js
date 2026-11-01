@@ -22,8 +22,6 @@ export const startChat = async (req, res, next) => {
   }
 };
 
-// ... keep fetchMyChats and fetchMessages as they were
-
 export const fetchMyChats = async (req, res, next) => {
   try {
     const chats = await Conversation.find({ participants: req.user._id })
@@ -99,36 +97,31 @@ export const getUnreadCount = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-
-
-
-// Add this to your chat controller
 export const getAllUsersForAdmin = async (req, res, next) => {
   try {
     if (req.user.role !== 'ADMIN') {
       return res.status(403).json({ success: false, message: "Unauthorized" });
     }
-    // Find all Owners and Tenants, excluding the Admin themselves
+    // Find all non-admin users (Owners, Tenants, Managers)
     const users = await User.find({ 
       _id: { $ne: req.user._id },
-      role: { $in: ['OWNER', 'TENANT'] }
-    }).select('firstName lastName role avatar email');
+      role: { $ne: 'ADMIN' }
+    }).select('firstName lastName role avatar email phone kycStatus').sort('-createdAt');
 
-    res.status(200).json({ success: true, data: users });
+    res.status(200).json({ success: true, count: users.length, data: users });
   } catch (error) { next(error); }
 };
 
-// Add this to your chat controller
 export const getAdminDirectory = async (req, res, next) => {
   try {
-    if (req.user.role !== 'ADMIN') return res.status(403).json({ message: "Forbidden" });
+    if ((req.user.role || '').toUpperCase() !== 'ADMIN') return res.status(403).json({ message: "Forbidden" });
 
-    // Fetch all users except the admin themselves
+    // Fetch all non-admin users across the platform
     const users = await User.find({ 
       _id: { $ne: req.user._id },
-      role: { $in: ['OWNER', 'TENANT'] } 
-    }).select('firstName lastName role avatar email');
+      role: { $nin: ['ADMIN', 'admin'] } 
+    }).select('firstName lastName role avatar email phone kycStatus').sort('-createdAt');
 
-    res.status(200).json({ success: true, data: users });
+    res.status(200).json({ success: true, count: users.length, data: users });
   } catch (error) { next(error); }
 };
