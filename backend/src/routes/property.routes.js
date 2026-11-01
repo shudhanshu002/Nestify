@@ -21,6 +21,9 @@ router.get('/search', searchProperties);
 // --- ADMIN ROUTES (Must be above /:id) ---
 router.get('/admin/pending', protect, authorize('ADMIN'), getAdminPendingProperties);
 router.put('/admin/verify/:id', protect, authorize('ADMIN'), verifyProperty);
+router.patch('/admin/verify/:id', protect, authorize('ADMIN'), verifyProperty);
+router.put('/verify/:id', protect, authorize('ADMIN'), verifyProperty);
+router.patch('/verify/:id', protect, authorize('ADMIN'), verifyProperty);
 
 // Protected routes
 router.get('/my-listings', protect, authorize('OWNER', 'ADMIN'), getMyProperties);

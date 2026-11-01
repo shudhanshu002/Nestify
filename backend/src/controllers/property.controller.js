@@ -302,27 +302,39 @@ export const getAdminPendingProperties = async (req, res, next) => {
 // @desc    Verify Property (ADMIN ONLY)
 export const verifyProperty = async (req, res, next) => {
   try {
-    const { status, reason, tier } = req.body;
+    const { status, reason, rejectionReason, tier } = req.body;
     const property = await Property.findById(req.params.id);
 
-    if (status) property.verificationStatus = status;
+    if (!property) {
+      return res.status(404).json({ success: false, message: "Property not found" });
+    }
+
+    const newStatus = status ? status.toUpperCase() : 'VERIFIED';
+    property.verificationStatus = newStatus;
     if (tier && ['FLAGSHIP', 'LUXURY', 'BUDGET', 'STANDARD'].includes(tier)) {
       property.tier = tier;
     }
-    if (status === 'REJECTED') property.rejectionReason = reason;
+    if (newStatus === 'REJECTED') {
+      property.rejectionReason = reason || rejectionReason || 'Property details require revision.';
+    } else if (newStatus === 'VERIFIED') {
+      property.rejectionReason = '';
+    }
     await property.save();
 
-    // 󾠮 Trigger Notification for the Owner
-    await Notification.create({
-      recipient: property.owner,
-      title: status === 'VERIFIED' ? 'Building Approved! 🚀' : 'Action Required: Listing Rejected',
-      message: status === 'VERIFIED' 
-        ? `Great news! "${property.title}" is now live on the platform as a ${property.tier || 'FLAGSHIP'} stay.` 
-        : `Your property "${property.title}" was rejected. Reason: ${reason}. Please update your documents.`,
-      relatedId: property._id
-    });
+    // Trigger Notification for the Owner
+    if (property.owner) {
+      const ownerId = (property.owner._id || property.owner).toString();
+      await Notification.create({
+        recipient: ownerId,
+        title: newStatus === 'VERIFIED' ? 'Building Approved! 🚀' : 'Action Required: Listing Rejected',
+        message: newStatus === 'VERIFIED' 
+          ? `Great news! "${property.title}" is now live on the platform as a ${property.tier || 'FLAGSHIP'} stay.` 
+          : `Your property "${property.title}" was rejected. Reason: ${property.rejectionReason}. Please update your documents.`,
+        relatedId: property._id
+      });
+    }
 
-    res.status(200).json({ success: true, tier: property.tier });
+    res.status(200).json({ success: true, tier: property.tier, data: property });
   } catch (error) { next(error); }
 };
 

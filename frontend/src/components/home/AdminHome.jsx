@@ -67,14 +67,42 @@ const AdminHome = ({ user }) => {
   const handleVerifyProperty = async (propId, status, rejectionReason = '') => {
     try {
       setVerifyingPropId(propId);
-      await API.patch(`/admin/verify-property/${propId}`, { 
-        status, 
-        rejectionReason 
-      });
-      // Refresh directory
+
+      // Optimistic local state update so UI responds instantly
+      setOwners(prev => prev.map(owner => {
+        const updatedProps = owner.properties?.map(p => {
+          if (p._id === propId) {
+            return { ...p, verificationStatus: status, rejectionReason };
+          }
+          return p;
+        }) || [];
+        return {
+          ...owner,
+          properties: updatedProps,
+          verifiedPropertiesCount: updatedProps.filter(p => p.verificationStatus === 'VERIFIED').length
+        };
+      }));
+
+      // Send update to backend (support both routes)
+      try {
+        await API.patch(`/admin/verify-property/${propId}`, { 
+          status, 
+          rejectionReason,
+          reason: rejectionReason
+        });
+      } catch (err1) {
+        await API.put(`/properties/admin/verify/${propId}`, { 
+          status, 
+          reason: rejectionReason,
+          rejectionReason
+        });
+      }
+
+      // Re-fetch in background to ensure database parity
       fetchOwnersDirectory();
     } catch (err) {
       alert(err.response?.data?.message || "Failed to update property status.");
+      fetchOwnersDirectory();
     } finally {
       setVerifyingPropId(null);
     }
@@ -449,20 +477,51 @@ const AdminHome = ({ user }) => {
                                       View <ExternalLink size={12}/>
                                     </Link>
 
-                                    {isPending && (
+                                    {pg.verificationStatus === 'VERIFIED' ? (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase text-emerald-400 flex items-center gap-1 bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-800/40">
+                                          <Check size={12} /> Live
+                                        </span>
+                                        <button
+                                          disabled={verifyingPropId === pg._id}
+                                          onClick={() => {
+                                            const reason = prompt("Enter reason for revoking approval:");
+                                            if (reason !== null) handleVerifyProperty(pg._id, 'REJECTED', reason || 'Listing revoked by administrator.');
+                                          }}
+                                          className="text-[9px] font-black uppercase text-gray-400 hover:text-primary transition underline cursor-pointer"
+                                          title="Revoke Verification"
+                                        >
+                                          {verifyingPropId === pg._id ? <Loader2 size={10} className="animate-spin" /> : "Revoke"}
+                                        </button>
+                                      </div>
+                                    ) : pg.verificationStatus === 'REJECTED' ? (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase text-primary flex items-center gap-1 bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20">
+                                          <X size={12} /> Rejected
+                                        </span>
+                                        <button
+                                          disabled={verifyingPropId === pg._id}
+                                          onClick={() => handleVerifyProperty(pg._id, 'VERIFIED')}
+                                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg font-black text-[9px] uppercase tracking-wider transition cursor-pointer flex items-center gap-1"
+                                          title="Re-approve this property"
+                                        >
+                                          {verifyingPropId === pg._id ? <Loader2 size={10} className="animate-spin" /> : <><Check size={10} /> Re-Approve</>}
+                                        </button>
+                                      </div>
+                                    ) : (
                                       <div className="flex gap-2">
                                         <button 
                                           disabled={verifyingPropId === pg._id}
                                           onClick={() => handleVerifyProperty(pg._id, 'VERIFIED')}
                                           className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 shadow-sm transition active:scale-95 disabled:opacity-50 cursor-pointer"
                                         >
-                                          <Check size={12}/> Approve
+                                          {verifyingPropId === pg._id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12}/>} Approve
                                         </button>
                                         <button 
                                           disabled={verifyingPropId === pg._id}
                                           onClick={() => {
                                             const reason = prompt("Enter rejection reason for owner:");
-                                            if (reason) handleVerifyProperty(pg._id, 'REJECTED', reason);
+                                            if (reason !== null) handleVerifyProperty(pg._id, 'REJECTED', reason || 'Listing details require revision.');
                                           }}
                                           className="bg-primary/20 text-primary hover:bg-primary hover:text-white px-3 py-1.5 rounded-xl font-black text-[10px] uppercase flex items-center gap-1 border border-primary/30 transition active:scale-95 disabled:opacity-50 cursor-pointer"
                                         >

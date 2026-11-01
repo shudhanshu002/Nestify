@@ -128,17 +128,69 @@ router.put('/disputes/:id/resolve', async (req, res, next) => {
   }
 });
 
-router.patch('/verify-property/:id', async (req, res, next) => {
+// @desc    Admin: Approve or Reject a Property Listing
+const handlePropertyVerification = async (req, res, next) => {
   try {
-    const property = await Property.findByIdAndUpdate(
-      req.params.id, 
-      { isVerified: true, verificationBadge: req.body.badge || 'BRONZE' },
-      { new: true }
-    );
-    res.json({ success: true, data: property });
+    const { status, rejectionReason, reason, tier, badge } = req.body;
+    const property = await Property.findById(req.params.id);
+
+    if (!property) {
+      return res.status(404).json({ success: false, message: "Property not found" });
+    }
+
+    const newStatus = status ? status.toUpperCase() : 'VERIFIED';
+    if (!['PENDING', 'VERIFIED', 'REJECTED'].includes(newStatus)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid verification status. Must be VERIFIED, REJECTED, or PENDING." 
+      });
+    }
+
+    property.verificationStatus = newStatus;
+    if (newStatus === 'REJECTED') {
+      property.rejectionReason = rejectionReason || reason || 'Property documents or details did not meet platform guidelines.';
+    } else if (newStatus === 'VERIFIED') {
+      property.rejectionReason = '';
+    }
+
+    if (tier && ['FLAGSHIP', 'LUXURY', 'BUDGET', 'STANDARD'].includes(tier)) {
+      property.tier = tier;
+    }
+
+    await property.save();
+
+    // Trigger Notification & Socket Event for Owner
+    if (property.owner) {
+      const ownerId = (property.owner._id || property.owner).toString();
+      const notification = await Notification.create({
+        recipient: ownerId,
+        title: newStatus === 'VERIFIED' ? 'Building Approved! 🚀' : 'Action Required: Listing Rejected',
+        message: newStatus === 'VERIFIED'
+          ? `Great news! "${property.title}" has been verified and is now live for tenants on Nestify.`
+          : `Your property "${property.title}" was rejected. Reason: ${property.rejectionReason}. Please update your documents.`,
+        type: 'PROPERTY_VERIFICATION',
+        relatedId: property._id
+      });
+
+      const io = req.app.get('io');
+      if (io) {
+        io.to(ownerId).emit('property_verified', { propertyId: property._id, status: newStatus });
+        io.to(ownerId).emit('notification', notification);
+        io.to(ownerId).emit('unread_notification_count_changed');
+      }
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: `Property status updated to ${newStatus}`,
+      data: property 
+    });
   } catch (error) {
     next(error);
   }
-});
+};
+
+router.patch('/verify-property/:id', handlePropertyVerification);
+router.put('/verify-property/:id', handlePropertyVerification);
 
 export default router;
