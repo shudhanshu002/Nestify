@@ -46,7 +46,8 @@ const bookingSchema = new mongoose.Schema({
     newCheckOutDate: { type: Date, required: true },
     additionalDays: { type: Number, required: true },
     additionalAmount: { type: Number, required: true },
-    paymentStatus: { type: String, default: 'PAID' }
+    paymentStatus: { type: String, default: 'PAID' },
+    transactionId: { type: String }
   }],
 }, { 
   timestamps: true 

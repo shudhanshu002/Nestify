@@ -2,10 +2,12 @@ import Booking from '../models/booking.model.js';
 import Room from '../models/room.model.js';
 import Property from '../models/property.model.js';
 import Notification from '../models/notification.model.js';
+import Payment from '../models/payment.model.js';
 
 /**
  * Standardized Date-Interval Conflict Utility
  * Validates availability across [checkIn, checkOut) against room.totalInventory
+ * Enforces strict per-night concurrency checking to guarantee ZERO overbooking.
  */
 export const getAvailableCountForDates = async (roomId, checkIn, checkOut, totalInventory, excludeBookingId = null) => {
   const start = new Date(checkIn);
@@ -13,6 +15,8 @@ export const getAvailableCountForDates = async (roomId, checkIn, checkOut, total
   
   const end = new Date(checkOut);
   end.setHours(0, 0, 0, 0);
+
+  if (end <= start) return 0;
 
   const query = {
     room: roomId,
@@ -25,9 +29,33 @@ export const getAvailableCountForDates = async (roomId, checkIn, checkOut, total
     query._id = { $ne: excludeBookingId };
   }
 
-  const overlappingBookings = await Booking.countDocuments(query);
-  const available = totalInventory - overlappingBookings;
-  return available > 0 ? available : 0;
+  const overlappingBookings = await Booking.find(query).select('checkInDate checkOutDate');
+
+  // Exact per-night slot concurrency check: verify every single night in the requested range
+  let maxOccupancyInSlot = 0;
+  const cursor = new Date(start);
+
+  while (cursor < end) {
+    const nextCursor = new Date(cursor.getTime() + 86400000);
+    
+    // Booking occupies night [cursor, nextCursor) if checkIn < nextCursor and checkOut > cursor
+    const occupiedOnThisNight = overlappingBookings.filter(b => {
+      const bStart = new Date(b.checkInDate);
+      bStart.setHours(0, 0, 0, 0);
+      const bEnd = new Date(b.checkOutDate);
+      bEnd.setHours(0, 0, 0, 0);
+      return bStart < nextCursor && bEnd > cursor;
+    }).length;
+
+    if (occupiedOnThisNight > maxOccupancyInSlot) {
+      maxOccupancyInSlot = occupiedOnThisNight;
+    }
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const available = totalInventory - maxOccupancyInSlot;
+  return Math.max(0, available);
 };
 
 // @desc    Check availability for specific dates
@@ -100,6 +128,25 @@ export const createBooking = async (req, res, next) => {
       status: 'CONFIRMED',
       paymentStatus: 'PAID'
     });
+
+    // 4.1 Record Initial Ledger Payment Transaction
+    try {
+      const initTxnId = `TXN-INIT-${booking._id.toString().slice(-6).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+      const platformFee = Math.round(totalAmount * 0.10);
+      await Payment.create({
+        booking: booking._id,
+        transactionId: initTxnId,
+        gateway: 'RAZORPAY',
+        amount: totalAmount,
+        currency: 'INR',
+        platformFee,
+        ownerSettlementAmount: totalAmount - platformFee,
+        status: 'COMPLETED',
+        settlementStatus: 'UNSETTLED'
+      });
+    } catch (payErr) {
+      console.warn("Could not record initial payment record:", payErr.message);
+    }
 
     // 5. Update room snapshot
     roomDoc.availableInventory = Math.max(0, availableUnits - 1);
@@ -258,7 +305,26 @@ export const extendStay = async (req, res, next) => {
       });
     }
 
-    // Record extension in audit log
+    // 5. Generate Extension Ledger Transaction
+    const extTransactionId = `TXN-EXT-${booking._id.toString().slice(-6).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+    const platformFee = Math.round(additionalAmount * 0.10);
+    try {
+      await Payment.create({
+        booking: booking._id,
+        transactionId: extTransactionId,
+        gateway: 'RAZORPAY',
+        amount: additionalAmount,
+        currency: 'INR',
+        platformFee,
+        ownerSettlementAmount: additionalAmount - platformFee,
+        status: 'COMPLETED',
+        settlementStatus: 'UNSETTLED'
+      });
+    } catch (payErr) {
+      console.warn("Could not record extension payment transaction:", payErr.message);
+    }
+
+    // 6. Record extension in audit log
     booking.extensions = booking.extensions || [];
     booking.extensions.push({
       extendedAt: new Date(),
@@ -266,37 +332,56 @@ export const extendStay = async (req, res, next) => {
       newCheckOutDate: targetCheckOut,
       additionalDays,
       additionalAmount,
-      paymentStatus: 'PAID'
+      paymentStatus: 'PAID',
+      transactionId: extTransactionId
     });
 
-    // Update checkOutDate and totalAmount
+    // 7. Update checkOutDate and totalAmount
     booking.checkOutDate = targetCheckOut;
     booking.totalAmount += additionalAmount;
     await booking.save();
 
-    // Notify Owner
+    // 8. Update room cached inventory
+    roomDoc.availableInventory = Math.max(0, availableUnits - 1);
+    await roomDoc.save();
+
+    // 9. Notify Owner
     const propOwnerId = booking.property?.owner?._id || booking.property?.owner;
     if (propOwnerId) {
       await Notification.create({
         recipient: propOwnerId,
         title: 'Stay Extended! 📅',
-        message: `Guest ${booking.tenant?.firstName || 'Tenant'} has extended their stay at "${booking.property?.title}" until ${targetCheckOut.toLocaleDateString()}. Additional rent paid: ₹${additionalAmount.toLocaleString()}.`,
+        message: `Guest ${booking.tenant?.firstName || 'Tenant'} has extended their stay at "${booking.property?.title}" until ${targetCheckOut.toLocaleDateString()}. Additional rent paid: ₹${additionalAmount.toLocaleString()}. Transaction ID: ${extTransactionId}`,
         relatedId: booking._id
       });
     }
 
-    // Notify Tenant
+    // 10. Notify Tenant
     await Notification.create({
       recipient: booking.tenant._id,
       title: 'Stay Extended Successfully! ✅',
-      message: `Your stay at "${booking.property?.title}" has been successfully extended by ${additionalDays} days until ${targetCheckOut.toLocaleDateString()}.`,
+      message: `Your stay at "${booking.property?.title}" has been successfully extended by ${additionalDays} days until ${targetCheckOut.toLocaleDateString()}. Transaction ID: ${extTransactionId}`,
       relatedId: booking._id
     });
+
+    // 11. Return fully populated fresh booking
+    const updatedBooking = await Booking.findById(booking._id)
+      .populate({
+        path: 'property',
+        select: 'title location address images owner category',
+        populate: {
+          path: 'owner',
+          select: 'firstName lastName email phone'
+        }
+      })
+      .populate('room', 'roomType roomNumber basePrice totalInventory')
+      .populate('tenant', 'firstName lastName email avatar phone');
 
     res.status(200).json({
       success: true,
       message: `Stay extended by ${additionalDays} days until ${targetCheckOut.toLocaleDateString()}.`,
-      data: booking
+      data: updatedBooking,
+      transactionId: extTransactionId
     });
   } catch (error) {
     next(error);
@@ -426,30 +511,79 @@ export const getBookingReceipt = async (req, res, next) => {
     const checkIn = new Date(booking.checkInDate);
     const checkOut = new Date(booking.checkOutDate);
     const diffTime = Math.abs(checkOut - checkIn);
-    const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    const totalStayDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+    // Extensions calculations
+    const extensions = booking.extensions || [];
+    const totalExtensionAmount = extensions.reduce((sum, ext) => sum + (ext.additionalAmount || 0), 0);
+    const totalExtensionDays = extensions.reduce((sum, ext) => sum + (ext.additionalDays || 0), 0);
+    const initialStayDays = Math.max(1, totalStayDays - totalExtensionDays);
+    const initialTotalAmount = Math.max(0, (booking.totalAmount || 0) - totalExtensionAmount);
 
     const totalAmount = booking.totalAmount || 0;
     const baseTariff = Math.round((totalAmount * 0.88) * 100) / 100;
+    const initialBaseTariff = Math.round((initialTotalAmount * 0.88) * 100) / 100;
     const totalTax = Math.round((totalAmount - baseTariff) * 100) / 100;
     const cgst = Math.round((totalTax / 2) * 100) / 100;
     const sgst = Math.round((totalTax - cgst) * 100) / 100;
 
     const receiptNumber = `RCP-${booking._id.toString().slice(-8).toUpperCase()}`;
-    const transactionId = `TXN-${booking._id.toString().slice(-6).toUpperCase()}-${new Date(booking.createdAt).getTime().toString().slice(-6)}`;
+    const defaultTxnId = `TXN-${booking._id.toString().slice(-6).toUpperCase()}-${new Date(booking.createdAt).getTime().toString().slice(-6)}`;
+
+    // Query ledger payments
+    const dbPayments = await Payment.find({ booking: booking._id }).sort('createdAt');
+    let transactions = dbPayments.map(p => ({
+      transactionId: p.transactionId,
+      amount: p.amount,
+      gateway: p.gateway,
+      status: p.status,
+      type: p.transactionId?.includes('EXT') ? 'STAY_EXTENSION' : 'INITIAL_RESERVATION',
+      createdAt: p.createdAt
+    }));
+
+    if (transactions.length === 0) {
+      // Synthesize if missing in payment ledger for legacy entries
+      transactions = [
+        {
+          transactionId: defaultTxnId,
+          amount: initialTotalAmount,
+          gateway: 'RAZORPAY',
+          status: 'COMPLETED',
+          type: 'INITIAL_RESERVATION',
+          createdAt: booking.createdAt
+        },
+        ...extensions.map(ext => ({
+          transactionId: ext.transactionId || `TXN-EXT-${booking._id.toString().slice(-6).toUpperCase()}-${new Date(ext.extendedAt).getTime().toString().slice(-6)}`,
+          amount: ext.additionalAmount,
+          gateway: 'RAZORPAY',
+          status: 'COMPLETED',
+          type: 'STAY_EXTENSION',
+          createdAt: ext.extendedAt
+        }))
+      ];
+    }
 
     res.status(200).json({
       success: true,
       data: {
         booking,
         receiptNumber,
-        transactionId,
+        transactionId: transactions[0]?.transactionId || defaultTxnId,
+        transactions,
         issuedAt: booking.createdAt,
+        lastUpdatedAt: booking.updatedAt,
         paymentStatus: booking.paymentStatus || 'PAID',
         paymentMethod: 'PREPAID_ONLINE_GATEWAY',
-        stayDurationDays: diffDays,
-        extensions: booking.extensions || [],
+        stayDurationDays: totalStayDays,
+        initialStayDays,
+        initialTotalAmount,
+        initialBaseTariff,
+        totalExtensionAmount,
+        totalExtensionDays,
+        extensions,
         pricing: {
           baseTariff,
+          initialBaseTariff,
           taxesAndFees: totalTax,
           cgst,
           sgst,

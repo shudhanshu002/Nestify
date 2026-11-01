@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   X, Printer, CheckCircle2, ShieldCheck, Download, 
   Copy, Check, Building, Calendar, User, Phone, Mail, 
-  MapPin, Hash, CreditCard, Sparkles, FileText
+  MapPin, Hash, CreditCard, Sparkles, FileText, CalendarPlus
 } from 'lucide-react';
 import API from '../../api/client';
 import Logo from '../Logo';
@@ -23,7 +23,6 @@ const ReceiptModal = ({ booking, onClose }) => {
           setReceiptDetails(data.data);
         }
       } catch (err) {
-        // Fallback to client-side computation from booking prop
         console.warn("Could not load backend receipt data, using booking prop fallback", err);
       } finally {
         setLoading(false);
@@ -38,17 +37,26 @@ const ReceiptModal = ({ booking, onClose }) => {
   // Compute values if backend response is pending or fallback
   const checkIn = new Date(booking.checkInDate);
   const checkOut = new Date(booking.checkOutDate);
-  const diffDays = Math.max(1, Math.ceil(Math.abs(checkOut - checkIn) / (1000 * 60 * 60 * 24)));
+  const diffDays = receiptDetails?.stayDurationDays || Math.max(1, Math.ceil(Math.abs(checkOut - checkIn) / (1000 * 60 * 60 * 24)));
   
-  const totalAmount = booking.totalAmount || 0;
+  const extensions = receiptDetails?.extensions || booking.extensions || [];
+  const transactions = receiptDetails?.transactions || [];
+
+  const totalAmount = receiptDetails?.pricing?.totalAmount || booking.totalAmount || 0;
   const baseTariff = receiptDetails?.pricing?.baseTariff || Math.round((totalAmount * 0.88) * 100) / 100;
   const totalTax = receiptDetails?.pricing?.taxesAndFees || Math.round((totalAmount - baseTariff) * 100) / 100;
   const cgst = receiptDetails?.pricing?.cgst || Math.round((totalTax / 2) * 100) / 100;
   const sgst = receiptDetails?.pricing?.sgst || Math.round((totalTax - cgst) * 100) / 100;
-  const dailyRate = Math.round(baseTariff / diffDays);
+
+  const totalExtensionAmount = extensions.reduce((sum, ext) => sum + (ext.additionalAmount || 0), 0);
+  const totalExtensionDays = extensions.reduce((sum, ext) => sum + (ext.additionalDays || 0), 0);
+  const initialDays = receiptDetails?.initialStayDays || Math.max(1, diffDays - totalExtensionDays);
+  const initialTotalAmount = receiptDetails?.initialTotalAmount || Math.max(0, totalAmount - totalExtensionAmount);
+  const initialBaseTariff = receiptDetails?.pricing?.initialBaseTariff || Math.round((initialTotalAmount * 0.88) * 100) / 100;
+  const initialDailyRate = Math.round(initialBaseTariff / initialDays);
 
   const receiptNumber = receiptDetails?.receiptNumber || `RCP-${booking._id.slice(-8).toUpperCase()}`;
-  const transactionId = receiptDetails?.transactionId || `TXN-${booking._id.slice(-6).toUpperCase()}-${new Date(booking.createdAt || Date.now()).getTime().toString().slice(-6)}`;
+  const defaultTxnId = receiptDetails?.transactionId || `TXN-${booking._id.slice(-6).toUpperCase()}-${new Date(booking.createdAt || Date.now()).getTime().toString().slice(-6)}`;
 
   const handlePrint = () => {
     window.print();
@@ -101,20 +109,25 @@ const ReceiptModal = ({ booking, onClose }) => {
         <div className="no-print flex items-center justify-between mb-4 px-2">
           <div className="flex items-center gap-2">
             <span className="text-white/80 text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
-              <FileText size={16} className="text-primary"/> Official Tax Invoice
+              <FileText size={16} className="text-primary"/> Official Tax Invoice & Ledger
             </span>
+            {extensions.length > 0 && (
+              <span className="bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                <CalendarPlus size={11} /> Extended ({extensions.length}x)
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handlePrint}
-              className="bg-white hover:bg-gray-100 text-gray-900 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition active:scale-95"
+              className="bg-white hover:bg-gray-100 text-gray-900 px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition active:scale-95 cursor-pointer"
             >
               <Printer size={16} />
               <span>Print / Save PDF</span>
             </button>
             <button
               onClick={onClose}
-              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition active:scale-95"
+              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition active:scale-95 cursor-pointer"
               title="Close Receipt"
             >
               <X size={20} />
@@ -150,17 +163,24 @@ const ReceiptModal = ({ booking, onClose }) => {
                   <h2 className="text-xl font-black font-mono tracking-tight text-gray-900">{receiptNumber}</h2>
                   <button 
                     onClick={handleCopyId} 
-                    className="no-print text-gray-400 hover:text-primary transition" 
+                    className="no-print text-gray-400 hover:text-primary transition cursor-pointer" 
                     title="Copy Receipt Number"
                   >
                     {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 font-bold mt-1">
-                  Date: {new Date(booking.createdAt || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  Issued: {new Date(booking.createdAt || Date.now()).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </p>
-                <div className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider mt-2 border border-green-200">
-                  <CheckCircle2 size={13} className="text-green-600" /> Payment Status: Paid
+                <div className="flex flex-wrap items-center md:justify-end gap-2 mt-2">
+                  <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-green-200">
+                    <CheckCircle2 size={13} className="text-green-600" /> Payment Status: Paid
+                  </span>
+                  {extensions.length > 0 && (
+                    <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-amber-200">
+                      <CalendarPlus size={12} className="text-amber-600" /> Extended Residency
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -211,8 +231,8 @@ const ReceiptModal = ({ booking, onClose }) => {
               </p>
             </div>
             <div>
-              <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Check-out</span>
-              <p className="text-sm font-black text-gray-900 mt-0.5">
+              <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Check-out (Final)</span>
+              <p className="text-sm font-black text-primary mt-0.5">
                 {checkOut.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
             </div>
@@ -224,8 +244,13 @@ const ReceiptModal = ({ booking, onClose }) => {
             </div>
             <div>
               <span className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Duration</span>
-              <p className="text-sm font-black text-primary mt-0.5">
-                {diffDays} {diffDays === 1 ? 'Night' : 'Nights'} Stay
+              <p className="text-sm font-black text-gray-900 mt-0.5">
+                {diffDays} {diffDays === 1 ? 'Night' : 'Nights'}
+                {extensions.length > 0 && (
+                  <span className="block text-[10px] font-bold text-emerald-600">
+                    ({initialDays} initial + {totalExtensionDays} ext)
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -243,30 +268,63 @@ const ReceiptModal = ({ booking, onClose }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-xs font-medium">
+                {/* Initial Accommodation Tariff */}
                 <tr>
                   <td className="py-4 px-2">
-                    <p className="font-bold text-gray-900">Room Stay & Accommodation Tariff</p>
-                    <p className="text-[10px] text-gray-400">Clean, furnished {room.roomType || 'Unit'} living</p>
+                    <p className="font-bold text-gray-900">Room Stay & Initial Accommodation Tariff</p>
+                    <p className="text-[10px] text-gray-400">
+                      Furnished {room.roomType || 'Unit'} living ({checkIn.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} → {new Date(extensions[0]?.previousCheckOutDate || checkOut).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })})
+                    </p>
                   </td>
                   <td className="py-4 px-2 text-center text-gray-500 font-mono">996311</td>
-                  <td className="py-4 px-2 text-center font-bold text-gray-700">{diffDays} Days</td>
-                  <td className="py-4 px-2 text-right text-gray-700 font-mono">₹{dailyRate.toLocaleString()}</td>
-                  <td className="py-4 px-2 text-right font-black text-gray-900 font-mono">₹{baseTariff.toLocaleString()}</td>
+                  <td className="py-4 px-2 text-center font-bold text-gray-700">{initialDays} Days</td>
+                  <td className="py-4 px-2 text-right text-gray-700 font-mono">₹{initialDailyRate.toLocaleString()}</td>
+                  <td className="py-4 px-2 text-right font-black text-gray-900 font-mono">₹{initialBaseTariff.toLocaleString()}</td>
                 </tr>
+
+                {/* Itemized Extensions */}
+                {extensions.map((ext, idx) => {
+                  const extDailyRate = Math.round(ext.additionalAmount / Math.max(1, ext.additionalDays));
+                  const extBaseTariff = Math.round((ext.additionalAmount * 0.88) * 100) / 100;
+                  return (
+                    <tr key={idx} className="bg-emerald-50/40">
+                      <td className="py-4 px-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black uppercase text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded">
+                            Extension #{idx + 1}
+                          </span>
+                          <p className="font-bold text-gray-900">Residency Stay Extension (+{ext.additionalDays} Days)</p>
+                        </div>
+                        <p className="text-[10px] text-gray-600 mt-1">
+                          Through {new Date(ext.newCheckOutDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {ext.transactionId ? ` • Ref: ${ext.transactionId}` : ''}
+                        </p>
+                      </td>
+                      <td className="py-4 px-2 text-center text-gray-500 font-mono">996311</td>
+                      <td className="py-4 px-2 text-center font-bold text-emerald-700 font-mono">+{ext.additionalDays} Days</td>
+                      <td className="py-4 px-2 text-right text-gray-700 font-mono">₹{extDailyRate.toLocaleString()}</td>
+                      <td className="py-4 px-2 text-right font-black text-emerald-800 font-mono">₹{extBaseTariff.toLocaleString()}</td>
+                    </tr>
+                  );
+                })}
+
+                {/* Included Platform Services */}
                 <tr>
                   <td className="py-4 px-2">
-                    <p className="font-bold text-gray-900">Platform Services & Maintenance Infrastructure</p>
-                    <p className="text-[10px] text-gray-400">24/7 digital issue tracking and support</p>
+                    <p className="font-bold text-gray-900">Platform Services & 24/7 Grievance Protocol</p>
+                    <p className="text-[10px] text-gray-400">Direct issue tracking, grievance escrow, and resident support</p>
                   </td>
                   <td className="py-4 px-2 text-center text-gray-500 font-mono">998599</td>
                   <td className="py-4 px-2 text-center font-bold text-gray-700">1 Stay</td>
                   <td className="py-4 px-2 text-right text-gray-500 font-mono">Included</td>
                   <td className="py-4 px-2 text-right font-black text-gray-900 font-mono">₹0.00</td>
                 </tr>
+
+                {/* Move-in Guarantee */}
                 <tr>
                   <td className="py-4 px-2">
-                    <p className="font-bold text-gray-900">Nestify Move-In Guarantee Protection</p>
-                    <p className="text-[10px] text-gray-400">Escrow verification and tenant protection cover</p>
+                    <p className="font-bold text-gray-900">Nestify Escrow & Zero-Overbooking Protection</p>
+                    <p className="text-[10px] text-gray-400">Full room allocation guarantee and verified tenancy protection</p>
                   </td>
                   <td className="py-4 px-2 text-center text-gray-500 font-mono">997133</td>
                   <td className="py-4 px-2 text-center font-bold text-gray-700">1 Stay</td>
@@ -277,23 +335,56 @@ const ReceiptModal = ({ booking, onClose }) => {
             </table>
           </div>
 
-          {/* 5. TOTALS AND TAX SUMMARY */}
+          {/* 5. TOTALS AND TRANSACTION HISTORY */}
           <div className="flex flex-col md:flex-row justify-between items-start gap-6 border-t border-gray-200 pt-6 mb-8">
-            <div className="space-y-2 max-w-sm">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-500">
-                <CreditCard size={14} className="text-primary"/> Payment Method: Prepaid Online Gateway
+            <div className="space-y-3 w-full md:max-w-md">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-500 tracking-wider">
+                <CreditCard size={14} className="text-primary"/> Recorded Ledger Transactions ({transactions.length > 0 ? transactions.length : 1})
               </div>
-              <p className="text-[10px] font-mono text-gray-400 break-all">
-                Ref ID: {transactionId}
-              </p>
-              <div className="flex items-center gap-2 mt-2 p-3 bg-blue-50/60 rounded-xl border border-blue-100">
-                <ShieldCheck size={16} className="text-primary shrink-0"/>
+
+              {/* Transaction list */}
+              <div className="space-y-2">
+                {transactions.length > 0 ? (
+                  transactions.map((txn, idx) => (
+                    <div key={idx} className="p-2.5 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between text-xs font-mono">
+                      <div>
+                        <span className="text-[9px] font-sans font-bold uppercase tracking-wider block text-gray-400">
+                          {txn.type === 'STAY_EXTENSION' ? 'Extension Payment' : 'Initial Reservation'}
+                        </span>
+                        <span className="text-gray-800 font-semibold">{txn.transactionId}</span>
+                        <span className="text-[9px] text-gray-400 font-sans block">
+                          {new Date(txn.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-black text-gray-900 text-sm">₹{txn.amount?.toLocaleString()}</span>
+                        <span className="text-emerald-600 font-bold block text-[9px] uppercase tracking-wider">PAID</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200 flex items-center justify-between text-xs font-mono">
+                    <div>
+                      <span className="text-[9px] font-sans font-bold uppercase tracking-wider block text-gray-400">Primary Transaction</span>
+                      <span className="text-gray-800 font-semibold">{defaultTxnId}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-black text-gray-900 text-sm">₹{totalAmount.toLocaleString()}</span>
+                      <span className="text-emerald-600 font-bold block text-[9px] uppercase tracking-wider">PAID</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 mt-2 p-3 bg-blue-50/70 rounded-2xl border border-blue-100">
+                <ShieldCheck size={18} className="text-primary shrink-0"/>
                 <p className="text-[10px] font-bold text-gray-600">
-                  Protected by 100% Verified Resident Guarantee.
+                  Protected by 100% Verified Escrow Protection & Strict Zero-Overbooking SLA.
                 </p>
               </div>
             </div>
 
+            {/* Financial summary */}
             <div className="w-full md:w-72 space-y-2 text-xs">
               <div className="flex justify-between text-gray-500 font-medium">
                 <span>Taxable Value:</span>
@@ -326,7 +417,7 @@ const ReceiptModal = ({ booking, onClose }) => {
             </p>
             <div className="text-center md:text-right shrink-0">
               <div className="inline-block border-2 border-dashed border-gray-200 rounded-xl px-4 py-2 font-mono text-[9px] uppercase tracking-widest text-gray-500 bg-gray-50">
-                [ Digitally Certified ]
+                [ Digitally Certified & Verified ]
               </div>
             </div>
           </div>

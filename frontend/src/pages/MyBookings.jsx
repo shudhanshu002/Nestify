@@ -619,9 +619,13 @@ const MyBookings = () => {
           booking={selectedExtendBooking}
           onClose={() => setSelectedExtendBooking(null)}
           onSuccess={(updatedBooking) => {
-            setBookings(prev =>
-              prev.map(b => (b._id === updatedBooking._id ? { ...b, ...updatedBooking } : b))
-            );
+            const fresh = updatedBooking?.data || updatedBooking;
+            if (fresh?._id) {
+              setBookings(prev =>
+                prev.map(b => (b._id === fresh._id ? { ...b, ...fresh } : b))
+              );
+            }
+            fetchMyStays();
           }}
         />
       )}
