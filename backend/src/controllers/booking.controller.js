@@ -720,11 +720,18 @@ export const getBookingReceipt = async (req, res, next) => {
     const initialTotalAmount = Math.max(0, (booking.totalAmount || 0) - totalExtensionAmount);
 
     const totalAmount = booking.totalAmount || 0;
-    const baseTariff = Math.round((totalAmount * 0.88) * 100) / 100;
-    const initialBaseTariff = Math.round((initialTotalAmount * 0.88) * 100) / 100;
-    const totalTax = Math.round((totalAmount - baseTariff) * 100) / 100;
+    // Platform charges, other maintenance charges, and itemized taxes
+    const platformFee = Math.round(totalAmount * 0.03); // 3% platform technology & convenience fee
+    const otherCharges = Math.round(totalAmount * 0.02); // 2% building escrow & maintenance charges
+    const totalTax = Math.round(totalAmount * 0.10); // 10% GST (5% CGST + 5% SGST)
     const cgst = Math.round((totalTax / 2) * 100) / 100;
     const sgst = Math.round((totalTax - cgst) * 100) / 100;
+    const baseTariff = totalAmount - platformFee - otherCharges - totalTax;
+
+    const initialPlatformFee = Math.round(initialTotalAmount * 0.03);
+    const initialOtherCharges = Math.round(initialTotalAmount * 0.02);
+    const initialTotalTax = Math.round(initialTotalAmount * 0.10);
+    const initialBaseTariff = initialTotalAmount - initialPlatformFee - initialOtherCharges - initialTotalTax;
 
     const receiptNumber = `RCP-${booking._id.toString().slice(-8).toUpperCase()}`;
     const defaultTxnId = `TXN-${booking._id.toString().slice(-6).toUpperCase()}-${new Date(booking.createdAt).getTime().toString().slice(-6)}`;
@@ -783,6 +790,10 @@ export const getBookingReceipt = async (req, res, next) => {
         pricing: {
           baseTariff,
           initialBaseTariff,
+          platformFee,
+          initialPlatformFee,
+          otherCharges,
+          initialOtherCharges,
           taxesAndFees: totalTax,
           cgst,
           sgst,

@@ -243,7 +243,7 @@ router.patch('/owners/:id/deal', async (req, res, next) => {
       recipient: user._id,
       title: '💼 Commercial Deal Terms Updated',
       message: `Admin has adjusted your commercial terms: ${user.deal.dealType === 'ANNUAL_TOKEN' ? `Annual Token (₹${user.deal.annualTokenAmount}/yr)` : `Pay-As-You-Earn (${user.deal.commissionRate}%)`}. Status: ${user.deal.status}.`,
-      type: 'SYSTEM'
+      type: 'COMMERCIAL_DEAL'
     });
 
     const io = req.app.get('io');

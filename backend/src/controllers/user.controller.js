@@ -160,7 +160,7 @@ export const verifyUser = async (req, res, next) => {
         message: status === 'VERIFIED'
           ? 'Your identity documents have been verified. You can now execute your commercial partnership deal (Annual Token vs Booking Commission).'
           : `Your identity verification was rejected. Reason: ${user.kycRejectionReason}`,
-        type: 'SYSTEM'
+        type: 'KYC_UPDATE'
       });
 
       const io = req.app.get('io');
@@ -295,7 +295,7 @@ export const selectOwnerDeal = async (req, res, next) => {
       recipient: user._id,
       title: '📜 Platform Agreement Signed & Active!',
       message: `Your commercial partnership agreement (${dealType === 'ANNUAL_TOKEN' ? `Annual Token Plan (₹${tokenAmount}/yr)` : `Pay-As-You-Earn (${commission}%)`}) is now ACTIVE. Reference: ${agreementRef}.`,
-      type: 'SYSTEM'
+      type: 'COMMERCIAL_DEAL'
     });
 
     const io = req.app.get('io');

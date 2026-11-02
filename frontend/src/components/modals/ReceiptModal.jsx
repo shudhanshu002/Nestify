@@ -43,16 +43,39 @@ const ReceiptModal = ({ booking, onClose }) => {
   const transactions = receiptDetails?.transactions || [];
 
   const totalAmount = receiptDetails?.pricing?.totalAmount || booking.totalAmount || 0;
-  const baseTariff = receiptDetails?.pricing?.baseTariff || Math.round((totalAmount * 0.88) * 100) / 100;
-  const totalTax = receiptDetails?.pricing?.taxesAndFees || Math.round((totalAmount - baseTariff) * 100) / 100;
-  const cgst = receiptDetails?.pricing?.cgst || Math.round((totalTax / 2) * 100) / 100;
-  const sgst = receiptDetails?.pricing?.sgst || Math.round((totalTax - cgst) * 100) / 100;
+  const platformFee = receiptDetails?.pricing?.platformFee !== undefined 
+    ? receiptDetails.pricing.platformFee 
+    : Math.round(totalAmount * 0.03);
+  const otherCharges = receiptDetails?.pricing?.otherCharges !== undefined 
+    ? receiptDetails.pricing.otherCharges 
+    : Math.round(totalAmount * 0.02);
+  const totalTax = receiptDetails?.pricing?.taxesAndFees !== undefined 
+    ? receiptDetails.pricing.taxesAndFees 
+    : Math.round(totalAmount * 0.10);
+  const cgst = receiptDetails?.pricing?.cgst !== undefined 
+    ? receiptDetails.pricing.cgst 
+    : Math.round((totalTax / 2) * 100) / 100;
+  const sgst = receiptDetails?.pricing?.sgst !== undefined 
+    ? receiptDetails.pricing.sgst 
+    : Math.round((totalTax - cgst) * 100) / 100;
+  const baseTariff = receiptDetails?.pricing?.baseTariff !== undefined 
+    ? receiptDetails.pricing.baseTariff 
+    : Math.max(0, totalAmount - platformFee - otherCharges - totalTax);
 
   const totalExtensionAmount = extensions.reduce((sum, ext) => sum + (ext.additionalAmount || 0), 0);
   const totalExtensionDays = extensions.reduce((sum, ext) => sum + (ext.additionalDays || 0), 0);
   const initialDays = receiptDetails?.initialStayDays || Math.max(1, diffDays - totalExtensionDays);
   const initialTotalAmount = receiptDetails?.initialTotalAmount || Math.max(0, totalAmount - totalExtensionAmount);
-  const initialBaseTariff = receiptDetails?.pricing?.initialBaseTariff || Math.round((initialTotalAmount * 0.88) * 100) / 100;
+  const initialPlatformFee = receiptDetails?.pricing?.initialPlatformFee !== undefined
+    ? receiptDetails.pricing.initialPlatformFee
+    : Math.round(initialTotalAmount * 0.03);
+  const initialOtherCharges = receiptDetails?.pricing?.initialOtherCharges !== undefined
+    ? receiptDetails.pricing.initialOtherCharges
+    : Math.round(initialTotalAmount * 0.02);
+  const initialTotalTax = Math.round(initialTotalAmount * 0.10);
+  const initialBaseTariff = receiptDetails?.pricing?.initialBaseTariff !== undefined 
+    ? receiptDetails.pricing.initialBaseTariff 
+    : Math.max(0, initialTotalAmount - initialPlatformFee - initialOtherCharges - initialTotalTax);
   const initialDailyRate = Math.round(initialBaseTariff / initialDays);
 
   const receiptNumber = receiptDetails?.receiptNumber || `RCP-${booking._id.slice(-8).toUpperCase()}`;
@@ -308,28 +331,28 @@ const ReceiptModal = ({ booking, onClose }) => {
                   );
                 })}
 
-                {/* Included Platform Services */}
+                {/* Platform Technology & Convenience Charges */}
                 <tr>
                   <td className="py-4 px-2">
-                    <p className="font-bold text-gray-900">Platform Services & 24/7 Grievance Protocol</p>
-                    <p className="text-[10px] text-gray-400">Direct issue tracking, grievance escrow, and resident support</p>
+                    <p className="font-bold text-gray-900">Platform Technology & Convenience Charges</p>
+                    <p className="text-[10px] text-gray-400">Direct booking management, cloud billing, and 24/7 concierge support</p>
                   </td>
                   <td className="py-4 px-2 text-center text-gray-500 font-mono">998599</td>
                   <td className="py-4 px-2 text-center font-bold text-gray-700">1 Stay</td>
-                  <td className="py-4 px-2 text-right text-gray-500 font-mono">Included</td>
-                  <td className="py-4 px-2 text-right font-black text-gray-900 font-mono">₹0.00</td>
+                  <td className="py-4 px-2 text-right text-gray-700 font-mono">₹{platformFee.toLocaleString()}</td>
+                  <td className="py-4 px-2 text-right font-black text-gray-900 font-mono">₹{platformFee.toLocaleString()}</td>
                 </tr>
 
-                {/* Move-in Guarantee */}
+                {/* Other Maintenance & Escrow Guarantee Charges */}
                 <tr>
                   <td className="py-4 px-2">
-                    <p className="font-bold text-gray-900">Nestify Escrow & Zero-Overbooking Protection</p>
-                    <p className="text-[10px] text-gray-400">Full room allocation guarantee and verified tenancy protection</p>
+                    <p className="font-bold text-gray-900">Building Maintenance & Escrow Guarantee Fund</p>
+                    <p className="text-[10px] text-gray-400">Zero-overbooking assurance, security deposit escrow, and facility upkeep charges</p>
                   </td>
                   <td className="py-4 px-2 text-center text-gray-500 font-mono">997133</td>
                   <td className="py-4 px-2 text-center font-bold text-gray-700">1 Stay</td>
-                  <td className="py-4 px-2 text-right text-gray-500 font-mono">Included</td>
-                  <td className="py-4 px-2 text-right font-black text-gray-900 font-mono">₹0.00</td>
+                  <td className="py-4 px-2 text-right text-gray-700 font-mono">₹{otherCharges.toLocaleString()}</td>
+                  <td className="py-4 px-2 text-right font-black text-gray-900 font-mono">₹{otherCharges.toLocaleString()}</td>
                 </tr>
               </tbody>
             </table>
@@ -385,26 +408,38 @@ const ReceiptModal = ({ booking, onClose }) => {
             </div>
 
             {/* Financial summary */}
-            <div className="w-full md:w-72 space-y-2 text-xs">
+            <div className="w-full md:w-80 space-y-2 text-xs">
               <div className="flex justify-between text-gray-500 font-medium">
-                <span>Taxable Value:</span>
+                <span>Base Accommodation Tariff:</span>
                 <span className="font-mono">₹{baseTariff.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-gray-500 font-medium">
-                <span>CGST (6%):</span>
+                <span>Platform Convenience Charges:</span>
+                <span className="font-mono text-gray-800 font-bold">₹{platformFee.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-500 font-medium">
+                <span>Other Facilities & Escrow Charges:</span>
+                <span className="font-mono text-gray-800 font-bold">₹{otherCharges.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-gray-500 font-medium">
+                <span>CGST (5%):</span>
                 <span className="font-mono">₹{cgst.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-gray-500 font-medium">
-                <span>SGST (6%):</span>
+                <span>SGST (5%):</span>
                 <span className="font-mono">₹{sgst.toLocaleString()}</span>
               </div>
-              <div className="border-t border-gray-200 pt-2 flex justify-between text-base font-black text-gray-900">
+              <div className="flex justify-between text-gray-700 font-bold border-t border-dashed border-gray-200 pt-1">
+                <span>Total Tax & Regulatory Charges:</span>
+                <span className="font-mono">₹{totalTax.toLocaleString()}</span>
+              </div>
+              <div className="border-t-2 border-gray-900 pt-2 flex justify-between text-base font-black text-gray-900">
                 <span>Total Amount Paid:</span>
                 <span className="text-primary font-mono text-lg">₹{totalAmount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-[11px] font-bold text-green-600">
                 <span>Balance Due:</span>
-                <span className="font-mono">₹0.00 (NIL)</span>
+                <span className="font-mono">₹0.00 (NIL / Paid in Full)</span>
               </div>
             </div>
           </div>
