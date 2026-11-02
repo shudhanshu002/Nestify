@@ -137,6 +137,9 @@ export const verifyUser = async (req, res, next) => {
     user.kycStatus = status;
     if (status === 'REJECTED') {
       user.kycRejectionReason = reason || "Documents were not clear or invalid.";
+      if (user.deal) {
+        user.deal.status = 'NOT_ELIGIBLE';
+      }
     } else if (status === 'VERIFIED') {
       user.kycRejectionReason = '';
       if (!user.deal || user.deal.status === 'NOT_ELIGIBLE') {

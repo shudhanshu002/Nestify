@@ -52,12 +52,17 @@ export const createOrAccessChat = async (senderId, receiverId, propertyId) => {
   return chat;
 };
 
+const contactRegex = /(?:(?:\+|0{0,2})91(\s*[-]\s*)?|[0]?)?[6789]\d{9}|\b\d{10}\b|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+
 export const saveNewMessage = async (senderId, conversationId, text, status = 'SENT') => {
+  const hasContact = contactRegex.test(text.trim());
   const message = await Message.create({
     conversation: conversationId,
     sender: senderId,
     text: text.trim(),
     status,
+    containsContactInfo: hasContact,
+    isFlagged: hasContact,
     deliveredAt: status === 'DELIVERED' ? new Date() : null
   });
 
