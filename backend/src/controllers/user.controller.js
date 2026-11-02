@@ -137,11 +137,182 @@ export const verifyUser = async (req, res, next) => {
     user.kycStatus = status;
     if (status === 'REJECTED') {
       user.kycRejectionReason = reason || "Documents were not clear or invalid.";
+    } else if (status === 'VERIFIED') {
+      user.kycRejectionReason = '';
+      if (!user.deal || user.deal.status === 'NOT_ELIGIBLE') {
+        user.deal = {
+          status: 'PENDING_SELECTION',
+          dealType: 'COMMISSION_PERCENTAGE',
+          annualTokenAmount: 9999,
+          commissionRate: 6,
+          paymentStatus: 'NOT_APPLICABLE'
+        };
+      }
     }
 
     await user.save();
-    res.status(200).json({ success: true, message: `User marked as ${status}` });
+
+    // Trigger Notification & Live Socket Sync
+    try {
+      const notif = await Notification.create({
+        recipient: user._id,
+        title: status === 'VERIFIED' ? '🎉 KYC Verification Approved!' : '⚠️ KYC Documents Rejected',
+        message: status === 'VERIFIED'
+          ? 'Your identity documents have been verified. You can now execute your commercial partnership deal (Annual Token vs Booking Commission).'
+          : `Your identity verification was rejected. Reason: ${user.kycRejectionReason}`,
+        type: 'SYSTEM'
+      });
+
+      const io = req.app.get('io');
+      if (io) {
+        io.to(user._id.toString()).emit('kyc_updated', { status, deal: user.deal });
+        io.to(user._id.toString()).emit('notification', notif);
+        io.to(user._id.toString()).emit('unread_notification_count_changed');
+      }
+    } catch (notifErr) {
+      console.error('Notification error in verifyUser:', notifErr);
+    }
+
+    res.status(200).json({ success: true, message: `User marked as ${status}`, data: user });
   } catch (error) { next(error); }
+};
+
+// @desc    Get owner's commercial deal status & plan options
+// @route   GET /api/v1/users/deal
+// @access  Private
+export const getOwnerDeal = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const isKycVerified = user.kycStatus === 'VERIFIED';
+
+    // If verified and deal is not initialized or was NOT_ELIGIBLE, mark PENDING_SELECTION
+    if (isKycVerified && (!user.deal || user.deal.status === 'NOT_ELIGIBLE')) {
+      user.deal = {
+        status: 'PENDING_SELECTION',
+        dealType: 'COMMISSION_PERCENTAGE',
+        annualTokenAmount: 9999,
+        commissionRate: 6,
+        paymentStatus: 'NOT_APPLICABLE'
+      };
+      await user.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        kycStatus: user.kycStatus,
+        isEligible: isKycVerified,
+        deal: user.deal || { status: 'NOT_ELIGIBLE' },
+        plans: {
+          ANNUAL_TOKEN: {
+            title: 'Annual Token Membership',
+            tagline: 'Fixed Annual Plan • 0% Booking Commission',
+            amount: user.deal?.annualTokenAmount || 9999,
+            commissionRate: 0,
+            billingPeriod: '1 Year (365 Days)',
+            features: [
+              'Zero (0%) platform commission on all guest stays',
+              'Keep 100% of guest rental receipts directly',
+              'Valid for 365 days across all your PG listings',
+              'Flagship Partner badge on all listings',
+              'Direct tenant inquiries & priority discovery boost',
+              'Complimentary legal tenant agreement templates'
+            ]
+          },
+          COMMISSION_PERCENTAGE: {
+            title: 'Pay-As-You-Earn Commission',
+            tagline: '₹0 Upfront • Performance Commission',
+            amount: 0,
+            commissionRate: user.deal?.commissionRate || 6,
+            billingPeriod: 'Per Confirmed Booking',
+            features: [
+              '₹0 Upfront or annual membership fee',
+              'Nominal 6% commission fee only on confirmed bookings',
+              'Automatic escrow deduction on check-in',
+              'Risk-free flexibility for new or seasonal PG owners',
+              'Standard verified landlord badge & concierge support',
+              'Automated monthly GST invoices & payouts'
+            ]
+          }
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Owner selects/signs commercial agreement
+// @route   POST /api/v1/users/deal/select
+// @access  Private (Owner)
+export const selectOwnerDeal = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (user.kycStatus !== 'VERIFIED') {
+      return res.status(403).json({
+        success: false,
+        message: 'Identity verification (KYC) must be approved before executing a platform commercial agreement.'
+      });
+    }
+
+    const { dealType, signatureName } = req.body;
+    if (!['ANNUAL_TOKEN', 'COMMISSION_PERCENTAGE'].includes(dealType)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid plan selected. Choose ANNUAL_TOKEN or COMMISSION_PERCENTAGE.'
+      });
+    }
+
+    const agreementRef = `NEST-AGR-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const now = new Date();
+    const oneYearLater = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+    const tokenAmount = user.deal?.annualTokenAmount || 9999;
+    const commission = user.deal?.commissionRate || 6;
+
+    user.deal = {
+      status: 'ACTIVE',
+      dealType,
+      annualTokenAmount: tokenAmount,
+      commissionRate: commission,
+      agreementReference: agreementRef,
+      agreedAt: now,
+      validUntil: oneYearLater,
+      termsAccepted: true,
+      signatureName: (signatureName || `${user.firstName} ${user.lastName || ''}`).trim(),
+      paymentStatus: dealType === 'ANNUAL_TOKEN' ? 'PAID' : 'NOT_APPLICABLE',
+      adminNotes: user.deal?.adminNotes || ''
+    };
+
+    await user.save();
+
+    // Create notification for owner
+    const ownerNotification = await Notification.create({
+      recipient: user._id,
+      title: '📜 Platform Agreement Signed & Active!',
+      message: `Your commercial partnership agreement (${dealType === 'ANNUAL_TOKEN' ? `Annual Token Plan (₹${tokenAmount}/yr)` : `Pay-As-You-Earn (${commission}%)`}) is now ACTIVE. Reference: ${agreementRef}.`,
+      type: 'SYSTEM'
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(user._id.toString()).emit('deal_updated', user.deal);
+      io.to(user._id.toString()).emit('notification', ownerNotification);
+      io.to(user._id.toString()).emit('unread_notification_count_changed');
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Platform commercial agreement executed successfully!',
+      data: user.deal
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const verifyProperty = async (req, res, next) => {

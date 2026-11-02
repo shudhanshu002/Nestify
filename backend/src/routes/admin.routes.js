@@ -193,4 +193,79 @@ const handlePropertyVerification = async (req, res, next) => {
 router.patch('/verify-property/:id', handlePropertyVerification);
 router.put('/verify-property/:id', handlePropertyVerification);
 
+// @desc    Admin: Update/Override Owner Commercial Deal & Agreement Terms
+// @route   PATCH /api/v1/admin/owners/:id/deal
+router.patch('/owners/:id/deal', async (req, res, next) => {
+  try {
+    const { dealType, annualTokenAmount, commissionRate, status, adminNotes } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Owner not found" });
+    }
+
+    if (!user.deal) {
+      user.deal = {
+        status: user.kycStatus === 'VERIFIED' ? 'PENDING_SELECTION' : 'NOT_ELIGIBLE',
+        dealType: 'COMMISSION_PERCENTAGE',
+        annualTokenAmount: 9999,
+        commissionRate: 6,
+        paymentStatus: 'NOT_APPLICABLE'
+      };
+    }
+
+    if (dealType && ['ANNUAL_TOKEN', 'COMMISSION_PERCENTAGE'].includes(dealType)) {
+      user.deal.dealType = dealType;
+    }
+    if (annualTokenAmount !== undefined) {
+      user.deal.annualTokenAmount = Number(annualTokenAmount);
+    }
+    if (commissionRate !== undefined) {
+      user.deal.commissionRate = Number(commissionRate);
+    }
+    if (status && ['NOT_ELIGIBLE', 'PENDING_SELECTION', 'ACTIVE', 'EXPIRED'].includes(status)) {
+      user.deal.status = status;
+      if (status === 'ACTIVE' && !user.deal.agreementReference) {
+        user.deal.agreementReference = `NEST-AGR-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        user.deal.agreedAt = new Date();
+        user.deal.validUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+        user.deal.termsAccepted = true;
+      }
+    }
+    if (adminNotes !== undefined) {
+      user.deal.adminNotes = adminNotes;
+    }
+    user.deal.updatedBy = req.user._id;
+
+    await user.save();
+
+    // Trigger Notification & Live Socket for Owner
+    const notification = await Notification.create({
+      recipient: user._id,
+      title: '💼 Commercial Deal Terms Updated',
+      message: `Admin has adjusted your commercial terms: ${user.deal.dealType === 'ANNUAL_TOKEN' ? `Annual Token (₹${user.deal.annualTokenAmount}/yr)` : `Pay-As-You-Earn (${user.deal.commissionRate}%)`}. Status: ${user.deal.status}.`,
+      type: 'SYSTEM'
+    });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(user._id.toString()).emit('deal_updated', user.deal);
+      io.to(user._id.toString()).emit('notification', notification);
+      io.to(user._id.toString()).emit('unread_notification_count_changed');
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Owner commercial deal updated successfully',
+      data: user.deal
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+router.put('/owners/:id/deal', async (req, res, next) => {
+  // Delegate to same handler
+  req.url = `/owners/${req.params.id}/deal`;
+  router.handle(req, res, next);
+});
+
 export default router;

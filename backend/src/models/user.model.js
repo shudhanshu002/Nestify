@@ -8,6 +8,33 @@ const profileSchema = new mongoose.Schema({
   emergencyContact: { name: String, phone: String, relation: String }
 }, { _id: false });
 
+const ownerDealSchema = new mongoose.Schema({
+  status: { 
+    type: String, 
+    enum: ['NOT_ELIGIBLE', 'PENDING_SELECTION', 'ACTIVE', 'EXPIRED'], 
+    default: 'NOT_ELIGIBLE' 
+  },
+  dealType: { 
+    type: String, 
+    enum: ['ANNUAL_TOKEN', 'COMMISSION_PERCENTAGE'], 
+    default: 'COMMISSION_PERCENTAGE' 
+  },
+  annualTokenAmount: { type: Number, default: 9999 },
+  commissionRate: { type: Number, default: 6 }, // 6% per booking
+  agreementReference: { type: String, default: '' },
+  agreedAt: { type: Date },
+  validUntil: { type: Date },
+  termsAccepted: { type: Boolean, default: false },
+  signatureName: { type: String, default: '' },
+  paymentStatus: { 
+    type: String, 
+    enum: ['NOT_APPLICABLE', 'PENDING', 'PAID'], 
+    default: 'NOT_APPLICABLE' 
+  },
+  adminNotes: { type: String, default: '' },
+  updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, default: '', trim: true },
@@ -35,6 +62,16 @@ const userSchema = new mongoose.Schema({
     kycRejectionReason: { type: String, default: '' },
 
     profile: profileSchema,
+    deal: { 
+      type: ownerDealSchema, 
+      default: () => ({ 
+        status: 'NOT_ELIGIBLE', 
+        dealType: 'COMMISSION_PERCENTAGE',
+        annualTokenAmount: 9999,
+        commissionRate: 6,
+        paymentStatus: 'NOT_APPLICABLE'
+      }) 
+    },
     isActive: { type: Boolean, default: true },
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
 }, { timestamps: true });

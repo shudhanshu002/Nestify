@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import API from '../../api/client';
 import { useChat } from '../../context/ChatContext';
+import { useToast } from '../../context/ToastContext';
 import { 
   ShieldCheck, ShieldAlert, Search, CheckCircle2, Clock, 
   AlertOctagon, Star, MapPin, Loader2, Bed, 
-  ExternalLink, Check, X, ChevronDown, ChevronUp, Users, Building, Mail, Phone, Sparkles, MessageSquare, BarChart3
+  ExternalLink, Check, X, ChevronDown, ChevronUp, Users, Building, Mail, Phone, Sparkles, MessageSquare, BarChart3,
+  Handshake, FileText, Award, AlertTriangle
 } from 'lucide-react';
 
 const AdminHome = ({ user }) => {
+  const toast = useToast();
   const { setSelectedChat, setIsChatOpen } = useChat();
   const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +23,43 @@ const AdminHome = ({ user }) => {
   const [rejectionNote, setRejectionNote] = useState('');
   const [isRevokeMode, setIsRevokeMode] = useState(false);
 
+  // Admin Commercial Deal Modal State
+  const [dealModalOwner, setDealModalOwner] = useState(null);
+  const [dealFormData, setDealFormData] = useState({
+    dealType: 'COMMISSION_PERCENTAGE',
+    annualTokenAmount: 9999,
+    commissionRate: 6,
+    status: 'PENDING_SELECTION',
+    adminNotes: ''
+  });
+  const [savingDeal, setSavingDeal] = useState(false);
+
+  const openDealModal = (owner) => {
+    setDealModalOwner(owner);
+    setDealFormData({
+      dealType: owner.deal?.dealType || 'COMMISSION_PERCENTAGE',
+      annualTokenAmount: owner.deal?.annualTokenAmount || 9999,
+      commissionRate: owner.deal?.commissionRate || 6,
+      status: owner.deal?.status || (owner.kycStatus === 'VERIFIED' ? 'PENDING_SELECTION' : 'NOT_ELIGIBLE'),
+      adminNotes: owner.deal?.adminNotes || ''
+    });
+  };
+
+  const handleSaveDeal = async () => {
+    if (!dealModalOwner) return;
+    try {
+      setSavingDeal(true);
+      const res = await API.patch(`/admin/owners/${dealModalOwner._id}/deal`, dealFormData);
+      toast.success(res.data.message || "Commercial deal updated successfully!");
+      setOwners(prev => prev.map(o => o._id === dealModalOwner._id ? { ...o, deal: res.data.data } : o));
+      setDealModalOwner(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update commercial agreement.");
+    } finally {
+      setSavingDeal(false);
+    }
+  };
+
   const handleChatWithOwner = async (e, ownerId) => {
     e.stopPropagation();
     try {
@@ -29,7 +69,7 @@ const AdminHome = ({ user }) => {
       }
       setIsChatOpen(true);
     } catch (err) {
-      alert("Could not open chat with this owner.");
+      toast.error("Could not open chat with this owner.");
     }
   };
 
@@ -101,10 +141,11 @@ const AdminHome = ({ user }) => {
         });
       }
 
+      toast.success(`Property marked as ${status}`);
       // Re-fetch in background to ensure database parity
       fetchOwnersDirectory();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to update property status.");
+      toast.error(err.response?.data?.message || "Failed to update property status.");
       fetchOwnersDirectory();
     } finally {
       setVerifyingPropId(null);
@@ -114,9 +155,10 @@ const AdminHome = ({ user }) => {
   const handleUpdateTier = async (propId, tier) => {
     try {
       await API.patch(`/properties/${propId}/tier`, { tier });
+      toast.success(`Property tier updated to ${tier}`);
       fetchOwnersDirectory();
     } catch (err) {
-      alert("Failed to update property tier.");
+      toast.error("Failed to update property tier.");
     }
   };
 
@@ -140,6 +182,8 @@ const AdminHome = ({ user }) => {
       kycFilter === 'ALL' ||
       (kycFilter === 'VERIFIED' && owner.kycStatus === 'VERIFIED') ||
       (kycFilter === 'PENDING' && owner.kycStatus === 'PENDING') ||
+      (kycFilter === 'DEAL_ACTIVE' && owner.deal?.status === 'ACTIVE') ||
+      (kycFilter === 'DEAL_PENDING' && (owner.deal?.status === 'PENDING_SELECTION' || (owner.kycStatus === 'VERIFIED' && owner.deal?.status !== 'ACTIVE'))) ||
       (kycFilter === 'WITH_PGS' && (owner.properties?.length || 0) > 0);
 
     return matchesSearch && matchesKyc;
@@ -149,6 +193,8 @@ const AdminHome = ({ user }) => {
   const totalVerifiedPGs = owners.reduce((acc, o) => acc + (o.verifiedPropertiesCount || 0), 0);
   const totalPendingKyc = owners.filter(o => o.kycStatus === 'PENDING').length;
   const totalPendingPGs = owners.reduce((acc, o) => acc + (o.properties?.filter(p => p.verificationStatus === 'PENDING')?.length || 0), 0);
+  const totalActiveDeals = owners.filter(o => o.deal?.status === 'ACTIVE').length;
+  const totalPendingDeals = owners.filter(o => o.deal?.status === 'PENDING_SELECTION' || (o.kycStatus === 'VERIFIED' && o.deal?.status !== 'ACTIVE')).length;
 
   return (
     <div className="space-y-12 pb-20 text-white">
@@ -224,6 +270,8 @@ const AdminHome = ({ user }) => {
             {[
               { id: 'ALL', label: `All Owners (${owners.length})` },
               { id: 'VERIFIED', label: `KYC Verified (${owners.filter(o => o.kycStatus === 'VERIFIED').length})` },
+              { id: 'DEAL_ACTIVE', label: `Deal Active (${totalActiveDeals})` },
+              { id: 'DEAL_PENDING', label: `Deal Pending (${totalPendingDeals})` },
               { id: 'PENDING', label: `KYC Pending (${totalPendingKyc})` },
               { id: 'WITH_PGS', label: `With Listed PGs (${owners.filter(o => (o.properties?.length || 0) > 0).length})` }
             ].map(tab => (
@@ -329,12 +377,49 @@ const AdminHome = ({ user }) => {
                         </span>
                       </div>
 
+                      {/* Commercial Agreement Status */}
+                      <div className="text-right hidden sm:block">
+                        <span className="text-[9px] font-black uppercase tracking-wider block text-gray-400">Platform Deal</span>
+                        {owner.deal?.status === 'ACTIVE' ? (
+                          <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 mt-0.5 ${
+                            owner.deal.dealType === 'ANNUAL_TOKEN'
+                              ? 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
+                              : 'bg-cyan-950/60 text-cyan-300 border border-cyan-800/40'
+                          }`}>
+                            {owner.deal.dealType === 'ANNUAL_TOKEN' ? (
+                              <>⚡ Token (₹{owner.deal.annualTokenAmount || 9999}/yr)</>
+                            ) : (
+                              <>📈 {owner.deal.commissionRate || 6}% Comm/bk</>
+                            )}
+                          </span>
+                        ) : owner.kycStatus === 'VERIFIED' ? (
+                          <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 mt-0.5 bg-purple-950/60 text-purple-300 border border-purple-800/40">
+                            ⏳ Deal Pending
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full inline-flex items-center gap-1 mt-0.5 bg-[#242424] text-gray-500">
+                            🔒 KYC Req
+                          </span>
+                        )}
+                      </div>
+
                       <div className="text-right">
                         <span className="text-[9px] font-black uppercase tracking-wider block text-gray-400">Portfolio</span>
                         <span className="bg-primary/20 text-primary border border-primary/30 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full inline-block mt-0.5">
                           {pgsCount} {pgsCount === 1 ? 'PG' : 'PGs'} ({livePgsCount} Live)
                         </span>
                       </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDealModal(owner);
+                        }}
+                        className="p-2 bg-[#252525] hover:bg-emerald-600 text-gray-300 hover:text-white rounded-xl transition cursor-pointer"
+                        title="Manage Commercial Deal & Agreement"
+                      >
+                        <Handshake size={16} />
+                      </button>
 
                       <button
                         onClick={(e) => handleChatWithOwner(e, owner._id)}
@@ -641,6 +726,166 @@ const AdminHome = ({ user }) => {
                 className="px-4 bg-[#252525] text-gray-300 hover:text-white rounded-xl text-xs font-black uppercase cursor-pointer"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. ADMIN COMMERCIAL DEAL & AGREEMENT MODAL */}
+      {dealModalOwner && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#181818] border border-[#2a2a2a] w-full max-w-lg rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative">
+            
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-[#262626] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary border border-primary/30 flex items-center justify-center">
+                  <Handshake size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white italic tracking-tight">
+                    Manage Commercial Deal & Terms
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    Owner: <span className="text-white font-bold">{dealModalOwner.firstName} {dealModalOwner.lastName || ''}</span> ({dealModalOwner.email})
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setDealModalOwner(null)}
+                className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-[#252525] transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* KYC Pre-check alert */}
+            {dealModalOwner.kycStatus !== 'VERIFIED' && (
+              <div className="p-3 bg-amber-950/30 border border-amber-800/40 rounded-xl text-xs text-amber-300 flex items-center gap-2">
+                <AlertTriangle size={16} className="shrink-0" />
+                <span>Notice: This owner has not completed KYC verification yet ({dealModalOwner.kycStatus}).</span>
+              </div>
+            )}
+
+            {/* Agreement Ref (if active) */}
+            {dealModalOwner.deal?.agreementReference && (
+              <div className="p-3 bg-[#202020] border border-[#303030] rounded-xl flex items-center justify-between text-xs">
+                <span className="text-gray-400 font-bold uppercase tracking-wider text-[10px]">Agreement Ref</span>
+                <span className="font-mono text-white font-black">{dealModalOwner.deal.agreementReference}</span>
+              </div>
+            )}
+
+            {/* Deal Settings Form */}
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5">
+                  Monetization Structure
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDealFormData({ ...dealFormData, dealType: 'ANNUAL_TOKEN' })}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                      dealFormData.dealType === 'ANNUAL_TOKEN'
+                        ? 'bg-amber-950/30 border-amber-500 text-white'
+                        : 'bg-[#202020] border-[#303030] text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-xs font-black block text-amber-400">⚡ Annual Token</span>
+                    <span className="text-[10px] block mt-0.5">Fixed fee • 0% booking commission</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDealFormData({ ...dealFormData, dealType: 'COMMISSION_PERCENTAGE' })}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer ${
+                      dealFormData.dealType === 'COMMISSION_PERCENTAGE'
+                        ? 'bg-cyan-950/30 border-cyan-500 text-white'
+                        : 'bg-[#202020] border-[#303030] text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-xs font-black block text-cyan-400">📈 Pay-As-You-Earn</span>
+                    <span className="text-[10px] block mt-0.5">₹0 upfront • % Cut on bookings</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic Inputs depending on deal type */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5">
+                    Annual Token Amount (₹)
+                  </label>
+                  <input 
+                    type="number"
+                    value={dealFormData.annualTokenAmount}
+                    onChange={e => setDealFormData({ ...dealFormData, annualTokenAmount: Number(e.target.value) })}
+                    className="w-full bg-[#202020] text-white p-2.5 rounded-xl text-xs font-bold outline-none focus:border-primary border border-[#303030]"
+                    placeholder="9999"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5">
+                    Booking Commission (%)
+                  </label>
+                  <input 
+                    type="number"
+                    value={dealFormData.commissionRate}
+                    onChange={e => setDealFormData({ ...dealFormData, commissionRate: Number(e.target.value) })}
+                    className="w-full bg-[#202020] text-white p-2.5 rounded-xl text-xs font-bold outline-none focus:border-primary border border-[#303030]"
+                    placeholder="6"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5">
+                  Deal Status
+                </label>
+                <select
+                  value={dealFormData.status}
+                  onChange={e => setDealFormData({ ...dealFormData, status: e.target.value })}
+                  className="w-full bg-[#202020] text-white p-2.5 rounded-xl text-xs font-bold outline-none focus:border-primary border border-[#303030] cursor-pointer"
+                >
+                  <option value="NOT_ELIGIBLE">NOT_ELIGIBLE (KYC Required)</option>
+                  <option value="PENDING_SELECTION">PENDING_SELECTION (Awaiting Owner Signature)</option>
+                  <option value="ACTIVE">ACTIVE (Agreement Signed & Enforced)</option>
+                  <option value="EXPIRED">EXPIRED (Needs Renewal)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5">
+                  Admin Agreement Notes
+                </label>
+                <textarea
+                  value={dealFormData.adminNotes}
+                  onChange={e => setDealFormData({ ...dealFormData, adminNotes: e.target.value })}
+                  className="w-full bg-[#202020] text-white p-2.5 rounded-xl text-xs outline-none focus:border-primary border border-[#303030] h-20 resize-none"
+                  placeholder="E.g. Custom commercial agreement approved by Admin."
+                />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#262626]">
+              <button
+                type="button"
+                onClick={() => setDealModalOwner(null)}
+                className="btn-netflix-secondary px-4 py-2.5 rounded-xl font-bold text-xs uppercase"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDeal}
+                disabled={savingDeal}
+                className="btn-netflix px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-red-950/40"
+              >
+                {savingDeal ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                <span>Save & Notify Landlord</span>
               </button>
             </div>
           </div>

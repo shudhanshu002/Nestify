@@ -1,14 +1,16 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import API from '../api/client';
 import { 
   ShieldCheck, Upload, FileText, CheckCircle2, 
-  AlertCircle, Loader2, ArrowLeft, Lock, Sparkles, X, Clock, AlertTriangle
+  AlertCircle, Loader2, ArrowLeft, Lock, Sparkles, X, Clock, AlertTriangle, Handshake
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const KYCVerification = () => {
   const { user, setUser } = useContext(AuthContext);
+  const toast = useToast();
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [docType, setDocType] = useState('AADHAAR');
@@ -31,7 +33,7 @@ const KYCVerification = () => {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!file) return alert("Please select a document image first.");
+    if (!file) return toast.warning("Please select a document image first.");
 
     setLoading(true);
     const formData = new FormData();
@@ -47,9 +49,9 @@ const KYCVerification = () => {
       if (setUser) {
         setUser(data.data || { ...user, kycStatus: 'PENDING' });
       }
-      alert("Identity document uploaded successfully! Our compliance team will review your document within 24 hours.");
+      toast.success("Identity document uploaded successfully! Our compliance team will review your document within 24 hours.");
     } catch (err) {
-      alert(err.response?.data?.message || "Identity document submission failed");
+      toast.error(err.response?.data?.message || "Identity document submission failed");
     } finally {
       setLoading(false);
     }
@@ -109,13 +111,31 @@ const KYCVerification = () => {
                 Your government identity has been authenticated and approved. Your account is fully compliant with zero listing or booking restrictions.
               </p>
             </div>
-            <div className="pt-2">
-              <Link 
-                to={user?.role === 'OWNER' ? "/owner/dashboard" : "/profile"} 
-                className="btn-netflix px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-lg shadow-red-950/40"
-              >
-                Go to {user?.role === 'OWNER' ? 'Owner Console' : 'Profile'}
-              </Link>
+            <div className="pt-2 flex flex-wrap justify-center gap-3">
+              {user?.role === 'OWNER' ? (
+                <>
+                  <Link 
+                    to="/owner/dashboard?tab=deal" 
+                    className="btn-netflix px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-lg shadow-red-950/40"
+                  >
+                    <Handshake size={14} />
+                    <span>Choose Commercial Agreement & Deal</span>
+                  </Link>
+                  <Link 
+                    to="/owner/dashboard" 
+                    className="btn-netflix-secondary px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-2"
+                  >
+                    Owner Console
+                  </Link>
+                </>
+              ) : (
+                <Link 
+                  to="/profile" 
+                  className="btn-netflix px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-lg shadow-red-950/40"
+                >
+                  Go to Profile
+                </Link>
+              )}
             </div>
           </div>
         ) : status === 'PENDING' ? (

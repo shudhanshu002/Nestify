@@ -1,19 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import API from '../../api/client';
 import { useChat } from '../../context/ChatContext';
+import { AuthContext } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { 
   Building, Calendar, User, Bed, CheckCircle2, Clock, 
   AlertOctagon, RefreshCcw, DollarSign, CreditCard, Search, 
   ArrowRight, ChevronRight, Wrench, MessageSquare, Star, 
   Receipt, ShieldCheck, Plus, CheckCheck, Loader2, ArrowLeft,
-  ChevronDown, ChevronUp, Sparkles, Filter, Users, Eye
+  ChevronDown, ChevronUp, Sparkles, Filter, Users, Eye,
+  Handshake, FileText, Lock, Copy, Check, ShieldAlert, Award, Percent,
+  AlertTriangle
 } from 'lucide-react';
 import ReceiptModal from '../../components/modals/ReceiptModal';
 import CustomDatePicker from '../../components/common/CustomDatePicker';
 import CustomDateTimePicker from '../../components/common/CustomDateTimePicker';
 
 const OwnerDashboard = () => {
+  const { user } = useContext(AuthContext);
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'occupancy';
   const initialPropId = searchParams.get('propertyId') || 'ALL';
@@ -39,7 +45,42 @@ const OwnerDashboard = () => {
   const [resolutionNotes, setResolutionNotes] = useState({});
   const [resolvingId, setResolvingId] = useState(null);
 
+  // Commercial Deal / Agreement States
+  const [dealData, setDealData] = useState(null);
+  const [dealLoading, setDealLoading] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState('ANNUAL_TOKEN');
+  const [signatoryName, setSignatoryName] = useState(
+    user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : ''
+  );
+  const [agreedToClauses, setAgreedToClauses] = useState(false);
+  const [submittingDeal, setSubmittingDeal] = useState(false);
+  const [isEditingDeal, setIsEditingDeal] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
+
   const { socket } = useChat();
+
+  // 0. Fetch Owner's Commercial Deal & KYC Status
+  const fetchDealData = useCallback(async () => {
+    try {
+      setDealLoading(true);
+      const res = await API.get('/users/deal');
+      if (res.data?.success) {
+        setDealData(res.data.data);
+        if (res.data.data.deal?.dealType) {
+          setSelectedPlan(res.data.data.deal.dealType);
+        }
+        if (res.data.data.deal?.signatureName) {
+          setSignatoryName(res.data.data.deal.signatureName);
+        } else if (user) {
+          setSignatoryName(`${user.firstName || ''} ${user.lastName || ''}`.trim());
+        }
+      }
+    } catch (err) {
+      console.error("Deal load error:", err);
+    } finally {
+      setDealLoading(false);
+    }
+  }, [user]);
 
   // 1. Fetch Room & Occupancy Schedule Matrix
   const fetchOccupancyMatrix = useCallback(async (dateStr = targetDate) => {
@@ -54,7 +95,7 @@ const OwnerDashboard = () => {
     }
   }, [targetDate]);
 
-  // 2. Fetch Bookings and Maintenance Tickets
+  // 2. Fetch Bookings, Maintenance Tickets & Commercial Deal
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
@@ -65,13 +106,16 @@ const OwnerDashboard = () => {
 
       setBookings(bookingsRes.data.data || []);
       setTickets(ticketsRes.data?.data || []);
-      await fetchOccupancyMatrix(targetDate);
+      await Promise.all([
+        fetchOccupancyMatrix(targetDate),
+        fetchDealData()
+      ]);
     } catch (err) {
       console.error("Dashboard Load Error:", err);
     } finally {
       setLoading(false);
     }
-  }, [fetchOccupancyMatrix, targetDate]);
+  }, [fetchOccupancyMatrix, fetchDealData, targetDate]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -101,7 +145,7 @@ const OwnerDashboard = () => {
     });
   };
 
-  // 3. Real-time Socket Listeners for Live Room & Ticket Sync
+  // 3. Real-time Socket Listeners for Live Room, Deal & Ticket Sync
   useEffect(() => {
     if (!socket) return;
 
@@ -120,16 +164,29 @@ const OwnerDashboard = () => {
       setTickets(prev => prev.map(t => t._id === updatedTicket._id ? updatedTicket : t));
     };
 
+    const handleDealUpdated = (updatedDeal) => {
+      setDealData(prev => prev ? { ...prev, deal: updatedDeal } : prev);
+      toast.info("Commercial Agreement terms updated by platform administrator.");
+    };
+
+    const handleKycUpdated = () => {
+      fetchDealData();
+    };
+
     socket.on('booking_inventory_updated', handleBookingUpdate);
     socket.on('new_maintenance_ticket', handleNewTicket);
     socket.on('ticket_updated', handleTicketUpdated);
+    socket.on('deal_updated', handleDealUpdated);
+    socket.on('kyc_updated', handleKycUpdated);
 
     return () => {
       socket.off('booking_inventory_updated', handleBookingUpdate);
       socket.off('new_maintenance_ticket', handleNewTicket);
       socket.off('ticket_updated', handleTicketUpdated);
+      socket.off('deal_updated', handleDealUpdated);
+      socket.off('kyc_updated', handleKycUpdated);
     };
-  }, [socket, targetDate, fetchOccupancyMatrix]);
+  }, [socket, targetDate, fetchOccupancyMatrix, fetchDealData, toast]);
 
   // Handle Date Inspector Change
   const handleDateChange = (newDate) => {
@@ -153,20 +210,20 @@ const OwnerDashboard = () => {
         status: newStatus, 
         actualDate: customActionDate 
       });
-      alert(`Status updated to ${newStatus}`);
+      toast.success(`Booking status updated to ${newStatus}`);
       setActionBooking(null);
       fetchOccupancyMatrix(targetDate);
       const res = await API.get('/bookings/owner-bookings');
       setBookings(res.data.data || []);
     } catch (err) {
-      alert(err.response?.data?.message || "Operation failed.");
+      toast.error(err.response?.data?.message || "Operation failed.");
     }
   };
 
   // Resolve Maintenance Ticket
   const handleResolveTicket = async (ticketId) => {
     const note = resolutionNotes[ticketId]?.trim();
-    if (!note) return alert("Please type a resolution note before marking it solved.");
+    if (!note) return toast.warning("Please type a resolution note before marking it solved.");
 
     try {
       setResolvingId(ticketId);
@@ -175,7 +232,7 @@ const OwnerDashboard = () => {
         resolutionNote: note 
       });
 
-      alert("Issue marked as Resolved! Tenant has been notified.");
+      toast.success("Issue marked as Resolved! Tenant has been notified.");
       setTickets(prev => prev.map(t => t._id === ticketId ? data.data : t));
       setResolutionNotes(prev => {
         const copy = { ...prev };
@@ -183,9 +240,50 @@ const OwnerDashboard = () => {
         return copy;
       });
     } catch (err) {
-      alert(err.response?.data?.message || "Error resolving ticket");
+      toast.error(err.response?.data?.message || "Error resolving ticket");
     } finally {
       setResolvingId(null);
+    }
+  };
+
+  // Copy Agreement Reference
+  const handleCopyRef = (refId) => {
+    if (!refId) return;
+    navigator.clipboard.writeText(refId);
+    setCopiedRef(true);
+    toast.success("Agreement Reference copied to clipboard!");
+    setTimeout(() => setCopiedRef(false), 2000);
+  };
+
+  // Sign / Execute Commercial Deal
+  const handleSignDeal = async (e) => {
+    e?.preventDefault();
+    if (!agreedToClauses) {
+      toast.warning("Please check the declaration box confirming agreement to terms.");
+      return;
+    }
+    if (!signatoryName.trim()) {
+      toast.warning("Please enter your full legal name as authorized signatory.");
+      return;
+    }
+
+    try {
+      setSubmittingDeal(true);
+      const res = await API.post('/users/deal/select', {
+        dealType: selectedPlan,
+        signatureName: signatoryName.trim()
+      });
+
+      toast.success(res.data.message || "Commercial Agreement activated successfully!");
+      setDealData(prev => ({
+        ...prev,
+        deal: res.data.data
+      }));
+      setIsEditingDeal(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to execute agreement.");
+    } finally {
+      setSubmittingDeal(false);
     }
   };
 
@@ -227,7 +325,7 @@ const OwnerDashboard = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-[#262626]">
         <div>
           <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-            <Building size={14} className="text-primary"/> Owner Console • Live Synchronization
+            <Building size={14} className="text-primary"/> Owner Console ΓÇó Live Synchronization
           </div>
           <h1 className="text-3xl sm:text-5xl font-black italic tracking-tight text-white leading-tight">
             PG & Room Management
@@ -317,6 +415,31 @@ const OwnerDashboard = () => {
             </span>
           )}
         </button>
+
+        <button 
+          onClick={() => handleTabChange('deal')}
+          className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+            activeTab === 'deal' 
+              ? 'btn-netflix text-white shadow-md' 
+              : 'text-gray-400 hover:text-white hover:bg-[#252525]'
+          }`}
+        >
+          <Handshake size={14} />
+          <span>Commercial Agreement</span>
+          {dealData?.deal?.status === 'ACTIVE' ? (
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Active
+            </span>
+          ) : dealData?.kycStatus === 'VERIFIED' ? (
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+              Select Deal
+            </span>
+          ) : (
+            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-gray-700/50 text-gray-400 flex items-center gap-1">
+              <Lock size={9} /> KYC Locked
+            </span>
+          )}
+        </button>
       </div>
 
       {/* =========================================================================
@@ -339,7 +462,7 @@ const OwnerDashboard = () => {
                   onChange={(e) => handlePropertyFilterChange(e.target.value)}
                   className="w-full bg-[#222222] border border-[#333333] text-white text-xs font-bold rounded-xl py-2.5 px-3.5 focus:border-primary outline-none cursor-pointer transition"
                 >
-                  <option value="ALL">🏢 All Properties ({occupancyMatrix.length} PGs)</option>
+                  <option value="ALL">≡ƒÅó All Properties ({occupancyMatrix.length} PGs)</option>
                   {occupancyMatrix.map(p => (
                     <option key={p._id} value={p._id}>
                       {p.title} ({p.location?.city || "City"})
@@ -514,11 +637,11 @@ const OwnerDashboard = () => {
                                       {room.roomType} UNIT
                                     </h3>
                                     <span className="text-[9px] font-mono font-bold text-gray-400 bg-[#292929] px-2 py-0.5 rounded-md border border-[#383838]">
-                                      ₹{room.basePrice?.toLocaleString()} / mo
+                                      Γé╣{room.basePrice?.toLocaleString()} / mo
                                     </span>
                                   </div>
                                   <p className="text-[11px] text-gray-400 font-medium">
-                                    Inventory: {room.totalInventory} Units Total • Capacity: {room.totalInventory} Stays
+                                    Inventory: {room.totalInventory} Units Total ΓÇó Capacity: {room.totalInventory} Stays
                                   </p>
                                 </div>
                               </div>
@@ -535,7 +658,7 @@ const OwnerDashboard = () => {
                                   <span className={`w-1.5 h-1.5 rounded-full ${room.isFullyBooked ? 'bg-red-500' : 'bg-emerald-400'}`}></span>
                                   {room.isFullyBooked 
                                     ? `Fully Booked (${room.occupiedCount}/${room.totalInventory})` 
-                                    : `${room.availableCount} Vacant • ${room.occupiedCount} Booked`}
+                                    : `${room.availableCount} Vacant ΓÇó ${room.occupiedCount} Booked`}
                                 </span>
 
                                 <button 
@@ -613,17 +736,17 @@ const OwnerDashboard = () => {
                                         {/* Booked Dates Range */}
                                         <div className="bg-[#1c1c1c] p-2 rounded-lg border border-[#303030] text-[10px] space-y-1">
                                           <div className="flex items-center justify-between text-gray-300 font-mono font-bold">
-                                            <span>📅 {checkInStr}</span>
-                                            <span>→</span>
+                                            <span>≡ƒôà {checkInStr}</span>
+                                            <span>ΓåÆ</span>
                                             <span>{checkOutStr}</span>
                                           </div>
                                           <div className="flex items-center justify-between text-[9px] text-gray-400">
                                             <span>Duration: {nights} Nights</span>
-                                            <span className="text-emerald-400 font-bold">₹{b.totalAmount?.toLocaleString()}</span>
+                                            <span className="text-emerald-400 font-bold">Γé╣{b.totalAmount?.toLocaleString()}</span>
                                           </div>
                                           {slot.isExtended && (
                                             <div className="text-[9px] font-black text-amber-400 bg-amber-950/40 px-1.5 py-0.5 rounded border border-amber-800/40 mt-1">
-                                              ⚡ Stay Extended ({slot.extensions?.length}x)
+                                              ΓÜí Stay Extended ({slot.extensions?.length}x)
                                             </div>
                                           )}
                                         </div>
@@ -701,7 +824,7 @@ const OwnerDashboard = () => {
                                             #{slot.slotNumber}
                                           </span>
                                           <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-900/40">
-                                            🟢 Vacant & Available
+                                            ≡ƒƒó Vacant & Available
                                           </span>
                                         </div>
                                       </div>
@@ -753,13 +876,13 @@ const OwnerDashboard = () => {
                                             )}
                                           </div>
                                           <p className="text-[10px] text-gray-400 font-mono mt-0.5">
-                                            📅 {new Date(b.checkInDate).toLocaleDateString()} → {new Date(b.checkOutDate).toLocaleDateString()}
+                                            ≡ƒôà {new Date(b.checkInDate).toLocaleDateString()} ΓåÆ {new Date(b.checkOutDate).toLocaleDateString()}
                                           </p>
                                         </div>
 
                                         <div className="flex items-center gap-3">
                                           <span className="font-mono font-bold text-white">
-                                            ₹{b.totalAmount?.toLocaleString()}
+                                            Γé╣{b.totalAmount?.toLocaleString()}
                                           </span>
                                           <button 
                                             onClick={() => setSelectedReceiptBooking(b)}
@@ -875,9 +998,9 @@ const OwnerDashboard = () => {
                         <div className="text-[10px] text-primary uppercase font-black">{b.room?.roomType} Unit</div>
                       </td>
                       <td className="py-3.5 px-4 sm:px-6 font-mono font-bold text-gray-300">
-                        {new Date(b.checkInDate).toLocaleDateString()} → {new Date(b.checkOutDate).toLocaleDateString()}
+                        {new Date(b.checkInDate).toLocaleDateString()} ΓåÆ {new Date(b.checkOutDate).toLocaleDateString()}
                         {b.extensions && b.extensions.length > 0 && (
-                          <div className="text-[9px] text-amber-400 font-sans">⚡ Extended stay</div>
+                          <div className="text-[9px] text-amber-400 font-sans">ΓÜí Extended stay</div>
                         )}
                       </td>
                       <td className="py-3.5 px-4 sm:px-6">
@@ -942,7 +1065,7 @@ const OwnerDashboard = () => {
             <div className="bg-[#181818] p-5 rounded-2xl border border-[#2a2a2a] shadow-lg">
               <span className="text-[10px] font-black uppercase text-primary tracking-wider block">Total Realized Revenue</span>
               <h2 className="text-3xl sm:text-4xl font-black italic text-white font-mono mt-1">
-                ₹{totalRevenue.toLocaleString()}
+                Γé╣{totalRevenue.toLocaleString()}
               </h2>
             </div>
             <div className="bg-[#181818] p-5 rounded-2xl border border-[#2a2a2a] shadow-lg">
@@ -982,7 +1105,7 @@ const OwnerDashboard = () => {
                         {b.property?.title} ({b.room?.roomType})
                       </td>
                       <td className="py-3.5 px-4 sm:px-6 font-mono font-black text-white">
-                        ₹{b.totalAmount?.toLocaleString()}
+                        Γé╣{b.totalAmount?.toLocaleString()}
                       </td>
                       <td className="py-3.5 px-4 sm:px-6 text-right">
                         <button 
@@ -1072,6 +1195,517 @@ const OwnerDashboard = () => {
               <h4 className="text-base font-black text-white">All Clear! No Pending Issues</h4>
               <p className="text-xs text-gray-400 mt-1">All tenant maintenance requests have been resolved.</p>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 5: COMMERCIAL AGREEMENT & MONETIZATION DEAL (PREREQUISITE: KYC VERIFIED)
+         ========================================================================= */}
+      {activeTab === 'deal' && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          
+          {/* 1. SECTION BANNER */}
+          <div className="bg-[#181818] p-6 sm:p-8 rounded-3xl border border-[#2a2a2a] shadow-xl relative overflow-hidden">
+            <div className="absolute -top-24 -right-24 w-80 h-80 bg-primary/10 rounded-full blur-[90px] pointer-events-none"></div>
+
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5 relative z-10">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 bg-primary/15 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider text-primary border border-primary/30">
+                  <Handshake size={12} /> Commercial Agreement & Monetization
+                </div>
+                <h2 className="text-2xl sm:text-4xl font-black italic tracking-tight text-white">
+                  Platform Deal & Partnership Agreement
+                </h2>
+                <p className="text-gray-400 text-xs sm:text-sm max-w-xl">
+                  Choose your monetization structure: Pay an annual token amount for 0% booking commission, or pay a flexible percentage share per booking.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {dealData?.kycStatus === 'VERIFIED' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
+                    <CheckCircle2 size={14} /> KYC Verified Partner
+                  </span>
+                ) : dealData?.kycStatus === 'PENDING' ? (
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-amber-950/60 text-amber-400 border border-amber-800/40 animate-pulse">
+                    <Clock size={14} /> KYC Review In Progress
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider bg-red-950/60 text-red-400 border border-red-800/40">
+                    <ShieldAlert size={14} /> KYC Verification Required
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {dealLoading ? (
+            <div className="py-20 flex justify-center items-center">
+              <Loader2 className="animate-spin text-primary" size={36} />
+            </div>
+          ) : dealData?.kycStatus !== 'VERIFIED' ? (
+            /* 2. PREREQUISITE: KYC NOT VERIFIED STATE */
+            <div className="space-y-6">
+              <div className="bg-[#1c1415] rounded-3xl p-6 sm:p-8 border border-red-900/40 shadow-2xl relative overflow-hidden">
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <div className="p-3.5 bg-red-500/15 text-red-400 border border-red-500/30 rounded-2xl shrink-0">
+                    <Lock size={28} />
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    <h3 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
+                      <span>Identity Verification Prerequisite</span>
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-red-950 text-red-300 border border-red-800">
+                        Required First
+                      </span>
+                    </h3>
+                    <p className="text-xs sm:text-sm text-gray-300 leading-relaxed max-w-2xl">
+                      Commercial partnership agreements and booking payout contracts on Nestify are legally binding. To protect tenants, prevent unauthorized listings, and comply with tax regulations, you must complete your **Government Identity Verification (KYC)** before executing platform agreements.
+                    </p>
+
+                    <div className="pt-2 flex flex-wrap items-center gap-3">
+                      {dealData?.kycStatus === 'PENDING' ? (
+                        <div className="flex items-center gap-2 text-xs font-bold text-amber-400 bg-amber-950/40 border border-amber-800/50 px-4 py-2.5 rounded-xl">
+                          <Clock size={14} className="animate-spin" />
+                          <span>Your documents are under compliance review. Agreement selection unlocks immediately upon admin approval.</span>
+                        </div>
+                      ) : dealData?.kycStatus === 'REJECTED' ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="text-xs text-red-400 font-bold">
+                            Rejection Reason: {dealData?.deal?.rejectionReason || "Documents were unclear or rejected."}
+                          </span>
+                          <Link 
+                            to="/verify-identity" 
+                            className="btn-netflix px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-1.5 shadow-md shadow-red-950/40"
+                          >
+                            <ShieldCheck size={14} /> Resubmit Documents
+                          </Link>
+                        </div>
+                      ) : (
+                        <Link 
+                          to="/verify-identity" 
+                          className="btn-netflix px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-1.5 shadow-md shadow-red-950/40"
+                        >
+                          <ShieldCheck size={14} /> Complete Identity Verification Now
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* PREVIEW OF MONETIZATION DEALS */}
+              <div className="bg-[#181818] rounded-3xl p-6 sm:p-8 border border-[#2a2a2a] space-y-6">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">
+                    <Sparkles size={14} className="text-amber-400" /> Platform Agreement Preview
+                  </div>
+                  <h3 className="text-xl font-black text-white">Monetization Options (Unlocks After KYC)</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Review the two commercial partnership models below so you are ready to choose as soon as your identity is approved.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 opacity-75">
+                  {/* PREVIEW CARD 1: ANNUAL TOKEN */}
+                  <div className="bg-[#202020] rounded-2xl p-6 border border-[#303030] relative space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 inline-block mb-1">
+                          Option A: Fixed Annual Fee
+                        </span>
+                        <h4 className="text-lg font-black text-white">Annual Token Amount Plan</h4>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black italic text-amber-400">₹9,999</span>
+                        <span className="text-[10px] text-gray-400 block font-bold">/ year</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-amber-950/20 border border-amber-800/30 rounded-xl text-xs font-bold text-amber-300 flex items-center gap-2">
+                      <CheckCircle2 size={16} /> 0% Booking Commission (Keep 100% of guest rent)
+                    </div>
+
+                    <ul className="space-y-2 text-xs text-gray-300">
+                      <li className="flex items-center gap-2">
+                        <Check size={14} className="text-emerald-400 shrink-0" /> Fixed annual token fee — zero deduction from guest bookings
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check size={14} className="text-emerald-400 shrink-0" /> Full 365-day platform validity across all your PG listings
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check size={14} className="text-emerald-400 shrink-0" /> Flagship verified partner badge & priority search placement
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* PREVIEW CARD 2: PERCENTAGE SHARE */}
+                  <div className="bg-[#202020] rounded-2xl p-6 border border-[#303030] relative space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 inline-block mb-1">
+                          Option B: Pay-As-You-Earn
+                        </span>
+                        <h4 className="text-lg font-black text-white">Percentage Share Plan</h4>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black italic text-cyan-400">6%</span>
+                        <span className="text-[10px] text-gray-400 block font-bold">/ booking</span>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-cyan-950/20 border border-cyan-800/30 rounded-xl text-xs font-bold text-cyan-300 flex items-center gap-2">
+                      <CheckCircle2 size={16} /> ₹0 Upfront Fee (Pay only when rooms get booked)
+                    </div>
+
+                    <ul className="space-y-2 text-xs text-gray-300">
+                      <li className="flex items-center gap-2">
+                        <Check size={14} className="text-emerald-400 shrink-0" /> Zero upfront investment or annual subscription
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check size={14} className="text-emerald-400 shrink-0" /> 6% platform fee automatically deducted from booking settlement
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <Check size={14} className="text-emerald-400 shrink-0" /> Hassle-free automatic escrow payouts to your bank account
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : dealData?.deal?.status === 'ACTIVE' && !isEditingDeal ? (
+            /* 3. ACTIVE DEAL VIEW: OFFICIAL PARTNERSHIP CERTIFICATE */
+            <div className="space-y-6">
+              <div className="bg-gradient-to-br from-[#1a1c1a] via-[#161616] to-[#1a1414] rounded-3xl p-6 sm:p-10 border border-emerald-900/50 shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+
+                <div className="relative z-10 space-y-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-6 border-b border-[#2a2a2a]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-950/60 border border-emerald-700/60 flex items-center justify-center text-emerald-400">
+                        <Award size={26} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                            Active Agreement
+                          </span>
+                          <span className="text-xs text-gray-400 font-mono">
+                            Ref: {dealData.deal.agreementReference || 'NEST-AGR-VERIFIED'}
+                          </span>
+                        </div>
+                        <h3 className="text-xl sm:text-2xl font-black text-white italic tracking-tight mt-0.5">
+                          Official Commercial Partnership Certificate
+                        </h3>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCopyRef(dealData.deal.agreementReference)}
+                      className="btn-netflix-secondary px-4 py-2 rounded-xl text-xs font-bold uppercase flex items-center gap-1.5 transition"
+                    >
+                      {copiedRef ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                      <span>{copiedRef ? "Copied!" : "Copy Reference"}</span>
+                    </button>
+                  </div>
+
+                  {/* Metrics Breakdown */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-[#1c1c1c] p-4 rounded-2xl border border-[#2c2c2c]">
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">Active Monetization Plan</span>
+                      <p className="text-lg font-black text-white mt-1">
+                        {dealData.deal.dealType === 'ANNUAL_TOKEN' ? '⚡ Annual Token Plan' : '📈 Pay-As-You-Earn'}
+                      </p>
+                      <span className="text-[11px] text-gray-400 block mt-0.5">
+                        {dealData.deal.dealType === 'ANNUAL_TOKEN' ? 'Fixed 1-Year Membership' : 'Per Confirmed Booking'}
+                      </span>
+                    </div>
+
+                    <div className="bg-[#1c1c1c] p-4 rounded-2xl border border-[#2c2c2c]">
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">Booking Commission</span>
+                      <p className="text-lg font-black text-emerald-400 mt-1">
+                        {dealData.deal.dealType === 'ANNUAL_TOKEN' ? '0% Commission' : `${dealData.deal.commissionRate || 6}% Commission`}
+                      </p>
+                      <span className="text-[11px] text-gray-400 block mt-0.5">
+                        {dealData.deal.dealType === 'ANNUAL_TOKEN' ? 'You keep 100% of guest rent' : 'Deducted on booking check-in'}
+                      </span>
+                    </div>
+
+                    <div className="bg-[#1c1c1c] p-4 rounded-2xl border border-[#2c2c2c]">
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">Platform Membership Fee</span>
+                      <p className="text-lg font-black text-amber-400 mt-1">
+                        {dealData.deal.dealType === 'ANNUAL_TOKEN' ? `₹${dealData.deal.annualTokenAmount || 9999} / yr` : '₹0 Upfront'}
+                      </p>
+                      <span className="text-[11px] text-gray-400 block mt-0.5">
+                        {dealData.deal.dealType === 'ANNUAL_TOKEN' ? 'Paid & Active' : 'No recurring charge'}
+                      </span>
+                    </div>
+
+                    <div className="bg-[#1c1c1c] p-4 rounded-2xl border border-[#2c2c2c]">
+                      <span className="text-[10px] font-black uppercase text-gray-400 tracking-wider block">Valid Until</span>
+                      <p className="text-lg font-black text-white mt-1">
+                        {dealData.deal.validUntil ? new Date(dealData.deal.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '365 Days from Sign'}
+                      </p>
+                      <span className="text-[11px] text-emerald-400 block mt-0.5">
+                        Active & Compliant
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Signatory & Legal Clauses Summary */}
+                  <div className="bg-[#181818] p-5 rounded-2xl border border-[#2a2a2a] space-y-3">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-gray-400 border-b border-[#252525] pb-3">
+                      <div>
+                        <span className="font-bold text-gray-300">Authorized Signatory:</span> {dealData.deal.signatureName || `${user?.firstName} ${user?.lastName || ''}`}
+                      </div>
+                      <div>
+                        <span className="font-bold text-gray-300">Executed At:</span> {dealData.deal.agreedAt ? new Date(dealData.deal.agreedAt).toLocaleString() : 'Recent'}
+                      </div>
+                      <div>
+                        <span className="font-bold text-gray-300">Counterpart:</span> Nestify Platform Governance
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-gray-300">
+                      <div className="flex items-center gap-2">
+                        <Check size={14} className="text-emerald-400" />
+                        <span>Direct landlord payout disbursed within 24 hours of guest check-in.</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Check size={14} className="text-emerald-400" />
+                        <span>All properties listed under your account are covered by this commercial agreement.</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Check size={14} className="text-emerald-400" />
+                        <span>24/7 dedicated tenant escrow and automated GST invoice reconciliation.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                    <div className="text-xs text-gray-400 font-medium">
+                      Want to modify terms or transition to a different model?
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingDeal(true)}
+                      className="btn-netflix-secondary px-5 py-2.5 rounded-xl font-bold text-xs uppercase flex items-center gap-2 transition"
+                    >
+                      <RefreshCcw size={14} /> Switch / Change Partnership Model
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* 4. DEAL SELECTION & SIGNING INTERFACE */
+            <form onSubmit={handleSignDeal} className="space-y-8">
+              <div className="bg-[#181818] rounded-3xl p-6 sm:p-8 border border-[#2a2a2a] shadow-xl space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-block mb-1">
+                      KYC Verification Passed • Agreement Selection
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black text-white italic tracking-tight">
+                      Choose Your Commercial Model
+                    </h3>
+                    <p className="text-xs sm:text-sm text-gray-400 mt-0.5">
+                      Decide between paying an annual token fee or a flexible booking percentage.
+                    </p>
+                  </div>
+
+                  {isEditingDeal && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingDeal(false)}
+                      className="text-xs font-bold text-gray-400 hover:text-white underline cursor-pointer"
+                    >
+                      Cancel & Keep Current Plan
+                    </button>
+                  )}
+                </div>
+
+                {/* TWO PLAN SELECTION CARDS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* PLAN 1: ANNUAL TOKEN PLAN */}
+                  <div
+                    onClick={() => setSelectedPlan('ANNUAL_TOKEN')}
+                    className={`p-6 sm:p-8 rounded-3xl border-2 transition-all cursor-pointer relative space-y-5 ${
+                      selectedPlan === 'ANNUAL_TOKEN'
+                        ? 'bg-gradient-to-b from-[#241b14] to-[#181818] border-amber-500 shadow-xl shadow-amber-950/30'
+                        : 'bg-[#1e1e1e] border-[#2e2e2e] hover:border-[#444444]'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        Fixed Annual Fee • Highest Margin
+                      </span>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        selectedPlan === 'ANNUAL_TOKEN' ? 'border-amber-400 bg-amber-400' : 'border-gray-500'
+                      }`}>
+                        {selectedPlan === 'ANNUAL_TOKEN' && <Check size={12} className="text-black font-black" />}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-2xl font-black text-white tracking-tight">Annual Token Plan</h4>
+                      <p className="text-xs text-gray-400 mt-0.5">Pay once a year, enjoy zero commission cuts on guest bookings.</p>
+                    </div>
+
+                    <div className="py-2 border-y border-[#333333] flex items-baseline gap-2">
+                      <span className="text-3xl sm:text-4xl font-black italic text-amber-400">₹9,999</span>
+                      <span className="text-xs font-bold text-gray-400 uppercase">/ 1 Year (365 Days)</span>
+                    </div>
+
+                    <div className="p-3 bg-amber-950/30 border border-amber-800/40 rounded-xl text-xs font-black text-amber-300 flex items-center gap-2">
+                      <Award size={16} /> 0% Platform Commission (You keep 100% of guest rent)
+                    </div>
+
+                    <ul className="space-y-2.5 text-xs text-gray-300">
+                      <li className="flex items-center gap-2.5">
+                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                        <span><strong>Zero commission</strong> on all room bookings throughout the year</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                        <span><strong>Keep 100%</strong> of guest rent — higher profit for high-occupancy PGs</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                        <span><strong>Flagship Partner badge</strong> on all your properties</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                        <span><strong>Priority discovery ranking</strong> on search and map views</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* PLAN 2: PERCENTAGE SHARE PLAN */}
+                  <div
+                    onClick={() => setSelectedPlan('COMMISSION_PERCENTAGE')}
+                    className={`p-6 sm:p-8 rounded-3xl border-2 transition-all cursor-pointer relative space-y-5 ${
+                      selectedPlan === 'COMMISSION_PERCENTAGE'
+                        ? 'bg-gradient-to-b from-[#142024] to-[#181818] border-cyan-500 shadow-xl shadow-cyan-950/30'
+                        : 'bg-[#1e1e1e] border-[#2e2e2e] hover:border-[#444444]'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-black uppercase px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                        Pay-As-You-Earn • Zero Upfront Cost
+                      </span>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        selectedPlan === 'COMMISSION_PERCENTAGE' ? 'border-cyan-400 bg-cyan-400' : 'border-gray-500'
+                      }`}>
+                        {selectedPlan === 'COMMISSION_PERCENTAGE' && <Check size={12} className="text-black font-black" />}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-2xl font-black text-white tracking-tight">Percentage Share Plan</h4>
+                      <p className="text-xs text-gray-400 mt-0.5">Pay only when you earn from confirmed guest stays.</p>
+                    </div>
+
+                    <div className="py-2 border-y border-[#333333] flex items-baseline gap-2">
+                      <span className="text-3xl sm:text-4xl font-black italic text-cyan-400">6%</span>
+                      <span className="text-xs font-bold text-gray-400 uppercase">/ Confirmed Booking</span>
+                    </div>
+
+                    <div className="p-3 bg-cyan-950/30 border border-cyan-800/40 rounded-xl text-xs font-black text-cyan-300 flex items-center gap-2">
+                      <Percent size={16} /> ₹0 Upfront Fee (Pay only on actual bookings)
+                    </div>
+
+                    <ul className="space-y-2.5 text-xs text-gray-300">
+                      <li className="flex items-center gap-2.5">
+                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                        <span><strong>₹0 Upfront</strong> registration or annual membership charge</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                        <span><strong>Nominal 6% fee</strong> deducted automatically upon check-in</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                        <span><strong>Zero financial risk</strong> for seasonal or new PG properties</span>
+                      </li>
+                      <li className="flex items-center gap-2.5">
+                        <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                        <span><strong>Standard Verified badge</strong> & 24/7 guest concierge support</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* AGREEMENT TERMS & LEGAL CLAUSES */}
+                <div className="bg-[#202020] rounded-2xl p-5 border border-[#303030] space-y-3">
+                  <h5 className="text-xs font-black uppercase tracking-wider text-gray-300 flex items-center gap-2">
+                    <FileText size={14} className="text-primary" /> Key Partnership Clauses & SLA Commitments
+                  </h5>
+                  <div className="text-xs text-gray-400 space-y-2 leading-relaxed">
+                    <p>
+                      <strong>1. Settlement Cycle:</strong> Rental disbursements for confirmed bookings are settled to the landlord's registered bank account within 24 hours of guest check-in.
+                    </p>
+                    <p>
+                      <strong>2. Commission Structure:</strong> For the Annual Token Plan, platform commission is fixed at 0% for 365 days. For the Percentage Plan, a 6% service fee is deducted per confirmed booking.
+                    </p>
+                    <p>
+                      <strong>3. Property Integrity & Safety:</strong> Landlord agrees to maintain rooms in clean, safe condition matching listed photos and resolve critical tenant issues within 24 hours.
+                    </p>
+                    <p>
+                      <strong>4. Term Duration:</strong> This commercial agreement is effective immediately upon electronic signature and valid for 1 full year, renewable automatically.
+                    </p>
+                  </div>
+                </div>
+
+                {/* SIGNATURE & CONFIRMATION BOX */}
+                <div className="bg-[#1c1415] rounded-2xl p-5 border border-primary/30 space-y-4">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={agreedToClauses} 
+                      onChange={e => setAgreedToClauses(e.target.checked)}
+                      className="mt-1 w-4 h-4 rounded border-gray-600 text-primary focus:ring-primary bg-[#2a2a2a] cursor-pointer"
+                    />
+                    <span className="text-xs text-gray-300 font-medium">
+                      I hereby declare that I am the legal owner or authorized manager of the listed PG properties. I accept the selected commercial model (<strong>{selectedPlan === 'ANNUAL_TOKEN' ? 'Annual Token Plan (₹9,999/yr, 0% Comm)' : 'Percentage Plan (6% per booking)'}</strong>) and agree to adhere to Nestify's Partnership & Dispute Guidelines.
+                    </span>
+                  </label>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5">
+                        Authorized Signatory Full Legal Name
+                      </label>
+                      <input 
+                        type="text" 
+                        value={signatoryName}
+                        onChange={e => setSignatoryName(e.target.value)}
+                        placeholder="Enter your full legal name"
+                        className="w-full bg-[#242424] text-white p-2.5 rounded-xl text-xs font-bold outline-none focus:border-primary border border-[#383838]"
+                        required
+                      />
+                    </div>
+
+                    <div className="flex items-end">
+                      <button
+                        type="submit"
+                        disabled={submittingDeal || !agreedToClauses}
+                        className="w-full btn-netflix py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-red-950/50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      >
+                        {submittingDeal ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Handshake size={16} />
+                        )}
+                        <span>Execute & Activate Platform Agreement</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
           )}
         </div>
       )}
