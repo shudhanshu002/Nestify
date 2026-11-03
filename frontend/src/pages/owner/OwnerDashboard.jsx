@@ -322,35 +322,35 @@ const OwnerDashboard = () => {
     <div className="max-w-7xl mx-auto py-8 sm:py-12 px-4 sm:px-6 text-white space-y-8">
       
       {/* 1. TOP HEADER & PORTAL NAVIGATION */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-[#262626]">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-neutral-800">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-            <Building size={14} className="text-primary"/> Owner Console ΓÇó Live Synchronization
-          </div>
-          <h1 className="text-3xl sm:text-5xl font-black italic tracking-tight text-white leading-tight">
+          <span className="bg-red-950/80 border border-[#E50914]/50 text-[#E50914] text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1 w-fit mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#E50914]"></span> OWNER CONSOLE • LIVE SYNCHRONIZATION
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black italic tracking-wide text-white leading-tight">
             PG & Room Management
           </h1>
-          <p className="text-gray-400 text-xs sm:text-sm mt-1 max-w-xl">
+          <p className="text-neutral-400 text-xs sm:text-sm mt-1 max-w-xl">
             Inspect real-time room occupancy, track booked vs vacant dates, and manage tenant stays across all your properties.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 self-start md:self-auto">
           <Link 
             to="/owner/my-properties" 
-            className="btn-netflix-secondary px-4 py-2.5 rounded-xl font-bold text-xs uppercase flex items-center gap-1.5 transition"
+            className="bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 px-4 py-2.5 rounded-xl font-bold text-xs uppercase flex items-center gap-1.5 transition"
           >
             <Building size={14} /> All Properties
           </Link>
           <Link 
             to="/owner/add-property" 
-            className="btn-netflix px-4 py-2.5 rounded-xl font-black text-xs uppercase flex items-center gap-1.5 shadow-lg shadow-red-950/40 transition active:scale-95"
+            className="btn-red-glow px-4 py-2.5 rounded-xl font-black text-xs uppercase flex items-center gap-1.5 shadow transition"
           >
             <Plus size={14} /> List New PG
           </Link>
           <button 
             onClick={fetchDashboardData} 
-            className="p-2.5 bg-[#222222] hover:bg-[#2c2c2c] border border-[#333333] rounded-xl text-gray-300 hover:text-white transition cursor-pointer"
+            className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white flex items-center justify-center transition cursor-pointer"
             title="Refresh All Real-time Data"
           >
             <RefreshCcw size={16}/>
@@ -359,58 +359,56 @@ const OwnerDashboard = () => {
       </div>
 
       {/* 2. TAB CONTROLS (NETFLIX DARK THEME) */}
-      <div className="flex bg-[#1a1a1a] p-1.5 rounded-2xl border border-[#2a2a2a] w-full sm:w-fit overflow-x-auto gap-1">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar text-xs font-extrabold pb-1">
         <button 
           onClick={() => handleTabChange('occupancy')}
-          className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shrink-0 cursor-pointer ${
             activeTab === 'occupancy' 
-              ? 'btn-netflix text-white shadow-md' 
-              : 'text-gray-400 hover:text-white hover:bg-[#252525]'
+              ? 'bg-[#E50914] text-white shadow-lg' 
+              : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
           }`}
         >
           <Calendar size={14} />
-          <span>Room & Date Schedule</span>
+          <span>ROOM & DATE SCHEDULE</span>
         </button>
 
         <button 
           onClick={() => handleTabChange('live')}
-          className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shrink-0 cursor-pointer ${
             activeTab === 'live' 
-              ? 'btn-netflix text-white shadow-md' 
-              : 'text-gray-400 hover:text-white hover:bg-[#252525]'
+              ? 'bg-[#E50914] text-white shadow-lg' 
+              : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
           }`}
         >
           <Users size={14} />
-          <span>Guest Arrivals & Stays</span>
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-white/20 text-white">
-            {bookings.filter(b => ['CONFIRMED', 'CHECKED_IN'].includes(b.status)).length}
-          </span>
+          <span>GUEST ARRIVALS & STAYS</span>
+          <span className="w-2 h-2 rounded-full bg-[#E50914]"></span>
         </button>
 
         <button 
           onClick={() => handleTabChange('ledger')}
-          className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shrink-0 cursor-pointer ${
             activeTab === 'ledger' 
-              ? 'btn-netflix text-white shadow-md' 
-              : 'text-gray-400 hover:text-white hover:bg-[#252525]'
+              ? 'bg-[#E50914] text-white shadow-lg' 
+              : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
           }`}
         >
           <CreditCard size={14} />
-          <span>Financial Ledger</span>
+          <span>FINANCIAL LEDGER</span>
         </button>
 
         <button 
           onClick={() => handleTabChange('pending_tasks')}
-          className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shrink-0 cursor-pointer ${
             activeTab === 'pending_tasks' 
-              ? 'bg-amber-600 text-white shadow-md' 
-              : 'text-gray-400 hover:text-white hover:bg-[#252525]'
+              ? 'bg-amber-600 text-white shadow-lg' 
+              : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
           }`}
         >
           <Wrench size={14} />
-          <span>Service Requests</span>
+          <span>SERVICE REQUESTS</span>
           {pendingTickets.length > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-white text-amber-900 animate-pulse">
+            <span className="w-4 h-4 rounded-full bg-white text-black font-black text-[9px] flex items-center justify-center">
               {pendingTickets.length}
             </span>
           )}
@@ -418,25 +416,25 @@ const OwnerDashboard = () => {
 
         <button 
           onClick={() => handleTabChange('deal')}
-          className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition shrink-0 cursor-pointer ${
             activeTab === 'deal' 
-              ? 'btn-netflix text-white shadow-md' 
-              : 'text-gray-400 hover:text-white hover:bg-[#252525]'
+              ? 'bg-neutral-800 text-emerald-400 shadow-lg border border-emerald-500/40' 
+              : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
           }`}
         >
           <Handshake size={14} />
-          <span>Commercial Agreement</span>
+          <span>COMMERCIAL AGREEMENT</span>
           {dealData?.deal?.status === 'ACTIVE' ? (
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              Active
+            <span className="text-[9px] font-black uppercase text-emerald-400 bg-emerald-950 px-1.5 py-0.2 rounded border border-emerald-500/30">
+              ACTIVE
             </span>
           ) : dealData?.kycStatus === 'VERIFIED' ? (
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
-              Select Deal
+            <span className="text-[9px] font-black uppercase text-amber-400 bg-amber-950 px-1.5 py-0.2 rounded border border-amber-500/30 animate-pulse">
+              SELECT DEAL
             </span>
           ) : (
-            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-gray-700/50 text-gray-400 flex items-center gap-1">
-              <Lock size={9} /> KYC Locked
+            <span className="text-[9px] font-black uppercase text-neutral-400 bg-neutral-800 px-1.5 py-0.2 rounded flex items-center gap-1">
+              <Lock size={9} /> KYC REQ
             </span>
           )}
         </button>
@@ -449,20 +447,20 @@ const OwnerDashboard = () => {
         <div className="space-y-8 animate-in fade-in duration-300">
           
           {/* INSPECTOR & PROPERTY FILTER BAR */}
-          <div className="bg-[#181818] p-5 sm:p-6 rounded-2xl border border-[#2a2a2a] shadow-xl space-y-5">
+          <div className="bg-[#141414] p-5 sm:p-6 rounded-3xl border border-neutral-800 shadow-2xl space-y-5">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5">
               
               {/* Filter By Property */}
               <div className="flex-1 w-full lg:w-auto">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5 flex items-center gap-1.5">
-                  <Filter size={12} className="text-primary"/> Select PG Property
+                <label className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 block mb-1.5 flex items-center gap-1.5">
+                  <Filter size={12} className="text-[#E50914]"/> SELECT PG PROPERTY
                 </label>
                 <select 
                   value={selectedPropertyId} 
                   onChange={(e) => handlePropertyFilterChange(e.target.value)}
-                  className="w-full bg-[#222222] border border-[#333333] text-white text-xs font-bold rounded-xl py-2.5 px-3.5 focus:border-primary outline-none cursor-pointer transition"
+                  className="w-full bg-neutral-900 border border-neutral-800 text-white text-xs font-bold rounded-xl py-2.5 px-3.5 focus:border-neutral-600 outline-none cursor-pointer transition"
                 >
-                  <option value="ALL">≡ƒÅó All Properties ({occupancyMatrix.length} PGs)</option>
+                  <option value="ALL">🏢 All Properties ({occupancyMatrix.length} PGs)</option>
                   {occupancyMatrix.map(p => (
                     <option key={p._id} value={p._id}>
                       {p.title} ({p.location?.city || "City"})
@@ -483,69 +481,69 @@ const OwnerDashboard = () => {
 
               {/* Quick Date Shortcuts */}
               <div className="w-full lg:w-auto">
-                <label className="text-[10px] font-black uppercase tracking-wider text-gray-400 block mb-1.5">
-                  Quick Time Travel
+                <label className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-400 block mb-1.5">
+                  QUICK TIME TRAVEL
                 </label>
                 <div className="flex flex-wrap gap-1.5">
                   <button 
                     onClick={() => setDateShortcut(0)}
-                    className={`px-3 py-2 rounded-xl text-[11px] font-black uppercase transition cursor-pointer ${
+                    className={`px-3 py-2 rounded-lg text-[10px] font-extrabold uppercase transition cursor-pointer ${
                       targetDate === new Date().toISOString().slice(0, 10)
-                        ? 'btn-netflix text-white'
-                        : 'bg-[#222222] hover:bg-[#2c2c2c] text-gray-300 border border-[#333333]'
+                        ? 'bg-[#E50914] text-white shadow'
+                        : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800'
                     }`}
                   >
-                    Today
+                    TODAY
                   </button>
                   <button 
                     onClick={() => setDateShortcut(1)}
-                    className="px-3 py-2 rounded-xl text-[11px] font-bold uppercase bg-[#222222] hover:bg-[#2c2c2c] text-gray-300 border border-[#333333] transition cursor-pointer"
+                    className="px-3 py-2 rounded-lg text-[10px] font-extrabold uppercase bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition cursor-pointer"
                   >
-                    Tomorrow
+                    TOMORROW
                   </button>
                   <button 
                     onClick={() => setDateShortcut(7)}
-                    className="px-3 py-2 rounded-xl text-[11px] font-bold uppercase bg-[#222222] hover:bg-[#2c2c2c] text-gray-300 border border-[#333333] transition cursor-pointer"
+                    className="px-3 py-2 rounded-lg text-[10px] font-extrabold uppercase bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition cursor-pointer"
                   >
-                    +7 Days
+                    +7 DAYS
                   </button>
                   <button 
                     onClick={() => setDateShortcut(30)}
-                    className="px-3 py-2 rounded-xl text-[11px] font-bold uppercase bg-[#222222] hover:bg-[#2c2c2c] text-gray-300 border border-[#333333] transition cursor-pointer"
+                    className="px-3 py-2 rounded-lg text-[10px] font-extrabold uppercase bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border border-neutral-800 transition cursor-pointer"
                   >
-                    +30 Days
+                    +30 DAYS
                   </button>
                 </div>
               </div>
             </div>
 
             {/* LIVE OCCUPANCY BANNER ON TARGET DATE */}
-            <div className="pt-4 border-t border-[#262626] grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-[#202020] p-3.5 rounded-xl border border-[#2e2e2e]">
-                <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider block">Inspecting Date</span>
-                <p className="text-sm sm:text-base font-black text-white font-mono mt-0.5">
+            <div className="pt-4 border-t border-neutral-800 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3.5">
+                <span className="text-[9px] uppercase font-bold text-neutral-400 block">INSPECTING DATE</span>
+                <p className="text-sm sm:text-base font-black text-white italic mt-0.5">
                   {new Date(targetDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </p>
               </div>
 
-              <div className="bg-[#202020] p-3.5 rounded-xl border border-[#2e2e2e]">
-                <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider block">Total Room Units</span>
-                <p className="text-sm sm:text-base font-black text-white font-mono mt-0.5">
-                  {aggregateStats.totalUnits} <span className="text-[10px] text-gray-400 font-normal">Beds/Units</span>
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl p-3.5">
+                <span className="text-[9px] uppercase font-bold text-neutral-400 block">TOTAL ROOM UNITS</span>
+                <p className="text-sm sm:text-base font-black text-white italic mt-0.5">
+                  {aggregateStats.totalUnits} <span className="text-[10px] text-neutral-500 font-normal">Beds/Units</span>
                 </p>
               </div>
 
-              <div className="bg-[#202020] p-3.5 rounded-xl border border-red-950/60 bg-gradient-to-br from-[#202020] to-red-950/20">
-                <span className="text-[9px] font-black uppercase text-red-400 tracking-wider block">Booked Units</span>
-                <p className="text-sm sm:text-base font-black text-red-400 font-mono mt-0.5">
-                  {aggregateStats.totalOccupied} <span className="text-[10px] text-gray-400 font-normal">Occupied ({overallOccupancyPct}%)</span>
+              <div className="bg-neutral-900 border border-red-950/80 rounded-xl p-3.5">
+                <span className="text-[9px] uppercase font-bold text-[#E50914] block">BOOKED UNITS</span>
+                <p className="text-sm sm:text-base font-black text-[#E50914] italic mt-0.5">
+                  {aggregateStats.totalOccupied} <span className="text-[10px] text-neutral-400 font-normal">Occupied ({overallOccupancyPct}%)</span>
                 </p>
               </div>
 
-              <div className="bg-[#202020] p-3.5 rounded-xl border border-emerald-950/60 bg-gradient-to-br from-[#202020] to-emerald-950/20">
-                <span className="text-[9px] font-black uppercase text-emerald-400 tracking-wider block">Vacant & Ready</span>
-                <p className="text-sm sm:text-base font-black text-emerald-400 font-mono mt-0.5">
-                  {aggregateStats.totalVacant} <span className="text-[10px] text-gray-400 font-normal">Available</span>
+              <div className="bg-neutral-900 border border-emerald-950/80 rounded-xl p-3.5">
+                <span className="text-[9px] uppercase font-bold text-emerald-400 block">VACANT & READY</span>
+                <p className="text-sm sm:text-base font-black text-emerald-400 italic mt-0.5">
+                  {aggregateStats.totalVacant} <span className="text-[10px] text-neutral-400 font-normal">Available</span>
                 </p>
               </div>
             </div>
@@ -949,74 +947,74 @@ const OwnerDashboard = () => {
       {activeTab === 'live' && (
         <div className="space-y-6 animate-in fade-in duration-300">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-[#181818] p-5 rounded-2xl border border-[#2a2a2a] shadow-lg">
-              <span className="text-[10px] font-black uppercase text-primary tracking-wider block">Checked-in Guests</span>
-              <h2 className="text-3xl sm:text-4xl font-black italic text-white font-mono mt-1">
+            <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-5 shadow-xl">
+              <span className="text-[10px] font-extrabold uppercase text-[#E50914] block tracking-wider">CHECKED-IN GUESTS</span>
+              <h2 className="text-3xl font-black text-white italic mt-1 block">
                 {bookings.filter(b => b.status === 'CHECKED_IN').length}
               </h2>
             </div>
-            <div className="bg-[#181818] p-5 rounded-2xl border border-[#2a2a2a] shadow-lg">
-              <span className="text-[10px] font-black uppercase text-amber-400 tracking-wider block">Upcoming Arrivals</span>
-              <h2 className="text-3xl sm:text-4xl font-black italic text-white font-mono mt-1">
+            <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-5 shadow-xl">
+              <span className="text-[10px] font-extrabold uppercase text-amber-400 block tracking-wider">UPCOMING ARRIVALS</span>
+              <h2 className="text-3xl font-black text-white italic mt-1 block">
                 {bookings.filter(b => b.status === 'CONFIRMED').length}
               </h2>
             </div>
-            <div className="bg-[#181818] p-5 rounded-2xl border border-[#2a2a2a] shadow-lg">
-              <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider block">Total Stays Completed</span>
-              <h2 className="text-3xl sm:text-4xl font-black italic text-white font-mono mt-1">
+            <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-5 shadow-xl">
+              <span className="text-[10px] font-extrabold uppercase text-emerald-400 block tracking-wider">TOTAL STAYS COMPLETED</span>
+              <h2 className="text-3xl font-black text-white italic mt-1 block">
                 {completedBookings.length}
               </h2>
             </div>
           </div>
 
-          <div className="bg-[#181818] rounded-2xl border border-[#2a2a2a] overflow-hidden shadow-xl">
-            <div className="p-4 sm:p-5 bg-[#1f1f1f] border-b border-[#2c2c2c] flex items-center justify-between">
-              <h3 className="font-black text-sm uppercase tracking-wider text-white">Active Guest Stays & Check-in Queue</h3>
-              <span className="text-xs text-gray-400">{bookings.length} Total Bookings</span>
+          <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+              <h3 className="text-sm font-black text-white uppercase tracking-wider">ACTIVE GUEST STAYS & CHECK-IN QUEUE</h3>
+              <span className="text-xs text-neutral-500 font-bold">{bookings.length} Total Bookings</span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#161616] text-[10px] font-black uppercase text-gray-400 tracking-wider border-b border-[#262626]">
+                <thead className="text-[10px] uppercase font-black text-neutral-500 border-b border-neutral-800/80">
                   <tr>
-                    <th className="py-3.5 px-4 sm:px-6">Guest Resident</th>
-                    <th className="py-3.5 px-4 sm:px-6">Property & Unit</th>
-                    <th className="py-3.5 px-4 sm:px-6">Booked Dates</th>
-                    <th className="py-3.5 px-4 sm:px-6">Status</th>
-                    <th className="py-3.5 px-4 sm:px-6 text-right">Quick Actions</th>
+                    <th className="py-2.5">GUEST RESIDENT</th>
+                    <th className="py-2.5">PROPERTY & UNIT</th>
+                    <th className="py-2.5">BOOKED DATES</th>
+                    <th className="py-2.5">STATUS</th>
+                    <th className="py-2.5 text-right">QUICK ACTIONS</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#262626]">
+                <tbody className="divide-y divide-neutral-900">
                   {bookings.map(b => (
-                    <tr key={b._id} className="hover:bg-[#202020] transition">
-                      <td className="py-3.5 px-4 sm:px-6">
-                        <div className="font-black text-white">{b.tenant?.firstName} {b.tenant?.lastName}</div>
-                        <div className="text-[10px] text-gray-400 font-mono">{b.tenant?.email}</div>
+                    <tr key={b._id} className="hover:bg-neutral-900/50 transition">
+                      <td className="py-3">
+                        <div className="font-bold text-white">{b.tenant?.firstName} {b.tenant?.lastName}</div>
+                        <div className="text-[10px] text-neutral-500">{b.tenant?.email}</div>
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6">
-                        <div className="font-bold text-gray-200">{b.property?.title}</div>
-                        <div className="text-[10px] text-primary uppercase font-black">{b.room?.roomType} Unit</div>
+                      <td className="py-3">
+                        <div className="font-bold text-white">{b.property?.title}</div>
+                        <div className="text-[10px] text-[#E50914] font-extrabold">{b.room?.roomType} Unit</div>
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6 font-mono font-bold text-gray-300">
-                        {new Date(b.checkInDate).toLocaleDateString()} ΓåÆ {new Date(b.checkOutDate).toLocaleDateString()}
+                      <td className="py-3">
+                        <span className="text-neutral-300 block">{new Date(b.checkInDate).toLocaleDateString()} → {new Date(b.checkOutDate).toLocaleDateString()}</span>
                         {b.extensions && b.extensions.length > 0 && (
-                          <div className="text-[9px] text-amber-400 font-sans">ΓÜí Extended stay</div>
+                          <span className="text-[10px] text-amber-400 font-bold">⚡ Extended stay</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6">
-                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase ${
-                          b.status === 'CHECKED_IN' ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40' :
-                          b.status === 'CONFIRMED' ? 'bg-blue-950/60 text-blue-400 border border-blue-800/40' :
-                          'bg-[#282828] text-gray-400'
+                      <td className="py-3">
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                          b.status === 'COMPLETED' ? 'bg-neutral-800 text-neutral-400' :
+                          b.status === 'CHECKED_IN' ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/30' :
+                          'bg-blue-950 text-blue-400 border border-blue-500/30'
                         }`}>
                           {b.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button 
                             onClick={() => setSelectedReceiptBooking(b)} 
-                            className="p-2 bg-[#262626] hover:bg-[#333333] text-gray-300 hover:text-white rounded-lg transition"
+                            className="p-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-white border border-neutral-800"
                             title="View Official Receipt"
                           >
                             <Receipt size={14}/>
@@ -1030,7 +1028,7 @@ const OwnerDashboard = () => {
                               />
                               <button 
                                 onClick={() => handleStatusUpdate(b._id, b.status === 'CONFIRMED' ? 'CHECKED_IN' : 'COMPLETED')} 
-                                className="btn-netflix px-3 py-1 rounded text-[9px] font-black uppercase"
+                                className="btn-red-glow px-3 py-1 rounded text-[9px] font-black uppercase shadow"
                               >
                                 Confirm
                               </button>
@@ -1039,9 +1037,9 @@ const OwnerDashboard = () => {
                             b.status !== 'COMPLETED' && (
                               <button 
                                 onClick={() => { setActionBooking(b._id); setCustomActionDate(new Date().toISOString().slice(0, 16)); }} 
-                                className="px-3 py-1.5 bg-[#252525] hover:bg-primary text-gray-200 hover:text-white rounded-lg font-black text-[10px] uppercase transition flex items-center gap-1 cursor-pointer"
+                                className="bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 text-[10px] font-black uppercase px-2.5 py-1 rounded-lg transition cursor-pointer"
                               >
-                                {b.status === 'CONFIRMED' ? 'Log Check-in' : 'Log Check-out'}
+                                {b.status === 'CONFIRMED' ? 'LOG CHECK-IN' : 'LOG CHECK-OUT'}
                               </button>
                             )
                           )}
@@ -1060,59 +1058,59 @@ const OwnerDashboard = () => {
           TAB 3: FINANCIAL LEDGER & RECEIPTS
          ========================================================================= */}
       {activeTab === 'ledger' && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-[#181818] p-5 rounded-2xl border border-[#2a2a2a] shadow-lg">
-              <span className="text-[10px] font-black uppercase text-primary tracking-wider block">Total Realized Revenue</span>
-              <h2 className="text-3xl sm:text-4xl font-black italic text-white font-mono mt-1">
-                Γé╣{totalRevenue.toLocaleString()}
-              </h2>
+        <div className="space-y-5 animate-in fade-in duration-300">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 shadow-xl">
+              <span className="text-[10px] font-extrabold uppercase text-[#E50914] block tracking-wider">TOTAL REALIZED REVENUE</span>
+              <span className="text-3xl sm:text-4xl font-black text-white italic mt-1 block">
+                ₹{totalRevenue.toLocaleString()}
+              </span>
             </div>
-            <div className="bg-[#181818] p-5 rounded-2xl border border-[#2a2a2a] shadow-lg">
-              <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider block">Settled Transactions</span>
-              <h2 className="text-3xl sm:text-4xl font-black italic text-white font-mono mt-1">
+            <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 shadow-xl">
+              <span className="text-[10px] font-extrabold uppercase text-emerald-400 block tracking-wider">SETTLED TRANSACTIONS</span>
+              <span className="text-3xl sm:text-4xl font-black text-white italic mt-1 block">
                 {completedBookings.length}
-              </h2>
+              </span>
             </div>
           </div>
 
-          <div className="bg-[#181818] rounded-2xl border border-[#2a2a2a] overflow-hidden shadow-xl">
-            <div className="p-4 sm:p-5 bg-[#1f1f1f] border-b border-[#2c2c2c] flex items-center justify-between">
-              <h3 className="font-black text-sm uppercase tracking-wider text-white">Transaction History & Tax Invoices</h3>
-            </div>
+          <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider border-b border-neutral-800 pb-3">
+              TRANSACTION HISTORY & TAX INVOICES
+            </h3>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
-                <thead className="bg-[#161616] text-[10px] font-black uppercase text-gray-400 tracking-wider border-b border-[#262626]">
+                <thead className="text-[10px] uppercase font-black text-neutral-500 border-b border-neutral-800">
                   <tr>
-                    <th className="py-3.5 px-4 sm:px-6">Date</th>
-                    <th className="py-3.5 px-4 sm:px-6">Resident</th>
-                    <th className="py-3.5 px-4 sm:px-6">Property / Room</th>
-                    <th className="py-3.5 px-4 sm:px-6">Gross Amount</th>
-                    <th className="py-3.5 px-4 sm:px-6 text-right">Tax Invoice</th>
+                    <th className="py-2.5">DATE</th>
+                    <th className="py-2.5">RESIDENT</th>
+                    <th className="py-2.5">PROPERTY / ROOM</th>
+                    <th className="py-2.5">GROSS AMOUNT</th>
+                    <th className="py-2.5 text-right">TAX INVOICE</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#262626]">
+                <tbody className="divide-y divide-neutral-900">
                   {completedBookings.map(b => (
-                    <tr key={b._id} className="hover:bg-[#202020] transition">
-                      <td className="py-3.5 px-4 sm:px-6 font-mono text-gray-300">
+                    <tr key={b._id} className="hover:bg-neutral-900/50 transition">
+                      <td className="py-3 text-neutral-400">
                         {new Date(b.updatedAt).toLocaleDateString()}
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6 font-black text-white">
+                      <td className="py-3 font-bold text-white">
                         {b.tenant?.firstName} {b.tenant?.lastName}
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6 text-gray-300">
+                      <td className="py-3 text-neutral-300">
                         {b.property?.title} ({b.room?.roomType})
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6 font-mono font-black text-white">
-                        Γé╣{b.totalAmount?.toLocaleString()}
+                      <td className="py-3 font-black text-white italic">
+                        ₹{b.totalAmount?.toLocaleString()}
                       </td>
-                      <td className="py-3.5 px-4 sm:px-6 text-right">
+                      <td className="py-3 text-right">
                         <button 
                           onClick={() => setSelectedReceiptBooking(b)} 
-                          className="btn-netflix px-3 py-1.5 rounded-lg text-xs font-black uppercase inline-flex items-center gap-1.5 transition"
+                          className="btn-red-glow text-white text-[10px] font-extrabold uppercase px-3 py-1.5 rounded-lg shadow inline-flex items-center gap-1 cursor-pointer"
                         >
-                          <Receipt size={13}/> Receipt
+                          <Receipt size={13}/> RECEIPT
                         </button>
                       </td>
                     </tr>
@@ -1128,72 +1126,69 @@ const OwnerDashboard = () => {
           TAB 4: PENDING MAINTENANCE TASKS
          ========================================================================= */}
       {activeTab === 'pending_tasks' && (
-        <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="space-y-4 animate-in fade-in duration-300">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-black italic text-white tracking-tight">Active Maintenance Requests</h3>
-            <span className="text-xs text-amber-400 font-bold bg-amber-950/60 border border-amber-800/40 px-3 py-1 rounded-full">
+            <h2 className="text-xl font-black text-white italic">Active Maintenance Requests</h2>
+            <span className="bg-amber-950/80 border border-amber-500/50 text-amber-400 text-xs font-bold px-3 py-1 rounded-full">
               {pendingTickets.length} Requiring Action
             </span>
           </div>
 
           {pendingTickets.length > 0 ? (
             pendingTickets.map(t => (
-              <div key={t._id} className="bg-[#181818] p-5 sm:p-6 rounded-2xl border border-amber-900/40 shadow-xl flex flex-col lg:flex-row justify-between gap-6">
-                <div className="flex-1 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase text-primary bg-primary/10 border border-primary/20 px-2.5 py-0.5 rounded-lg">
-                      {t.property?.title || "Property"}
-                    </span>
-                    <span className="text-[10px] font-bold uppercase text-gray-400 bg-[#252525] px-2 py-0.5 rounded-lg">
-                      Room {t.room?.roomNumber || t.room?.roomType || 'Unit'}
-                    </span>
-                    <span className="text-[10px] font-black uppercase text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-lg border border-amber-800/40">
-                      Priority: {t.priority || 'MEDIUM'}
-                    </span>
-                  </div>
+              <div key={t._id} className="bg-[#141414] border border-neutral-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="bg-red-950 text-[#E50914] text-[9px] font-black uppercase px-2 py-0.5 rounded">
+                    {t.property?.title || "Property"}
+                  </span>
+                  <span className="bg-neutral-800 text-neutral-300 text-[9px] font-black uppercase px-2 py-0.5 rounded">
+                    Room {t.room?.roomNumber || t.room?.roomType || 'Unit'}
+                  </span>
+                  <span className="bg-amber-950 text-amber-400 text-[9px] font-black uppercase px-2 py-0.5 rounded">
+                    PRIORITY: {t.priority || 'MEDIUM'}
+                  </span>
+                </div>
 
-                  <h4 className="text-lg sm:text-xl font-black text-white italic">
-                    {t.issueType} <span className="not-italic text-xs font-mono text-gray-400 font-normal">#{t._id.slice(-6).toUpperCase()}</span>
-                  </h4>
-
-                  <div className="bg-[#222222] p-4 rounded-xl border border-[#303030]">
-                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider mb-1">Tenant Description</p>
-                    <p className="text-gray-200 text-xs italic">"{t.description}"</p>
-                  </div>
-
-                  <div className="text-[10px] text-gray-400 flex flex-wrap gap-4">
-                    <span>Resident: {t.tenant?.firstName} {t.tenant?.lastName}</span>
-                    <span>Reported: {new Date(t.createdAt).toLocaleDateString()}</span>
+                <div>
+                  <h3 className="text-lg font-black text-white italic">
+                    {t.issueType} <span className="not-italic text-xs font-mono text-neutral-500">#{t._id.slice(-6).toUpperCase()}</span>
+                  </h3>
+                  
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 mt-2">
+                    <span className="text-[9px] uppercase font-bold text-neutral-400 block">TENANT DESCRIPTION</span>
+                    <p className="text-xs text-neutral-300 mt-1 italic">"{t.description}"</p>
+                    <p className="text-[10px] text-neutral-500 mt-2">
+                      Resident: {t.tenant?.firstName} {t.tenant?.lastName} • Reported: {new Date(t.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
 
-                {/* RESOLUTION BOX */}
-                <div className="w-full lg:w-80 bg-[#202020] p-4 rounded-xl border border-[#303030] space-y-3">
-                  <label className="text-[10px] font-black uppercase text-gray-300 block">
-                    Manager Resolution Note
-                  </label>
+                {/* Manager Resolution Note Box */}
+                <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                  <span className="text-[9px] uppercase font-bold text-neutral-400 block">MANAGER RESOLUTION NOTE</span>
                   <textarea 
+                    rows="2"
                     value={resolutionNotes[t._id] || ''} 
                     onChange={e => setResolutionNotes({ ...resolutionNotes, [t._id]: e.target.value })} 
-                    className="w-full bg-[#161616] text-white p-2.5 rounded-lg text-xs outline-none focus:border-primary border border-[#333333] h-20 resize-none"
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-xs text-white outline-none focus:border-neutral-600"
                     placeholder="E.g. Electrician fixed switchboard."
                   />
                   <button 
                     onClick={() => handleResolveTicket(t._id)}
                     disabled={resolvingId === t._id}
-                    className="w-full btn-netflix py-2.5 rounded-xl font-black text-xs uppercase flex items-center justify-center gap-1.5 shadow-md shadow-red-950/40"
+                    className="w-full btn-red-glow text-white text-xs font-black uppercase py-3 rounded-xl shadow flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     {resolvingId === t._id ? <Loader2 size={14} className="animate-spin" /> : <CheckCheck size={14}/>}
-                    <span>Confirm Fix & Close</span>
+                    <span>CONFIRM FIX & CLOSE</span>
                   </button>
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-center py-16 bg-[#181818] rounded-2xl border border-[#2a2a2a] p-8">
+            <div className="text-center py-16 bg-[#141414] rounded-3xl border border-neutral-800 p-8">
               <CheckCircle2 size={40} className="mx-auto text-emerald-400 mb-2" />
-              <h4 className="text-base font-black text-white">All Clear! No Pending Issues</h4>
-              <p className="text-xs text-gray-400 mt-1">All tenant maintenance requests have been resolved.</p>
+              <h4 className="text-base font-black text-white italic">All Clear! No Pending Issues</h4>
+              <p className="text-xs text-neutral-400 mt-1">All tenant maintenance requests have been resolved.</p>
             </div>
           )}
         </div>
