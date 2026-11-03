@@ -3,20 +3,22 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { 
-  User, LogOut, LayoutDashboard, Home, Heart, ShieldCheck, 
-  HelpCircle, ChevronDown, Bell, Headphones, Loader2, BarChart3 
+  User, LogOut, LayoutDashboard, Home as HomeIcon, Heart, ShieldCheck, 
+  HelpCircle, ChevronDown, Bell, MessageSquare, Menu, X, PlusCircle,
+  FileText, BarChart3, Building2, Flame
 } from 'lucide-react';
 import API from '../api/client';
 import Logo from './Logo';
 
 const Navbar = () => {
   const { user, logout, wishlistIds } = useContext(AuthContext);
-  const { setSelectedChat, setIsChatOpen, socket } = useChat();
+  const { isChatOpen, setIsChatOpen, socket, openChatWithAdmin } = useChat();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [isOpen, setIsOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [adminChatLoading, setAdminChatLoading] = useState(false);
   const dropdownRef = useRef(null);
 
   // Auto-close dropdown when clicking outside or pressing Escape
@@ -30,6 +32,7 @@ const Navbar = () => {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsOpen(false);
+        setMobileMenuOpen(false);
       }
     };
 
@@ -46,7 +49,7 @@ const Navbar = () => {
     };
   }, [isOpen]);
 
-  // 1. Notification Logic with real-time socket & route change updates
+  // Notification count logic with real-time socket
   useEffect(() => {
     const fetchNotifs = async () => {
       try {
@@ -59,7 +62,6 @@ const Navbar = () => {
 
     if (user) fetchNotifs();
 
-    // Listen to in-app custom event for instant 0ms badge update
     const handleCountEvent = (e) => {
       if (typeof e.detail === 'number') {
         setUnreadCount(e.detail);
@@ -75,15 +77,10 @@ const Navbar = () => {
       };
     }
 
-    const handleNewNotif = () => {
-      setUnreadCount(prev => prev + 1);
-    };
+    const handleNewNotif = () => setUnreadCount(prev => prev + 1);
+    const handleRefreshCount = () => fetchNotifs();
 
-    const handleRefreshCount = () => {
-      fetchNotifs();
-    };
-
-    socket.on('notification', handleNewNotif);
+    socket.on('notification', handleNewNew => handleNewNotif());
     socket.on('unread_notification_count_changed', handleRefreshCount);
 
     return () => {
@@ -93,29 +90,12 @@ const Navbar = () => {
     };
   }, [user, socket, location.pathname]);
 
-  // Scroll to top helper when navigating from dropdown
   const handleMenuClick = () => {
     setIsOpen(false);
+    setMobileMenuOpen(false);
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     if (document.documentElement) document.documentElement.scrollTop = 0;
     if (document.body) document.body.scrollTop = 0;
-  };
-
-  // 2. Chat with Admin support handler (for Tenant and Owner)
-  const handleChatWithAdmin = async () => {
-    setIsOpen(false);
-    try {
-      setAdminChatLoading(true);
-      const { data } = await API.post('/chat/access', { 
-        receiverId: 'ADMIN_ROLE_ID' 
-      });
-      setSelectedChat(data.data);
-      setIsChatOpen(true);
-    } catch (err) {
-      alert(err.response?.data?.message || "Official Support is currently offline.");
-    } finally {
-      setAdminChatLoading(false);
-    }
   };
 
   const handleSignOut = () => {
@@ -124,99 +104,266 @@ const Navbar = () => {
     navigate('/login');
   };
 
+  const getInitials = () => {
+    if (!user) return 'GU';
+    const first = user.firstName ? user.firstName[0].toUpperCase() : '';
+    const last = user.lastName ? user.lastName[0].toUpperCase() : '';
+    return `${first}${last}` || 'SS';
+  };
+
+  const roleBadge = () => {
+    if (!user || user.role === 'TENANT') return 'RESIDENT HUB';
+    if (user.role === 'OWNER') return 'OWNER CONSOLE';
+    if (user.role === 'ADMIN') return 'ADMIN MATRIX';
+    return 'RESIDENT HUB';
+  };
+
+  const isActive = (path) => {
+    if (path === '/' && location.pathname === '/') return true;
+    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    return false;
+  };
+
   return (
-    <nav className="bg-[#141414]/95 backdrop-blur-md border-b border-[#262626] py-3.5 px-4 sm:px-8 flex justify-between items-center sticky top-0 z-50 transition-all shadow-xl">
-      {/* Brand Logo with 3D Red Canopy Wordmark */}
-      <div onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })} className="cursor-pointer">
-        <Logo size="md" />
+    <header className="sticky top-0 left-0 right-0 z-40 px-4 md:px-10 py-3 flex items-center justify-between bg-black/95 backdrop-blur-md border-b border-neutral-800/80 transition-all shadow-2xl">
+      {/* Left: Brand Logo & Primary Nav Tabs */}
+      <div className="flex items-center gap-6 lg:gap-8">
+        <Link 
+          to="/" 
+          onClick={handleMenuClick} 
+          className="flex items-center gap-2 group cursor-pointer"
+        >
+          <Logo size="md" />
+          <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/30 font-black hidden sm:inline-block">
+            {roleBadge()}
+          </span>
+        </Link>
+
+        {/* Desktop Navigation Links */}
+        <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-xs lg:text-sm font-semibold text-neutral-300">
+          {(!user || user.role === 'TENANT') && (
+            <>
+              <Link 
+                to="/search" 
+                onClick={handleMenuClick}
+                className={`transition-colors ${isActive('/search') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+              >
+                Browse Stays
+              </Link>
+              <Link 
+                to="/" 
+                onClick={handleMenuClick}
+                className={`transition-colors flex items-center gap-1 ${location.pathname === '/' ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+              >
+                <Flame size={13} className="text-[#E50914]" /> Trending
+              </Link>
+              {user && (
+                <Link 
+                  to="/my-bookings" 
+                  onClick={handleMenuClick}
+                  className={`transition-colors ${isActive('/my-bookings') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+                >
+                  My Stays
+                </Link>
+              )}
+              {user && (
+                <Link 
+                  to="/profile?tab=wishlist" 
+                  onClick={handleMenuClick}
+                  className={`transition-colors flex items-center gap-1.5 ${location.search.includes('wishlist') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+                >
+                  <span>Wishlist</span>
+                  {wishlistIds && wishlistIds.size > 0 && (
+                    <span className="text-[9px] font-black bg-[#E50914] text-white px-1.5 py-0.2 rounded-full">
+                      {wishlistIds.size}
+                    </span>
+                  )}
+                </Link>
+              )}
+              {user && (
+                <Link 
+                  to="/profile" 
+                  onClick={handleMenuClick}
+                  className={`transition-colors ${isActive('/profile') && !location.search.includes('wishlist') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+                >
+                  Profile
+                </Link>
+              )}
+              <Link 
+                to="/help" 
+                onClick={handleMenuClick}
+                className={`transition-colors ${isActive('/help') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+              >
+                Help Centre
+              </Link>
+            </>
+          )}
+
+          {user && user.role === 'OWNER' && (
+            <>
+              <Link 
+                to="/owner/my-properties" 
+                onClick={handleMenuClick}
+                className={`transition-colors ${isActive('/owner/my-properties') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+              >
+                Portfolio
+              </Link>
+              <Link 
+                to="/owner/dashboard" 
+                onClick={handleMenuClick}
+                className={`transition-colors ${isActive('/owner/dashboard') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+              >
+                Console Dashboard
+              </Link>
+              <Link 
+                to="/owner/add-property" 
+                onClick={handleMenuClick}
+                className={`transition-colors flex items-center gap-1 ${isActive('/owner/add-property') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+              >
+                <PlusCircle size={14} className="text-[#E50914]" /> List PG
+              </Link>
+              <Link 
+                to="/verify-identity" 
+                onClick={handleMenuClick}
+                className={`transition-colors ${isActive('/verify-identity') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+              >
+                KYC & Compliance
+              </Link>
+            </>
+          )}
+
+          {user && user.role === 'ADMIN' && (
+            <>
+              <Link 
+                to="/admin/dashboard" 
+                onClick={handleMenuClick}
+                className={`transition-colors ${isActive('/admin/dashboard') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+              >
+                Command Console
+              </Link>
+              <Link 
+                to="/admin/verify-users" 
+                onClick={handleMenuClick}
+                className={`transition-colors ${isActive('/admin/verify-users') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
+              >
+                KYC & Deeds Queue
+              </Link>
+              <Link 
+                to="/admin/dashboard?tab=deals" 
+                onClick={handleMenuClick}
+                className="hover:text-white transition-colors"
+              >
+                Deals & Commercials
+              </Link>
+            </>
+          )}
+        </nav>
       </div>
 
-      <div className="flex items-center gap-5 sm:gap-6">
-        {/* THE NOTIFICATION BELL */}
+      {/* Right Controls: Concierge, Notifications, Avatar Profile */}
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Concierge Chat Trigger */}
+        <button 
+          onClick={() => setIsChatOpen(!isChatOpen)}
+          className="relative flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-200 px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer"
+          title="Open Concierge Support"
+        >
+          <span className="w-2 h-2 rounded-full bg-[#46D369] animate-pulse"></span>
+          <MessageSquare className="w-3.5 h-3.5 text-[#E50914]" />
+          <span className="hidden sm:inline">Concierge</span>
+        </button>
+
+        {/* Activity & Notifications Bell */}
         {user && (
-          <div 
-            className="relative cursor-pointer p-2 rounded-xl hover:bg-[#222222] transition-colors group" 
+          <button 
             onClick={() => {
               handleMenuClick();
               navigate('/notifications');
             }}
-            title="Notifications"
+            className="relative p-2 rounded-full bg-neutral-900 border border-neutral-800 hover:border-neutral-600 text-neutral-300 hover:text-white transition cursor-pointer"
+            title="Activity & Notifications"
           >
-            <Bell size={21} className="text-gray-300 group-hover:text-primary transition-colors" />
+            <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute top-1 -right-0.5 min-w-[18px] h-[18px] px-1 bg-primary text-white text-[10px] flex items-center justify-center rounded-full font-black border-2 border-[#141414] animate-pulse shadow-md shadow-red-950/60">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#E50914] animate-ping" />
             )}
-          </div>
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#E50914]" />
+            )}
+          </button>
         )}
 
-        <div className="relative" ref={dropdownRef}>
-          {user ? (
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2.5 p-1 pr-3 rounded-xl bg-[#222222] hover:bg-[#2a2a2a] border transition cursor-pointer ${
-                  isOpen ? 'border-primary ring-1 ring-primary/40' : 'border-[#333333]'
-                }`}
-              >
+        {/* User Avatar & Dropdown */}
+        {user ? (
+          <div className="relative" ref={dropdownRef}>
+            <button 
+              onClick={() => setIsOpen(!isOpen)}
+              className="flex items-center gap-2 p-1 pl-1 pr-2 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-600 transition cursor-pointer group"
+              title={`${user.firstName} ${user.lastName} - Profile`}
+            >
+              {user.avatar ? (
                 <img 
-                  src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}&background=E50914&color=fff`} 
+                  src={user.avatar} 
                   alt={user.firstName}
-                  className="w-8 h-8 rounded-lg object-cover border border-primary/30" 
+                  className="w-7 h-7 rounded-lg object-cover border border-[#E50914]/40" 
                 />
-                <span className="text-sm font-bold text-gray-200">{user.firstName}</span>
-                <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-primary' : ''}`} />
-              </button>
+              ) : (
+                <div className="w-7 h-7 rounded-lg bg-[#E50914] text-white flex items-center justify-center font-black text-xs ring-1 ring-transparent group-hover:ring-white transition shadow">
+                  {getInitials()}
+                </div>
+              )}
+              <span className="text-xs font-bold text-neutral-200 hidden sm:inline max-w-[80px] truncate">
+                {user.firstName}
+              </span>
+              <ChevronDown size={12} className={`text-neutral-400 transition-transform duration-200 ${isOpen ? 'rotate-180 text-[#E50914]' : ''}`} />
+            </button>
 
-              {isOpen && (
-                <div className="absolute right-0 top-12 w-64 bg-[#181818] rounded-2xl shadow-2xl border border-[#2e2e2e] p-2 overflow-hidden animate-in fade-in zoom-in-95 duration-150 z-50 text-gray-200">
-                  <div className="px-4 py-3 border-b border-[#282828] mb-2 bg-[#121212] rounded-xl flex items-center gap-3">
-                    <img 
-                      src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=E50914&color=fff`} 
-                      alt={user.firstName}
-                      className="w-9 h-9 rounded-xl object-cover border border-primary/30 shrink-0" 
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-sm font-black text-white truncate">{user.firstName} {user.lastName}</p>
-                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
-                          {user.role}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                    </div>
+            {/* Dropdown Menu */}
+            {isOpen && (
+              <div className="absolute right-0 top-11 w-64 bg-[#141414] rounded-2xl shadow-2xl border border-neutral-800 p-2 overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-150">
+                <div className="px-3.5 py-3 border-b border-neutral-800/80 mb-1.5 bg-[#181818] rounded-xl flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#E50914] text-white flex items-center justify-center font-black text-sm shrink-0 shadow">
+                    {getInitials()}
                   </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-xs font-black text-white truncate">{user.firstName} {user.lastName}</p>
+                      <span className="text-[8px] font-black uppercase px-1.5 py-0.2 rounded-full bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/30">
+                        {user.role}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-neutral-400 truncate">{user.email}</p>
+                  </div>
+                </div>
 
-                  {/* --- SHARED --- */}
+                <div className="space-y-0.5">
                   <Link 
                     to="/profile" 
                     onClick={handleMenuClick} 
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-primary/15 hover:border-l-2 hover:border-primary rounded-xl transition group"
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-neutral-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition group"
                   >
-                    <User size={18} className="text-gray-400 group-hover:text-primary transition-colors" /> My Profile
+                    <User size={15} className="text-neutral-400 group-hover:text-[#E50914]" /> Profile Details
                   </Link>
 
-                  {/* --- TENANT ONLY --- */}
                   {user.role === 'TENANT' && (
                     <>
                       <Link 
                         to="/my-bookings" 
                         onClick={handleMenuClick} 
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-neutral-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition"
                       >
-                        <Home size={18} className="text-gray-400" /> My Bookings
+                        <HomeIcon size={15} className="text-neutral-400" /> My Stays
                       </Link>
                       <Link 
                         to="/profile?tab=wishlist" 
                         onClick={handleMenuClick} 
-                        className="flex items-center justify-between px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition group"
+                        className="flex items-center justify-between px-3 py-2 text-xs font-bold text-neutral-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition group"
                       >
-                        <div className="flex items-center gap-3">
-                          <Heart size={18} className="text-gray-400 group-hover:text-primary transition-colors" /> Wishlist
+                        <div className="flex items-center gap-2.5">
+                          <Heart size={15} className="text-neutral-400 group-hover:text-[#E50914]" /> Wishlist
                         </div>
                         {wishlistIds && wishlistIds.size > 0 && (
-                          <span className="text-[10px] font-black bg-primary text-white px-2 py-0.5 rounded-full shadow-sm">
+                          <span className="text-[9px] font-black bg-[#E50914] text-white px-1.5 py-0.2 rounded-full">
                             {wishlistIds.size}
                           </span>
                         )}
@@ -224,99 +371,153 @@ const Navbar = () => {
                     </>
                   )}
 
-                  {/* --- OWNER ONLY --- */}
                   {user.role === 'OWNER' && (
                     <>
                       <Link 
                         to="/owner/dashboard" 
                         onClick={handleMenuClick} 
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-neutral-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition"
                       >
-                        <LayoutDashboard size={18} className="text-gray-400" /> Dashboard
+                        <LayoutDashboard size={15} className="text-neutral-400" /> Owner Console
                       </Link>
                       <Link 
                         to="/verify-identity" 
                         onClick={handleMenuClick} 
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-neutral-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition"
                       >
-                        <ShieldCheck size={18} className="text-secondary" /> Verification
+                        <ShieldCheck size={15} className="text-[#46D369]" /> KYC Verification
                       </Link>
                     </>
                   )}
 
-                  {/* --- CHAT WITH ADMIN (TENANT ONLY) --- */}
-                  {user.role === 'TENANT' && (
-                    <button 
-                      onClick={handleChatWithAdmin}
-                      disabled={adminChatLoading}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-primary/20 rounded-xl transition text-left group cursor-pointer"
-                    >
-                      {adminChatLoading ? (
-                        <Loader2 size={18} className="animate-spin text-primary" />
-                      ) : (
-                        <Headphones size={18} className="text-primary group-hover:scale-110 transition-transform" />
-                      )}
-                      <span>Chat with Admin</span>
-                    </button>
-                  )}
-
-                  {/* --- ADMIN ONLY SECTION --- */}
                   {user.role === 'ADMIN' && (
                     <>
-                      <div className="px-4 py-2 border-b border-[#282828] mb-1 mt-1 bg-primary/10 rounded-xl">
-                        <p className="text-[10px] font-black uppercase text-primary tracking-wider">Admin Matrix</p>
-                      </div>
-                      <Link 
-                        to="/admin/verify-users" 
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-primary rounded-xl transition"
-                        onClick={handleMenuClick}
-                      >
-                        <ShieldCheck size={18} /> KYC Approval Queue
-                      </Link>
                       <Link 
                         to="/admin/dashboard" 
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-300 hover:text-white hover:bg-[#242424] rounded-xl transition"
-                        onClick={handleMenuClick}
+                        onClick={handleMenuClick} 
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-neutral-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition"
                       >
-                        <BarChart3 size={18} className="text-primary" /> Performance & Analytics
+                        <BarChart3 size={15} className="text-[#E50914]" /> Admin Dashboard
+                      </Link>
+                      <Link 
+                        to="/admin/verify-users" 
+                        onClick={handleMenuClick} 
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-neutral-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition"
+                      >
+                        <ShieldCheck size={15} className="text-[#46D369]" /> KYC Approvals
                       </Link>
                     </>
                   )}
 
-                  <div className="border-t border-[#282828] mt-2 pt-2">
-                    {user.role !== 'ADMIN' && (
-                      <Link 
-                        to="/help" 
-                        onClick={handleMenuClick} 
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-gray-400 hover:text-white hover:bg-[#242424] rounded-xl transition"
-                      >
-                        <HelpCircle size={18} /> Help Center
-                      </Link>
-                    )}
-                    <button 
-                      onClick={handleSignOut} 
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-primary hover:bg-primary/10 rounded-xl transition cursor-pointer"
-                    >
-                      <LogOut size={18} /> Sign Out
-                    </button>
-                  </div>
+                  <Link 
+                    to="/help" 
+                    onClick={handleMenuClick} 
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-neutral-400 hover:text-white hover:bg-neutral-800/80 rounded-xl transition"
+                  >
+                    <HelpCircle size={15} /> Help Centre
+                  </Link>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <Link 
-                to="/login" 
-                onClick={handleMenuClick}
-                className="btn-netflix px-5 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black tracking-wide shadow-md shadow-red-950/40"
-              >
-                Sign In
-              </Link>
-            </div>
-          )}
-        </div>
+
+                <div className="border-t border-neutral-800 mt-1.5 pt-1.5">
+                  <button 
+                    onClick={handleSignOut} 
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-[#E50914] hover:bg-[#E50914]/10 rounded-xl transition cursor-pointer text-left"
+                  >
+                    <LogOut size={15} /> Sign Out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link 
+              to="/login" 
+              onClick={handleMenuClick}
+              className="btn-red-glow text-white px-4 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wide transition shadow"
+            >
+              Sign In
+            </Link>
+          </div>
+        )}
+
+        {/* Mobile Menu Toggle Button */}
+        <button 
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="md:hidden p-2 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-300 hover:text-white transition cursor-pointer"
+          aria-label="Toggle Navigation Menu"
+        >
+          {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
       </div>
-    </nav>
+
+      {/* Mobile Navigation Drawer */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed top-[60px] left-0 right-0 bg-[#0d0d0d] border-b border-neutral-800 p-5 space-y-3 shadow-2xl z-50 animate-in slide-in-from-top-2 duration-200">
+          <div className="flex flex-col space-y-2 text-sm font-semibold">
+            {(!user || user.role === 'TENANT') && (
+              <>
+                <Link to="/search" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  Browse Stays
+                </Link>
+                <Link to="/" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  Trending
+                </Link>
+                {user && (
+                  <Link to="/my-bookings" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                    My Stays
+                  </Link>
+                )}
+                {user && (
+                  <Link to="/profile?tab=wishlist" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                    Wishlist ({wishlistIds ? wishlistIds.size : 0})
+                  </Link>
+                )}
+                {user && (
+                  <Link to="/profile" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                    Profile
+                  </Link>
+                )}
+                <Link to="/help" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  Help Centre
+                </Link>
+              </>
+            )}
+
+            {user && user.role === 'OWNER' && (
+              <>
+                <Link to="/owner/my-properties" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  Portfolio
+                </Link>
+                <Link to="/owner/dashboard" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  Console Dashboard
+                </Link>
+                <Link to="/owner/add-property" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  + List PG
+                </Link>
+                <Link to="/verify-identity" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  KYC & Compliance
+                </Link>
+              </>
+            )}
+
+            {user && user.role === 'ADMIN' && (
+              <>
+                <Link to="/admin/dashboard" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  Command Console
+                </Link>
+                <Link to="/admin/verify-users" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  KYC & Deeds Queue
+                </Link>
+                <Link to="/admin/dashboard?tab=deals" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
+                  Deals & Commercials
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </header>
   );
 };
 

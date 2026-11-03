@@ -11,7 +11,7 @@ import {
   List, Map as MapIcon, ChevronRight, ChevronDown, Gift, 
   CheckCircle2, X, Building2, Clock, Lock, FileText, 
   Check, HelpCircle, Quote, UserCheck, ThumbsUp, Calendar, 
-  CreditCard, Shield, Bed
+  CreditCard, Shield, Bed, Eye
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -127,6 +127,7 @@ const Home = () => {
     const [budgetFilter, setBudgetFilter] = useState('ALL');
     const [homeView, setHomeView] = useState('collections'); // 'collections', 'grid', 'map'
     const [expandedFaq, setExpandedFaq] = useState(null);
+    const [peekProperty, setPeekProperty] = useState(null);
     const navigate = useNavigate();
     const [currentVideoIdx, setCurrentVideoIdx] = useState(0);
 
@@ -189,6 +190,10 @@ const Home = () => {
     ).slice(0, 6);
 
     const topRatedStays = [...properties].sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0)).slice(0, 6);
+    const top5Trending = [...properties].sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0)).slice(0, 5);
+    const spotlightProperty = properties.find(p => p.tier === 'FLAGSHIP' || p.tier === 'LUXURY') || properties[0];
+    const spotlightImage = spotlightProperty?.images?.[0]?.url || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80';
+    const spotlightPrice = (spotlightProperty?.rooms || []).map(r => r.basePrice).filter(p => typeof p === 'number' && p > 0)[0] || spotlightProperty?.basePrice || 8500;
 
     return (
         <div className="space-y-24 text-white">
@@ -404,14 +409,112 @@ const Home = () => {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {properties.map((item) => (
-                            <PropertyCard key={item._id} property={item} />
+                            <PropertyCard key={item._id} property={item} onPeek={setPeekProperty} />
                         ))}
                     </div>
                 </section>
             ) : (
                 /* CURATED EDITORIAL RAILS VIEW */
-                <div className="space-y-20">
+                <div className="space-y-16 sm:space-y-20">
                     
+                    {/* SPOTLIGHT ORIGINAL BANNER */}
+                    {spotlightProperty && (
+                        <section className="container mx-auto px-4">
+                            <div className="relative rounded-3xl overflow-hidden border border-neutral-800 bg-[#141414] shadow-2xl">
+                                <div className="relative h-72 sm:h-84 md:h-96 w-full">
+                                    <img 
+                                        src={spotlightImage} 
+                                        alt={spotlightProperty.title}
+                                        className="w-full h-full object-cover" 
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent"></div>
+                                    
+                                    <div className="absolute inset-0 p-6 sm:p-10 flex flex-col justify-center max-w-xl space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="bg-[#E50914] text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded shadow">
+                                                ★ #1 FEATURED PICK
+                                            </span>
+                                            <span className="text-emerald-400 font-extrabold text-xs">98% Match</span>
+                                            <span className="bg-white/10 text-white text-[10px] font-bold uppercase px-2 py-0.5 rounded">
+                                                0% BROKERAGE
+                                            </span>
+                                        </div>
+                                        <h2 className="text-2xl sm:text-4xl font-black text-white italic tracking-wide">
+                                            {spotlightProperty.title}
+                                        </h2>
+                                        <p className="text-xs sm:text-sm text-neutral-300 line-clamp-2">
+                                            {spotlightProperty.description || 'Audited Flagship Co-living with 100% inverter backup, ultra-quiet study enclave, and high-speed fiber connectivity.'}
+                                        </p>
+                                        <div className="flex items-center gap-3 pt-2">
+                                            <button 
+                                                onClick={() => navigate(`/property/${spotlightProperty._id}`)}
+                                                className="bg-white hover:bg-neutral-200 text-black font-extrabold text-xs uppercase px-5 py-2.5 rounded-xl flex items-center gap-2 shadow transition cursor-pointer"
+                                            >
+                                                <Eye size={15} /> INSPECT STAY
+                                            </button>
+                                            <button 
+                                                onClick={() => navigate(`/property/${spotlightProperty._id}`)}
+                                                className="btn-red-glow text-white font-extrabold text-xs uppercase px-5 py-2.5 rounded-xl flex items-center gap-2 shadow transition cursor-pointer"
+                                            >
+                                                <Lock size={15} /> ESCROW LOCK (₹{spotlightPrice.toLocaleString()})
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    )}
+
+                    {/* TOP 5 TRENDING PGS RAIL WITH GIANT BEBAS NUMBERS */}
+                    {top5Trending.length > 0 && (
+                        <section className="container mx-auto px-4 space-y-4">
+                            <div className="flex justify-between items-end">
+                                <div>
+                                    <span className="netflix-subhead block mb-1">MOST POPULAR RESIDENCES</span>
+                                    <h2 className="text-2xl sm:text-3xl font-black text-white italic tracking-wide">
+                                        Top 5 Trending PGs This Week
+                                    </h2>
+                                </div>
+                                <span className="text-xs text-neutral-500 font-bold uppercase tracking-wider hidden sm:block">
+                                    Real-time Resident Bookings
+                                </span>
+                            </div>
+
+                            <div className="flex items-center gap-4 overflow-x-auto no-scrollbar pb-4 pt-2">
+                                {top5Trending.map((p, idx) => {
+                                    const pImg = p.images?.[0]?.url || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=600&q=80';
+                                    const pPrice = (p.rooms || []).map(r => r.basePrice).filter(x => typeof x === 'number' && x > 0)[0] || p.basePrice || 7500;
+                                    const pMatch = Math.min(99, Math.max(90, Math.round((p.averageRating || 4.8) * 20)));
+
+                                    return (
+                                        <div 
+                                            key={p._id} 
+                                            className="card-group flex items-end shrink-0 cursor-pointer" 
+                                            onClick={() => setPeekProperty(p)}
+                                        >
+                                            <span className="rank-number text-8xl sm:text-9xl font-black -mr-6 sm:-mr-8 z-10">
+                                                {idx + 1}
+                                            </span>
+                                            <div className="w-48 sm:w-60 h-64 sm:h-80 rounded-2xl overflow-hidden bg-neutral-900 border border-neutral-800 relative shadow-2xl group transition duration-300">
+                                                <img 
+                                                    src={pImg} 
+                                                    alt={p.title} 
+                                                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500" 
+                                                />
+                                                <div className="absolute inset-0 card-fade-bottom"></div>
+                                                <div className="absolute bottom-3 left-3 right-3 text-xs">
+                                                    <span className="text-emerald-400 font-bold block">{pMatch}% Match</span>
+                                                    <h4 className="font-black text-white truncate">{p.title}</h4>
+                                                    <span className="text-neutral-400 text-[10px]">From ₹{pPrice.toLocaleString()}/mo</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    )}
+
                     {/* RAIL 1: NESTIFY FLAGSHIP & LUXURY */}
                     {flagshipStays.length > 0 && (
                         <section className="container mx-auto px-4 space-y-6">
@@ -437,7 +540,7 @@ const Home = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {flagshipStays.map((item) => (
-                                    <PropertyCard key={item._id} property={item} />
+                                    <PropertyCard key={item._id} property={item} onPeek={setPeekProperty} />
                                 ))}
                             </div>
                         </section>
@@ -468,7 +571,7 @@ const Home = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {budgetStays.map((item) => (
-                                    <PropertyCard key={item._id} property={item} />
+                                    <PropertyCard key={item._id} property={item} onPeek={setPeekProperty} />
                                 ))}
                             </div>
                         </section>
@@ -767,6 +870,78 @@ const Home = () => {
             </section>
 
 
+
+            {/* QUICK PEEK PREVIEW MODAL */}
+            {peekProperty && (
+                <div 
+                    onClick={() => setPeekProperty(null)}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
+                >
+                    <div 
+                        onClick={(e) => e.stopPropagation()} 
+                        className="relative w-full max-w-2xl bg-[#141414] border border-neutral-800 rounded-3xl overflow-hidden shadow-2xl"
+                    >
+                        <button 
+                            onClick={() => setPeekProperty(null)}
+                            className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/70 hover:bg-white text-white hover:text-black flex items-center justify-center transition border border-white/20 cursor-pointer"
+                        >
+                            <X size={16} />
+                        </button>
+
+                        <div className="relative h-60 sm:h-72 w-full">
+                            <img 
+                                src={peekProperty.images?.[0]?.url || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80'} 
+                                alt={peekProperty.title}
+                                className="w-full h-full object-cover" 
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-transparent to-black/30"></div>
+                            <div className="absolute top-4 left-4 flex items-center gap-2">
+                                <span className="bg-[#E50914] text-white text-[10px] font-black uppercase px-2.5 py-0.5 rounded shadow">
+                                    {Math.min(99, Math.max(90, Math.round((peekProperty.averageRating || 4.8) * 20)))}% MATCH
+                                </span>
+                                <span className="bg-black/70 backdrop-blur text-white text-[10px] font-extrabold px-2 py-0.5 rounded border border-white/20 uppercase">
+                                    {peekProperty.tier || 'FLAGSHIP'}
+                                </span>
+                            </div>
+                            <div className="absolute bottom-4 left-4 right-4">
+                                <h3 className="text-2xl font-black text-white italic drop-shadow">{peekProperty.title}</h3>
+                                <p className="text-xs text-neutral-300 flex items-center gap-1 mt-0.5">
+                                    <MapPin size={13} className="text-[#E50914]" />
+                                    <span>{peekProperty.location?.address || ''} {peekProperty.location?.city || ''}</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <p className="text-xs text-neutral-400 line-clamp-3 leading-relaxed">
+                                {peekProperty.description || 'Verified accommodation with 24/7 power backup, high-speed fiber internet, and hygienic daily housekeeping.'}
+                            </p>
+
+                            <div className="flex items-center justify-between border-t border-neutral-800 pt-4">
+                                <div>
+                                    <span className="text-[10px] font-bold text-neutral-500 uppercase block">STARTING AT</span>
+                                    <span className="text-xl font-black text-white italic">
+                                        ₹{((peekProperty.rooms || []).map(r => r.basePrice).filter(x => typeof x === 'number' && x > 0)[0] || peekProperty.basePrice || 7500).toLocaleString()} 
+                                        <span className="text-xs text-neutral-500 not-italic font-normal"> /mo</span>
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <button 
+                                        onClick={() => {
+                                            navigate(`/property/${peekProperty._id}`);
+                                            setPeekProperty(null);
+                                        }}
+                                        className="btn-red-glow text-white text-xs font-black uppercase px-5 py-2.5 rounded-xl shadow cursor-pointer flex items-center gap-1.5"
+                                    >
+                                        VIEW FULL STAY <ArrowRight size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

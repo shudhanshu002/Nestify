@@ -200,44 +200,44 @@ const MyBookings = () => {
   );
 
   return (
-    <div className="max-w-5xl mx-auto py-10 px-4 sm:px-6 text-white space-y-8">
+    <div className="max-w-5xl mx-auto py-6 sm:py-10 px-4 sm:px-6 text-white space-y-6">
       {/* Header Bar */}
-      <div className="flex items-center justify-between border-b border-[#242424] pb-6">
+      <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
         <div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-primary">Resident Portal</span>
-          <h1 className="text-3xl sm:text-4xl font-black text-white italic tracking-tighter mt-0.5">
-            My Stays<span className="text-primary not-italic">.</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-[#E50914] block">RESIDENT PORTAL</span>
+          <h1 className="text-3xl font-black text-white italic tracking-wide mt-0.5">
+            My Stays<span className="text-[#E50914] not-italic">.</span>
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
+          <p className="text-xs text-neutral-400 font-medium mt-0.5">
             Manage your room keys, extend stay duration, and raise direct maintenance tickets.
           </p>
         </div>
-        <div className="bg-[#202020] border border-[#333333] px-4 py-1.5 rounded-full text-xs font-black text-gray-300 uppercase shadow-sm">
+        <div className="bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs font-black px-3.5 py-1.5 rounded-full uppercase shadow-sm">
           {bookings.length} {bookings.length === 1 ? 'Stay' : 'Stays'}
         </div>
       </div>
 
       {/* Booking Cards (Landscape Layout) */}
       {bookings.length === 0 ? (
-        <div className="bg-[#181818] rounded-[2.5rem] border border-[#2a2a2a] p-12 sm:p-16 text-center space-y-4 max-w-lg mx-auto shadow-2xl">
-          <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mx-auto">
+        <div className="bg-[#141414] rounded-3xl border border-neutral-800 p-12 sm:p-16 text-center space-y-4 max-w-lg mx-auto shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-[#E50914]/10 border border-[#E50914]/20 text-[#E50914] flex items-center justify-center mx-auto">
             <Calendar size={28} />
           </div>
           <h3 className="text-2xl font-black italic tracking-tight text-white">No active bookings yet</h3>
-          <p className="text-xs text-gray-400 font-medium leading-relaxed max-w-sm mx-auto">
+          <p className="text-xs text-neutral-400 font-medium leading-relaxed max-w-sm mx-auto">
             You don't have any stays booked right now. Explore audited rooms, student housing, and verified coliving suites across India.
           </p>
           <div className="pt-2">
             <Link 
               to="/search" 
-              className="btn-netflix inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg"
+              className="btn-red-glow inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shadow"
             >
               Browse Stays <ChevronRight size={14} />
             </Link>
           </div>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {bookings.map(book => {
             const propertyId = book.property?._id || book.property;
             const propertyLink = propertyId ? `/property/${propertyId}` : '#';
@@ -245,12 +245,12 @@ const MyBookings = () => {
             return (
               <div 
                 key={book._id} 
-                className="bg-[#181818] rounded-3xl border border-[#2a2a2a] shadow-xl overflow-hidden hover:border-[#383838] transition-all duration-300 flex flex-col md:flex-row group"
+                className="bg-[#141414] rounded-2xl border border-neutral-800 p-4 sm:p-5 shadow-2xl overflow-hidden hover:border-neutral-700 transition-all duration-300 flex flex-col md:flex-row gap-5 group"
               >
-                {/* 1. SMALL LANDSCAPE PICTURE ON THE LEFT (CLICKABLE TO OPEN PG) */}
+                {/* 1. Thumbnail */}
                 <Link 
                   to={propertyLink}
-                  className="block relative w-full md:w-64 lg:w-72 h-48 md:h-auto min-h-[190px] shrink-0 bg-[#121212] overflow-hidden cursor-pointer"
+                  className="block relative w-full md:w-56 h-36 rounded-xl overflow-hidden flex-shrink-0 bg-neutral-900 cursor-pointer"
                   title="Click to view property details"
                 >
                   <img 
@@ -258,166 +258,153 @@ const MyBookings = () => {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     alt={book.property?.title || 'Property'} 
                   />
-                  
-                  {/* Dark Gradient Overlay for Mobile */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none md:hidden"></div>
 
                   {/* Status Badge */}
-                  <div className="absolute top-3 left-3 z-10">
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md backdrop-blur-md ${
-                      book.status === 'CONFIRMED' ? 'bg-primary text-white' : 
-                      book.status === 'CHECKED_IN' ? 'bg-emerald-600 text-white' : 
-                      book.status === 'COMPLETED' ? 'bg-[#222222]/90 text-gray-300 border border-[#444]' : 'bg-[#181818] text-white'
+                  <div className="absolute top-2 left-2 z-10">
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shadow ${
+                      book.status === 'CONFIRMED' ? 'bg-[#E50914] text-white' : 
+                      book.status === 'CHECKED_IN' ? 'bg-emerald-500 text-black' : 
+                      book.status === 'COMPLETED' ? 'bg-neutral-900 text-neutral-400 border border-neutral-700' : 'bg-neutral-900 text-white'
                     }`}>
                       {book.status === 'COMPLETED' ? 'CHECKED OUT' : book.status.replace('_', ' ')}
                     </span>
                   </div>
 
                   {/* Booking Reference Pill */}
-                  <div className="absolute bottom-3 left-3 hidden md:block z-10">
-                    <span className="text-[10px] font-mono text-gray-300 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded-md border border-white/10 font-bold">
+                  <div className="absolute bottom-2 left-2 z-10">
+                    <span className="text-[9px] font-mono text-neutral-300 bg-black/70 px-2 py-0.5 rounded border border-white/10 font-bold">
                       #{book._id.slice(-6).toUpperCase()}
                     </span>
                   </div>
                 </Link>
 
-                {/* 2. DETAILS & OPTIONS ON THE SIDE */}
-                <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between gap-4">
+                {/* 2. Details & Options */}
+                <div className="flex-1 flex flex-col justify-between space-y-3">
                   
-                  {/* Header Information: Title, City, and Total Rent */}
-                  <div>
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <Link 
-                          to={propertyLink}
-                          className="inline-block group/link"
-                          title="Click to view property details"
-                        >
-                          <h3 className="text-xl sm:text-2xl font-black italic tracking-tight text-white group-hover/link:text-primary transition line-clamp-1 cursor-pointer">
-                            {book.property?.title || 'Audited Stay'}
-                          </h3>
-                        </Link>
-                        <p className="text-gray-400 font-medium flex items-center gap-1.5 text-xs mt-1">
-                          <MapPin size={14} className="text-primary shrink-0" /> 
-                          <span>{book.property?.location?.city || 'City'}, {book.property?.location?.state || 'State'}</span>
-                        </p>
+                  {/* Header: Title & Total Paid */}
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <Link 
+                        to={propertyLink}
+                        className="inline-block group/link"
+                        title="Click to view property details"
+                      >
+                        <h3 className="text-xl font-black italic text-white group-hover/link:text-[#E50914] transition line-clamp-1 cursor-pointer">
+                          {book.property?.title || 'Audited Stay'}
+                        </h3>
+                      </Link>
+                      <p className="text-neutral-400 font-medium flex items-center gap-1 text-xs mt-0.5">
+                        <MapPin size={13} className="text-[#E50914] shrink-0" /> 
+                        <span>{book.property?.location?.city || 'City'}, {book.property?.location?.state || 'State'}</span>
+                      </p>
+
+                      {/* Dates & Unit Meta Badges */}
+                      <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
+                        <div className="flex items-center gap-1.5 text-neutral-300 bg-neutral-900 px-2.5 py-1 rounded border border-neutral-800 text-xs">
+                          <Calendar size={13} className="text-[#E50914] shrink-0" />
+                          <span>
+                            {formatDate(book.checkInDate)} → {formatDate(book.checkOutDate)}
+                          </span>
+                        </div>
+
+                        <div className="bg-neutral-900 border border-neutral-800 px-2 py-1 rounded text-neutral-400 font-bold text-[10px]">
+                          UNIT: <strong className="text-white">{book.room?.roomType || 'Standard'}</strong>
+                        </div>
+
+                        {book.extensions?.length > 0 && (
+                          <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-bold bg-emerald-950/70 px-2 py-1 rounded border border-emerald-500/40">
+                            <CalendarPlus size={11} />
+                            <span>Extended (+{book.extensions.length}x)</span>
+                          </div>
+                        )}
                       </div>
+                    </div>
 
                     {/* Total Rent Paid */}
-                    <div className="sm:text-right shrink-0">
-                      <div className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Total Paid</div>
-                      <div className="text-xl sm:text-2xl font-black font-mono text-white">
+                    <div className="text-right shrink-0">
+                      <span className="text-[9px] text-neutral-400 font-bold uppercase block">TOTAL PAID</span>
+                      <span className="text-xl font-black text-white italic">
                         ₹{book.totalAmount ? book.totalAmount.toLocaleString() : '0'}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Middle Meta Badges: Stay Dates & Unit Type */}
-                  <div className="flex flex-wrap items-center gap-2.5 mt-3.5 pt-3 border-t border-[#242424] text-xs">
-                    <div className="flex items-center gap-1.5 text-gray-300 font-semibold bg-[#222222] px-3 py-1.5 rounded-xl border border-[#303030]">
-                      <Calendar size={13} className="text-primary shrink-0" />
-                      <span>
-                        {formatDate(book.checkInDate)} → {formatDate(book.checkOutDate)}
                       </span>
                     </div>
+                  </div>
 
-                    <div className="flex items-center gap-1.5 text-gray-300 font-semibold bg-[#222222] px-3 py-1.5 rounded-xl border border-[#303030]">
-                      <span className="text-[10px] font-black uppercase text-gray-400">Unit:</span>
-                      <span className="text-white font-bold">{book.room?.roomType || 'Standard'}</span>
-                    </div>
+                  {/* Actions Toolbar */}
+                  <div className="pt-2 border-t border-neutral-800/80 flex flex-wrap items-center gap-2">
+                    {/* 1. EXTEND RENT / STAY */}
+                    {(book.status === 'CHECKED_IN' || book.status === 'CONFIRMED') && (
+                      <button 
+                        onClick={() => setSelectedExtendBooking(book)}
+                        className="bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-500/40 text-xs font-bold uppercase px-3 py-1.5 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                      >
+                        <CalendarPlus size={13} /> EXTEND STAY
+                      </button>
+                    )}
 
-                    {book.extensions?.length > 0 && (
-                      <div className="flex items-center gap-1 text-emerald-400 text-xs font-bold bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-800/40">
-                        <CalendarPlus size={12} />
-                        <span>Extended (+{book.extensions.length}x)</span>
-                      </div>
+                    {/* 2. VIEW RECEIPT */}
+                    <button 
+                      onClick={() => setSelectedReceiptBooking(book)}
+                      className="btn-red-glow text-white text-xs font-bold uppercase px-3 py-1.5 rounded-lg flex items-center gap-1 shadow cursor-pointer"
+                    >
+                      <Receipt size={13} /> RECEIPT
+                    </button>
+
+                    {/* 3. CHAT WITH OWNER */}
+                    <button 
+                      onClick={() => handleChatWithLandlord(book)}
+                      disabled={chatLoadingId === book._id}
+                      className="bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-bold px-3 py-1.5 rounded-lg border border-neutral-800 flex items-center gap-1 transition cursor-pointer disabled:opacity-50"
+                    >
+                      {chatLoadingId === book._id ? (
+                        <Loader2 size={13} className="animate-spin text-[#E50914]" />
+                      ) : (
+                        <MessageSquare size={13} />
+                      )}
+                      <span>
+                        {book.property?.owner?.firstName 
+                          ? `Chat with ${book.property.owner.firstName}`
+                          : 'Chat with Host'}
+                      </span>
+                    </button>
+
+                    {/* 4. IN-STAY MAINTENANCE TICKETS */}
+                    {book.status === 'CHECKED_IN' && (
+                      <>
+                        <button 
+                          onClick={() => { setShowIssueModal(book); setIssueData({ type: 'WIFI', desc: '', priority: 'MEDIUM' }); }}
+                          className="bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-bold px-3 py-1.5 rounded-lg border border-neutral-800 flex items-center gap-1 transition cursor-pointer"
+                        >
+                          <Wrench size={13} className="text-[#E50914]" /> Raise Issue
+                        </button>
+                        <button 
+                          onClick={() => fetchAndShowTickets(book)} 
+                          className="bg-neutral-900 hover:bg-neutral-800 text-neutral-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-neutral-800 flex items-center gap-1 transition cursor-pointer"
+                        >
+                          <Search size={13} /> Issues
+                        </button>
+                      </>
+                    )}
+
+                    {/* 5. RATE STAY OR TICKETS HISTORY */}
+                    {book.status === 'COMPLETED' && (
+                      <>
+                        <button 
+                          onClick={() => setShowReviewModal(book)}
+                          className="bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-bold uppercase px-3 py-1.5 rounded-lg flex items-center gap-1 transition cursor-pointer"
+                        >
+                          <Star size={13} fill="currentColor" /> Rate Stay
+                        </button>
+                        <button 
+                          onClick={() => fetchAndShowTickets(book)} 
+                          className="bg-neutral-900 hover:bg-neutral-800 text-neutral-400 text-xs font-bold px-3 py-1.5 rounded-lg border border-neutral-800 flex items-center gap-1 transition cursor-pointer"
+                        >
+                          <Search size={13} /> History
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
-
-                {/* Bottom Options Toolbar: Beside the picture */}
-                <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-[#242424]">
-                  {/* 1. EXTEND RENT / STAY (If checked in or confirmed) */}
-                  {(book.status === 'CHECKED_IN' || book.status === 'CONFIRMED') && (
-                    <button 
-                      onClick={() => setSelectedExtendBooking(book)}
-                      className="bg-emerald-950/60 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-800/50 px-3.5 py-2 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition duration-200 shadow-sm active:scale-95 cursor-pointer"
-                    >
-                      <CalendarPlus size={14} /> Extend Stay
-                    </button>
-                  )}
-
-                  {/* 2. VIEW RECEIPT */}
-                  <button 
-                    onClick={() => setSelectedReceiptBooking(book)}
-                    className="btn-netflix px-3.5 py-2 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition shadow-sm active:scale-95 cursor-pointer"
-                  >
-                    <Receipt size={14} /> Receipt
-                  </button>
-
-                  {/* 3. CHAT WITH OWNER */}
-                  <button 
-                    onClick={() => handleChatWithLandlord(book)}
-                    disabled={chatLoadingId === book._id}
-                    className="btn-netflix-secondary px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
-                  >
-                    {chatLoadingId === book._id ? (
-                      <Loader2 size={14} className="animate-spin text-primary" />
-                    ) : (
-                      <MessageSquare size={14} />
-                    )}
-                    <span>
-                      {book.property?.owner?.firstName 
-                        ? `Chat with ${book.property.owner.firstName}`
-                        : 'Chat Owner'}
-                    </span>
-                  </button>
-
-                  {/* 4. IN-STAY MAINTENANCE TICKETS */}
-                  {book.status === 'CHECKED_IN' && (
-                    <>
-                      <button 
-                        onClick={() => { setShowIssueModal(book); setIssueData({ type: 'WIFI', desc: '', priority: 'MEDIUM' }); }}
-                        className="bg-[#242424] hover:bg-[#303030] text-gray-200 hover:text-white border border-[#383838] px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-                      >
-                        <Wrench size={13} className="text-primary" /> Raise Issue
-                      </button>
-                      <button 
-                        onClick={() => fetchAndShowTickets(book)} 
-                        className="bg-[#242424] hover:bg-[#303030] text-gray-300 hover:text-white border border-[#383838] px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-                      >
-                        <Search size={13} /> Issues
-                      </button>
-                    </>
-                  )}
-
-                  {/* 5. RATE STAY OR TICKETS HISTORY (If completed) */}
-                  {book.status === 'COMPLETED' && (
-                    <>
-                      <button 
-                        onClick={() => setShowReviewModal(book)}
-                        className="bg-amber-600 hover:bg-amber-500 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer shadow-sm"
-                      >
-                        <Star size={13} fill="currentColor" /> Rate Stay
-                      </button>
-                      <button 
-                        onClick={() => fetchAndShowTickets(book)} 
-                        className="bg-[#242424] hover:bg-[#303030] text-gray-300 border border-[#383838] px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-                      >
-                        <Search size={13} /> History
-                      </button>
-                    </>
-                  )}
-
-                  {/* 6. PENDING CHECK-IN NOTE */}
-                  {book.status !== 'CHECKED_IN' && book.status !== 'COMPLETED' && (
-                    <span className="text-[11px] text-gray-500 flex items-center gap-1.5 ml-auto font-medium">
-                      <Lock size={12} className="opacity-60" /> Check-in unlocks room maintenance
-                    </span>
-                  )}
-                </div>
               </div>
-            </div>
           );
         })}
         </div>
@@ -431,24 +418,24 @@ const MyBookings = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#181818] border border-[#2e2e2e] text-white w-full max-w-lg rounded-[2.5rem] p-6 sm:p-8 max-h-[88vh] overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden relative animate-in zoom-in-95 duration-200 shadow-2xl space-y-5"
+            className="bg-[#141414] border border-neutral-800 text-white w-full max-w-lg rounded-3xl p-6 sm:p-8 max-h-[88vh] overflow-y-auto no-scrollbar relative animate-in zoom-in-95 duration-200 shadow-2xl space-y-5"
           >
             {/* Header */}
-            <div className="flex justify-between items-start pb-3 border-b border-[#282828]">
+            <div className="flex justify-between items-start pb-3 border-b border-neutral-800">
               <div>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-primary tracking-widest mb-1">
-                  <Wrench size={12} className="text-primary" /> Grievance Tracker
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-[#E50914] tracking-widest mb-1">
+                  <Wrench size={12} className="text-[#E50914]" /> Grievance Tracker
                 </span>
-                <h3 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-white">
+                <h3 className="text-2xl sm:text-3xl font-black italic tracking-wide text-white">
                   Issue Hub.
                 </h3>
-                <p className="text-xs font-semibold text-gray-400 mt-0.5">
+                <p className="text-xs font-semibold text-neutral-400 mt-0.5">
                   Live query status & updates from owner
                 </p>
               </div>
               <button 
                 onClick={() => setShowTracker(false)} 
-                className="p-2.5 bg-[#242424] text-gray-300 hover:text-white rounded-xl hover:bg-[#333] transition cursor-pointer"
+                className="p-2.5 bg-neutral-900 text-neutral-300 hover:text-white rounded-xl hover:bg-neutral-800 transition cursor-pointer"
                 aria-label="Close Issue Hub"
               >
                 <X size={18}/>
@@ -562,23 +549,23 @@ const MyBookings = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#181818] border border-[#2e2e2e] text-white w-full max-w-md rounded-[2.5rem] p-6 sm:p-8 space-y-5 relative animate-in zoom-in-95 duration-200 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="bg-[#141414] border border-neutral-800 text-white w-full max-w-md rounded-3xl p-6 sm:p-8 space-y-5 relative animate-in zoom-in-95 duration-200 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar"
           >
-            <div className="flex justify-between items-start pb-3 border-b border-[#282828]">
+            <div className="flex justify-between items-start pb-3 border-b border-neutral-800">
               <div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-primary tracking-widest mb-1">
-                  <Wrench size={12} className="text-primary"/> Maintenance Request
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-[#E50914] tracking-widest mb-1">
+                  <Wrench size={12} className="text-[#E50914]"/> Maintenance Request
                 </span>
-                <h3 className="text-2xl font-black italic tracking-tighter text-white leading-none">
+                <h3 className="text-2xl font-black italic tracking-wide text-white leading-none">
                   Raise Ticket.
                 </h3>
-                <p className="text-xs font-semibold text-gray-400 mt-1 truncate max-w-xs">
+                <p className="text-xs font-semibold text-neutral-400 mt-1 truncate max-w-xs">
                   {showIssueModal.property?.title} ({showIssueModal.room?.roomType || 'Room'})
                 </p>
               </div>
               <button 
                 onClick={() => setShowIssueModal(null)} 
-                className="p-2 rounded-xl bg-[#242424] hover:bg-[#333] text-gray-300 hover:text-white transition cursor-pointer"
+                className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white transition cursor-pointer"
                 aria-label="Close ticket modal"
               >
                 <X size={18}/>
@@ -638,7 +625,7 @@ const MyBookings = () => {
             <button 
               onClick={handleIssueSubmit} 
               disabled={submittingIssue}
-              className="w-full btn-netflix py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:opacity-50 cursor-pointer"
+              className="w-full btn-red-glow py-3 rounded-xl font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {submittingIssue ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>}
               <span>Send Ticket to Owner</span>
@@ -655,20 +642,20 @@ const MyBookings = () => {
         >
           <div 
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#181818] border border-[#2e2e2e] text-white w-full max-w-xl rounded-[2.5rem] p-6 sm:p-8 space-y-6 relative overflow-y-auto max-h-[90vh] no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden shadow-2xl animate-in zoom-in-95 duration-200"
+            className="bg-[#141414] border border-neutral-800 text-white w-full max-w-xl rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-y-auto max-h-[90vh] no-scrollbar shadow-2xl animate-in zoom-in-95 duration-200"
           >
-            <div className="flex justify-between items-start pb-3 border-b border-[#282828]">
+            <div className="flex justify-between items-start pb-3 border-b border-neutral-800">
               <div>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-primary tracking-widest mb-1">
-                  <ShieldCheck size={12} className="text-primary"/> Resident Feedback
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-[#E50914] tracking-widest mb-1">
+                  <ShieldCheck size={12} className="text-[#E50914]"/> Resident Feedback
                 </span>
-                <h3 className="text-2xl sm:text-3xl font-black italic tracking-tighter text-white">
+                <h3 className="text-2xl sm:text-3xl font-black italic tracking-wide text-white">
                   Rate Your Stay.
                 </h3>
               </div>
               <button 
                 onClick={() => setShowReviewModal(null)} 
-                className="p-2 rounded-xl bg-[#242424] hover:bg-[#333] text-gray-300 hover:text-white transition cursor-pointer"
+                className="p-2 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white transition cursor-pointer"
               >
                 <X size={18}/>
               </button>

@@ -120,6 +120,68 @@ html, body {
   .netflix-glow-lg {
     box-shadow: 0 0 60px rgba(229, 9, 20, 0.45);
   }
+
+  /* Red micro-labels matching screenshots */
+  .netflix-subhead {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    color: #e50914;
+    text-transform: uppercase;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    font-style: italic;
+  }
+
+  /* Active room card selection glow */
+  .room-card-selected {
+    border-color: #e50914 !important;
+    box-shadow: 0 0 24px -4px rgba(229, 9, 20, 0.35);
+    background-color: rgba(229, 9, 20, 0.04);
+  }
+
+  /* Red button glow matching screenshots */
+  .btn-red-glow {
+    background-color: #E50914;
+    color: #ffffff;
+    box-shadow: 0 0 20px rgba(229, 9, 20, 0.45);
+    transition: all 0.25s ease;
+  }
+  .btn-red-glow:hover {
+    background-color: #F40612;
+    box-shadow: 0 0 28px rgba(244, 6, 18, 0.65);
+    transform: translateY(-1px);
+  }
+
+  /* Rank numbers for trending carousels */
+  .rank-number {
+    font-family: 'Bebas Neue', 'Plus Jakarta Sans', sans-serif;
+    -webkit-text-stroke: 4px #4a4a4a;
+    color: #141414;
+    line-height: 0.8;
+    user-select: none;
+    transition: all 0.3s ease;
+  }
+  .card-group:hover .rank-number {
+    -webkit-text-stroke: 4px #e50914;
+    color: #1c1c1c;
+    transform: scale(1.05) translateX(-4px);
+  }
+
+  /* Gradient overlays */
+  .hero-gradient {
+    background: linear-gradient(77deg, rgba(0, 0, 0, 0.85) 0%, rgba(20, 20, 20, 0.4) 60%, rgba(20, 20, 20, 0) 100%),
+                linear-gradient(to top, #141414 0%, rgba(20, 20, 20, 0.2) 40%, rgba(20, 20, 20, 0.8) 100%);
+  }
+
+  .card-fade-bottom {
+    background: linear-gradient(180deg, transparent 40%, rgba(18, 18, 18, 0.98) 100%);
+  }
 }
 
 /* Keyframes for subtle cinematic glow */

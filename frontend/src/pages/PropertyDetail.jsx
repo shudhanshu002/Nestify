@@ -413,46 +413,46 @@ const PropertyDetail = () => {
         </div>
       </section>
 
-      {/* KEY HIGHLIGHTS BAR */}
+      {/* TRUST METRICS BAR */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 mt-6">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#181818] p-4 sm:p-5 rounded-3xl border border-[#262626]">
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-10 h-10 rounded-2xl bg-primary/20 text-primary border border-primary/30 flex items-center justify-center shrink-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 flex items-center gap-3 shadow-xl">
+            <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 text-[#E50914] flex items-center justify-center shrink-0">
               <Award size={18} />
             </div>
             <div>
-              <p className="text-xs font-black uppercase text-white">₹0 Brokerage</p>
-              <p className="text-[10px] text-gray-400">Direct Landlord Lease</p>
+              <span className="text-[10px] font-black uppercase text-white block">1% BROKERAGE</span>
+              <span className="text-[10px] text-neutral-400 block">Direct Landlord Lease</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 flex items-center justify-center shrink-0">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 flex items-center gap-3 shadow-xl">
+            <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 text-emerald-400 flex items-center justify-center shrink-0">
               <ShieldCheck size={18} />
             </div>
             <div>
-              <p className="text-xs font-black uppercase text-white">Escrow Protected</p>
-              <p className="text-[10px] text-gray-400">Move-in Peace of Mind</p>
+              <span className="text-[10px] font-black uppercase text-white block">ESCROW PROTECTED</span>
+              <span className="text-[10px] text-neutral-400 block">100% Move-in Peace of Mind</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-10 h-10 rounded-2xl bg-amber-950/60 text-amber-400 border border-amber-800/40 flex items-center justify-center shrink-0">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 flex items-center gap-3 shadow-xl">
+            <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 text-amber-400 flex items-center justify-center shrink-0">
               <Zap size={18} />
             </div>
             <div>
-              <p className="text-xs font-black uppercase text-white">24/7 Power Backup</p>
-              <p className="text-[10px] text-gray-400">Uninterrupted Work</p>
+              <span className="text-[10px] font-black uppercase text-white block">24/7 POWER BACKUP</span>
+              <span className="text-[10px] text-neutral-400 block">Uninterrupted Work</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-10 h-10 rounded-2xl bg-blue-950/60 text-blue-400 border border-blue-800/40 flex items-center justify-center shrink-0">
+          <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 flex items-center gap-3 shadow-xl">
+            <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 text-sky-400 flex items-center justify-center shrink-0">
               <Sparkles size={18} />
             </div>
             <div>
-              <p className="text-xs font-black uppercase text-white">Audited Hygiene</p>
-              <p className="text-[10px] text-gray-400">Daily Housekeeping</p>
+              <span className="text-[10px] font-black uppercase text-white block">AUDITED HYGIENE</span>
+              <span className="text-[10px] text-neutral-400 block">Daily Housekeeping</span>
             </div>
           </div>
         </div>
@@ -464,40 +464,40 @@ const PropertyDetail = () => {
         <div className="space-y-10">
           
           {/* ABOUT THIS STAY */}
-          <section className="bg-[#181818] p-8 sm:p-10 rounded-[3rem] border border-[#262626] shadow-xl relative overflow-hidden">
+          <section className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-              <div className="space-y-3">
-                <span className="text-primary text-[10px] font-black uppercase tracking-[0.25em]">Nestify Verified Experience</span>
-                <h3 className="text-2xl sm:text-3xl font-black text-white italic tracking-tight">About this stay</h3>
-                <p className="text-gray-400 font-medium text-sm sm:text-base leading-relaxed max-w-2xl">
+              <div className="space-y-2 max-w-xl">
+                <span className="text-[#E50914] text-[10px] font-black uppercase tracking-widest block">NESTIFY VERIFIED RESIDENCE</span>
+                <h2 className="text-2xl font-black text-white italic tracking-wide">About this stay</h2>
+                <p className="text-neutral-400 font-medium text-xs sm:text-sm leading-relaxed">
                   {property.description}
                 </p>
               </div>
 
               {/* Rating Card */}
-              <div className="text-center bg-[#202020] p-6 rounded-[2rem] border border-[#2d2d2d] shrink-0 min-w-[140px]">
-                <div className="flex items-center justify-center gap-1.5 text-amber-400 font-black text-3xl italic">
-                  <Star size={24} fill="currentColor"/> {property.averageRating ? property.averageRating.toFixed(1) : "4.8"}
+              <div className="text-center bg-black/60 p-5 rounded-2xl border border-neutral-800 shrink-0 min-w-[130px] self-start sm:self-auto">
+                <div className="flex items-center justify-center gap-1 text-amber-400 font-black text-2xl italic">
+                  <Star size={20} fill="currentColor"/> {property.averageRating ? property.averageRating.toFixed(1) : "4.8"}
                 </div>
-                <p className="text-[10px] font-black uppercase text-gray-400 mt-1 tracking-widest">Global Rating</p>
-                <p className="text-[9px] text-gray-500 font-bold mt-0.5">{reviews.length} audits logged</p>
+                <p className="text-[9px] font-black uppercase text-neutral-400 mt-1 tracking-widest">Global Rating</p>
+                <p className="text-[10px] text-neutral-500 font-bold mt-0.5">{reviews.length} audits logged</p>
               </div>
             </div>
 
             {/* Host / Owner Info Banner */}
             {property.owner && (
-              <div className="mt-8 pt-6 border-t border-[#262626] flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/20 text-primary border border-primary/30 flex items-center justify-center font-black text-lg">
+              <div className="bg-black/40 border border-neutral-800 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#E50914] text-white flex items-center justify-center font-black text-base shadow">
                     {property.owner.firstName?.[0] || 'H'}
                   </div>
                   <div>
-                    <p className="text-sm font-black text-white flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-white flex items-center gap-1.5">
                       Hosted by {property.owner.firstName} {property.owner.lastName || ''}
-                      <VerifiedIcon size={14} className="text-primary" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#46D369]"></span>
                     </p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                      Verified Building Manager • Responds within 15 mins
+                    <p className="text-[10px] font-bold text-neutral-400 tracking-wider">
+                      Senior Building Manager • Responds within 15 mins
                     </p>
                   </div>
                 </div>
@@ -505,9 +505,9 @@ const PropertyDetail = () => {
                 {!isOwner && (
                   <button 
                     onClick={handleChatWithOwner}
-                    className="btn-netflix-secondary px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 cursor-pointer"
+                    className="bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 text-xs font-bold uppercase px-4 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
                   >
-                    <MessageSquare size={14} /> Contact Host
+                    <MessageSquare size={13} /> Contact Host
                   </button>
                 )}
               </div>
@@ -515,27 +515,27 @@ const PropertyDetail = () => {
           </section>
 
           {/* AMENITIES & CONVENIENCES */}
-          <section className="bg-[#181818] p-8 sm:p-10 rounded-[3rem] border border-[#262626] shadow-xl space-y-6">
+          <section className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-primary text-[10px] font-black uppercase tracking-[0.25em]">Included Privileges</span>
-                <h3 className="text-2xl font-black italic tracking-tight text-white mt-1">Coliving Amenities</h3>
+                <span className="text-[#E50914] text-[10px] font-black uppercase tracking-widest block">INCLUDED PRIVILEGES</span>
+                <h2 className="text-xl font-black italic tracking-wide text-white mt-0.5">Coliving Amenities</h2>
               </div>
-              <span className="text-[11px] text-gray-400 font-bold bg-[#202020] px-3 py-1.5 rounded-full border border-[#2d2d2d]">
+              <span className="text-[11px] text-neutral-400 font-bold bg-neutral-900 px-3 py-1 rounded-full border border-neutral-800">
                 {defaultAmenities.length} Facilities
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
               {defaultAmenities.map((amenity, idx) => (
                 <div 
                   key={idx}
-                  className="bg-[#202020] hover:bg-[#252525] transition-colors p-4 rounded-2xl border border-[#2c2c2c] flex items-center gap-3 group"
+                  className="bg-black/50 border border-neutral-800 rounded-xl p-3 flex items-center gap-2.5 text-xs text-neutral-200"
                 >
-                  <div className="p-2 rounded-xl bg-black/40 border border-white/5 group-hover:border-primary/40 transition">
+                  <div className="text-[#E50914]">
                     {getAmenityIcon(amenity)}
                   </div>
-                  <span className="text-xs font-bold text-gray-200">{amenity}</span>
+                  <span className="font-bold text-xs">{amenity}</span>
                 </div>
               ))}
             </div>
@@ -543,61 +543,61 @@ const PropertyDetail = () => {
 
           {/* SAFETY & ATMOSPHERE AUDIT */}
           {property.safetyMetrics && (
-            <section className="bg-[#181818] p-8 sm:p-10 rounded-[3rem] border border-[#262626] shadow-xl space-y-6">
+            <section className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl">
               <div>
-                <span className="text-primary text-[10px] font-black uppercase tracking-[0.25em]">Physical Audit Matrix</span>
-                <h3 className="text-2xl font-black italic tracking-tight text-white mt-1">Safety & Living Standards</h3>
+                <span className="text-[#E50914] text-[10px] font-black uppercase tracking-widest block">PHYSICAL AUDIT MATRIX</span>
+                <h2 className="text-xl font-black italic tracking-wide text-white mt-0.5">Safety & Living Standards</h2>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-                <div className="bg-[#202020] p-4 rounded-2xl border border-[#2c2c2c]">
-                  <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase mb-1">
-                    <Volume2 size={14} className="text-primary" /> Noise Level
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                <div className="bg-black/50 border border-neutral-800 rounded-xl p-3.5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-neutral-400 text-[9px] font-extrabold uppercase">
+                    <Volume2 size={12} className="text-[#E50914]" /> NOISE LEVEL
                   </div>
-                  <p className="text-lg font-black text-white">{property.safetyMetrics.noiseLevel || 'Low'}</p>
-                  <p className="text-[10px] text-gray-500 font-semibold">Study Friendly</p>
+                  <p className="text-sm font-black text-white italic">{property.safetyMetrics.noiseLevel || 'Low'}</p>
+                  <p className="text-[10px] text-neutral-500">Study Friendly</p>
                 </div>
 
-                <div className="bg-[#202020] p-4 rounded-2xl border border-[#2c2c2c]">
-                  <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase mb-1">
-                    <Wifi size={14} className="text-primary" /> Fiber Speed
+                <div className="bg-black/50 border border-neutral-800 rounded-xl p-3.5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-neutral-400 text-[9px] font-extrabold uppercase">
+                    <Wifi size={12} className="text-[#E50914]" /> FIBER SPEED
                   </div>
-                  <p className="text-lg font-black text-white">{property.safetyMetrics.internetSpeed || '100 Mbps'}</p>
-                  <p className="text-[10px] text-gray-500 font-semibold">Dual Optical Leased</p>
+                  <p className="text-sm font-black text-white italic">{property.safetyMetrics.internetSpeed || '100 Mbps'}</p>
+                  <p className="text-[10px] text-neutral-500">Dual Optical Leased</p>
                 </div>
 
-                <div className="bg-[#202020] p-4 rounded-2xl border border-[#2c2c2c]">
-                  <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase mb-1">
-                    <Zap size={14} className="text-primary" /> Power Backup
+                <div className="bg-black/50 border border-neutral-800 rounded-xl p-3.5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-neutral-400 text-[9px] font-extrabold uppercase">
+                    <Zap size={12} className="text-[#E50914]" /> POWER BACKUP
                   </div>
-                  <p className="text-lg font-black text-white">{property.safetyMetrics.powerBackup ? '100% Inverter' : 'Partial'}</p>
-                  <p className="text-[10px] text-gray-500 font-semibold">Automatic Switch</p>
+                  <p className="text-sm font-black text-white italic">{property.safetyMetrics.powerBackup ? '100% Inverter' : 'Partial'}</p>
+                  <p className="text-[10px] text-neutral-500">Automatic Switch</p>
                 </div>
 
-                <div className="bg-[#202020] p-4 rounded-2xl border border-[#2c2c2c]">
-                  <div className="flex items-center gap-2 text-gray-400 text-xs font-bold uppercase mb-1">
-                    <ShieldCheck size={14} className="text-primary" /> Surveillance
+                <div className="bg-black/50 border border-neutral-800 rounded-xl p-3.5 space-y-1">
+                  <div className="flex items-center gap-1.5 text-neutral-400 text-[9px] font-extrabold uppercase">
+                    <ShieldCheck size={12} className="text-[#E50914]" /> SURVEILLANCE
                   </div>
-                  <p className="text-lg font-black text-white">{property.safetyMetrics.cctv ? '24/7 CCTV' : 'Guard on Duty'}</p>
-                  <p className="text-[10px] text-gray-500 font-semibold">Biometric Entry</p>
+                  <p className="text-sm font-black text-white italic">{property.safetyMetrics.cctv ? '24/7 CCTV' : 'Guard on Duty'}</p>
+                  <p className="text-[10px] text-neutral-500">Biometric Entry</p>
                 </div>
               </div>
             </section>
           )}
 
-          {/* AVAILABLE UNITS & ROOM MATRIX WITH MULTI-PHOTO SLIDING */}
-          <section className="space-y-6">
-            <div className="flex items-center justify-between px-2">
+          {/* AVAILABLE UNITS & ROOM MATRIX */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
               <div>
-                <span className="text-primary text-[10px] font-black uppercase tracking-[0.25em]">Floorplan & Inventory</span>
-                <h3 className="text-3xl font-black italic tracking-tighter text-white mt-1">Available Units</h3>
+                <span className="text-[#E50914] text-[10px] font-black uppercase tracking-widest block">FLOORPLAN & INVENTORY</span>
+                <h2 className="text-xl font-black italic tracking-wide text-white mt-0.5">Available Units</h2>
               </div>
-              <span className="text-xs text-gray-400 font-bold">
+              <span className="text-xs text-neutral-400 font-bold">
                 {property.rooms?.length || 0} Room Categories
               </span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {property.rooms?.map((room) => {
                 const isSoldOut = room.availableUnitsForDates <= 0;
                 const isSelected = selectedRoom?._id === room._id;
@@ -608,12 +608,12 @@ const PropertyDetail = () => {
                   <div 
                     key={room._id} 
                     onClick={() => !isSoldOut && setSelectedRoom(room)}
-                    className={`p-6 sm:p-7 rounded-[2.5rem] border-2 transition-all cursor-pointer bg-[#181818] relative group ${
+                    className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer bg-[#141414] relative group shadow-2xl ${
                       isSoldOut 
-                        ? 'opacity-40 grayscale cursor-not-allowed bg-[#141414] border-[#222]' 
+                        ? 'opacity-40 grayscale cursor-not-allowed bg-[#141414] border-neutral-800' 
                         : isSelected 
-                        ? 'border-primary ring-4 ring-primary/20 shadow-2xl shadow-red-950/30' 
-                        : 'border-[#282828] hover:border-primary/50'
+                        ? 'room-card-selected' 
+                        : 'border-neutral-800 hover:border-neutral-700'
                     }`}
                   >
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -730,10 +730,10 @@ const PropertyDetail = () => {
                           disabled={isSoldOut}
                           className={`mt-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                             isSoldOut 
-                              ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                              ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
                               : isSelected 
-                              ? 'btn-netflix shadow-lg' 
-                              : 'bg-[#252525] hover:bg-white hover:text-black text-white border border-[#383838]'
+                              ? 'btn-red-glow text-white shadow' 
+                              : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700'
                           }`}
                         >
                           {isSoldOut ? 'Sold Out' : isSelected ? 'Selected' : 'Select Room'}
@@ -817,17 +817,17 @@ const PropertyDetail = () => {
         {/* RIGHT COLUMN: STICKY BOOKING CONSOLE */}
         <aside>
           {!isOwner ? (
-            <div className="sticky top-28 bg-[#181818] p-7 sm:p-9 rounded-[3rem] shadow-2xl border border-[#2a2a2a] space-y-6 text-white">
+            <div className="sticky top-24 bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl text-white">
               <div>
-                <span className="text-primary text-[10px] font-black uppercase tracking-[0.25em]">Reserve Your Spot</span>
-                <h3 className="text-2xl font-black italic tracking-tight text-white mt-1">Booking Console</h3>
+                <span className="text-[#E50914] text-[10px] font-black uppercase tracking-widest block">RESERVE YOUR SPOT</span>
+                <h3 className="text-2xl font-black italic tracking-wide text-white mt-0.5">Booking Console</h3>
               </div>
 
               {/* DATES PICKER */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between text-xs font-bold text-gray-400">
+                <div className="flex items-center justify-between text-xs font-bold text-neutral-400">
                   <span className="uppercase tracking-wider text-[10px]">Stay Duration</span>
-                  <span className="text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20 text-[10px]">
+                  <span className="text-[#E50914] bg-red-950/40 px-2.5 py-0.5 rounded-full border border-[#E50914]/30 text-[10px] font-black">
                     {stayDays} {stayDays === 1 ? 'Night' : 'Nights'}
                   </span>
                 </div>
@@ -861,14 +861,14 @@ const PropertyDetail = () => {
 
               {/* SELECTED ROOM PRICING BREAKDOWN */}
               {selectedRoom ? (
-                <div className="space-y-5 pt-4 border-t border-[#262626]">
+                <div className="space-y-4 pt-3 border-t border-neutral-800">
                   {/* Selected room tag */}
-                  <div className="flex items-center justify-between p-3.5 bg-[#202020] rounded-2xl border border-[#2d2d2d]">
+                  <div className="flex items-center justify-between p-3.5 bg-black/50 rounded-2xl border border-neutral-800">
                     <div className="flex items-center gap-2.5">
-                      <Bed size={16} className="text-primary" />
+                      <Bed size={16} className="text-[#E50914]" />
                       <div>
                         <p className="text-xs font-black text-white">{selectedRoom.roomType}</p>
-                        <p className="text-[10px] text-gray-400 font-semibold">{stayDays} nights × ₹{selectedRoom.basePrice.toLocaleString()}</p>
+                        <p className="text-[10px] text-neutral-400 font-semibold">{stayDays} nights × ₹{selectedRoom.basePrice.toLocaleString()}</p>
                       </div>
                     </div>
                     <span className="text-xs font-mono font-black text-white">
@@ -877,39 +877,39 @@ const PropertyDetail = () => {
                   </div>
 
                   {/* Fee calculation breakdown */}
-                  <div className="space-y-2 text-xs text-gray-400 px-1">
+                  <div className="space-y-2 text-xs text-neutral-400 px-1">
                     <div className="flex justify-between items-center">
                       <span>Zero Brokerage Fee</span>
                       <span className="text-emerald-400 font-black">₹0 (FREE)</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Move-In Escrow Protection</span>
-                      <span className="text-gray-300 font-bold">Included</span>
+                      <span className="text-neutral-300 font-bold">Included</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Resident Care & Support</span>
-                      <span className="text-gray-300 font-bold">24/7 Free</span>
+                      <span className="text-neutral-300 font-bold">24/7 Free</span>
                     </div>
                   </div>
 
                   {/* Total Amount */}
-                  <div className="pt-4 border-t border-[#262626] flex justify-between items-baseline">
+                  <div className="pt-3 border-t border-neutral-800 flex justify-between items-baseline">
                     <div>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Total Payable</p>
-                      <p className={`text-3xl font-black italic font-mono tracking-tight ${selectedRoom.availableUnitsForDates <= 0 ? 'text-gray-500' : 'text-white'}`}>
+                      <p className="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Total Payable</p>
+                      <p className={`text-3xl font-black italic font-mono tracking-tight ${selectedRoom.availableUnitsForDates <= 0 ? 'text-neutral-500' : 'text-white'}`}>
                         ₹{(selectedRoom.basePrice * stayDays).toLocaleString()}
                       </p>
                     </div>
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">All Taxes Inc.</span>
+                    <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-wider">All Taxes Inc.</span>
                   </div>
 
                   {/* Instant Booking Trigger Button */}
                   <button 
                     disabled={checkingAvailability || selectedRoom.availableUnitsForDates <= 0}
                     onClick={handleBookingInit} 
-                    className="w-full btn-netflix py-4 rounded-2xl font-black text-sm uppercase tracking-wider transition shadow-2xl active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer"
+                    className="w-full btn-red-glow py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition shadow-2xl active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                   >
-                    {checkingAvailability ? <Loader className="animate-spin" size={18}/> : <ShieldCheck size={18}/>}
+                    {checkingAvailability ? <Loader className="animate-spin" size={16}/> : <ShieldCheck size={16}/>}
                     {selectedRoom.availableUnitsForDates <= 0 
                       ? 'Room Sold Out For Dates' 
                       : checkingAvailability 
@@ -921,24 +921,24 @@ const PropertyDetail = () => {
                   <button 
                     type="button"
                     onClick={handleChatWithOwner}
-                    className="w-full btn-netflix-secondary py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer"
+                    className="w-full bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-800 py-3 rounded-2xl font-bold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <MessageSquare size={15} /> Chat with Building Owner
+                    <MessageSquare size={14} /> Chat with Building Owner
                   </button>
 
                   {/* Trust guarantees badge */}
-                  <div className="pt-2 text-[10px] text-gray-500 space-y-1.5 font-semibold text-center">
+                  <div className="pt-2 text-[10px] text-neutral-500 space-y-1 font-semibold text-center">
                     <p className="flex items-center justify-center gap-1.5">
-                      <Shield size={12} className="text-primary" /> 100% Escrow safe • Refund if not as described
+                      <Shield size={12} className="text-[#E50914]" /> 100% Escrow safe • Refund if not as described
                     </p>
                     <p>No brokerage fees • Direct owner agreement</p>
                   </div>
                 </div>
               ) : (
-                <div className="p-6 bg-[#202020] rounded-2xl text-center border border-[#2d2d2d] space-y-2">
-                  <Bed size={32} className="mx-auto text-gray-500 mb-1" />
-                  <p className="text-xs font-black uppercase text-gray-300">Select a room unit above</p>
-                  <p className="text-[10px] text-gray-500">Pick from Classic, Deluxe, Premium or Suite units to review pricing.</p>
+                <div className="p-6 bg-black/50 rounded-2xl text-center border border-neutral-800 space-y-2">
+                  <Bed size={32} className="mx-auto text-neutral-500 mb-1" />
+                  <p className="text-xs font-black uppercase text-neutral-300">Select a room unit above</p>
+                  <p className="text-[10px] text-neutral-500">Pick from Classic, Deluxe, Premium or Suite units to review pricing.</p>
                 </div>
               )}
             </div>

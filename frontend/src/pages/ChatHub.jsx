@@ -529,7 +529,7 @@ const ChatHub = () => {
               </div>
               
               {/* Messages Container */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 no-scrollbar bg-[#111111]">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 no-scrollbar bg-[#101010]">
                 {messages.length === 0 ? (
                   <div className="text-center py-20 opacity-40 space-y-2">
                     <MessageSquare size={36} className="mx-auto text-gray-500" />
@@ -541,27 +541,27 @@ const ChatHub = () => {
                     
                     return (
                       <div key={m._id || i} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
-                        <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-medium shadow-sm relative ${
+                        <div className={`max-w-[85%] sm:max-w-xs p-3 rounded-2xl text-xs font-medium shadow relative ${
                           isMine 
-                            ? 'bg-primary text-white rounded-br-none shadow-red-950/40' 
-                            : 'bg-[#202020] text-gray-100 rounded-bl-none border border-[#2e2e2e]'
+                            ? 'bg-[#E50914] text-white' 
+                            : 'bg-neutral-800/90 text-neutral-200 border border-neutral-700/60'
                         }`}>
                           <p className="leading-relaxed break-words whitespace-pre-wrap">{m.text}</p>
                           
                           {/* Timestamp & Ticks */}
                           <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] select-none ${
-                            isMine ? 'text-white/80' : 'text-gray-400'
+                            isMine ? 'text-white/80' : 'text-neutral-400'
                           }`}>
                             <span>{formatMsgTime(m.createdAt)}</span>
 
                             {isMine && (
                               <span className="flex items-center ml-0.5">
                                 {m.status === 'READ' ? (
-                                  <CheckCheck size={14} className="text-sky-300 stroke-[2.5]" title="Read" />
+                                  <CheckCheck size={13} className="text-sky-300 stroke-[2.5]" title="Read" />
                                 ) : m.status === 'DELIVERED' ? (
-                                  <CheckCheck size={14} className="text-white/70 stroke-[2]" title="Delivered" />
+                                  <CheckCheck size={13} className="text-white/80 stroke-[2]" title="Delivered" />
                                 ) : (
-                                  <Check size={14} className="text-white/70 stroke-[2]" title="Sent" />
+                                  <Check size={13} className="text-white/80 stroke-[2]" title="Sent" />
                                 )}
                               </span>
                             )}
@@ -574,29 +574,33 @@ const ChatHub = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input Bar */}
-              <div className="p-3.5 sm:p-4 bg-[#181818] border-t border-[#262626] flex items-center gap-2">
-                <input 
-                  value={text} 
-                  onChange={e => setText(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  className="flex-1 bg-[#222222] border border-[#303030] px-4 py-3 rounded-2xl text-xs font-medium text-white outline-none focus:border-primary transition placeholder:text-gray-500"
-                  placeholder="Type your message..."
-                  autoFocus
-                />
-                <button 
-                  onClick={handleSend} 
-                  disabled={!text.trim()}
-                  className="btn-netflix w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                  aria-label="Send Message"
+              {/* Message Input Bar (Screenshot 6) */}
+              <div className="p-3 border-t border-neutral-800 bg-[#0d0d0d]">
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSend();
+                  }} 
+                  className="flex items-center gap-2"
                 >
-                  <Send size={16}/>
-                </button>
+                  <div className="relative flex-1">
+                    <input 
+                      value={text} 
+                      onChange={e => setText(e.target.value)}
+                      className="w-full bg-neutral-900 border border-[#E50914] text-xs text-white rounded-full px-4 py-2.5 outline-none focus:ring-1 focus:ring-[#E50914] placeholder:text-neutral-500"
+                      placeholder="Type your message..."
+                      autoFocus
+                    />
+                  </div>
+                  <button 
+                    type="submit" 
+                    disabled={!text.trim()}
+                    className="w-9 h-9 rounded-full bg-[#E50914] hover:bg-[#F40612] text-white flex items-center justify-center shadow transition flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                    aria-label="Send Message"
+                  >
+                    <Send size={15}/>
+                  </button>
+                </form>
               </div>
             </div>
           )}

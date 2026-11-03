@@ -3,8 +3,8 @@ import { AuthContext } from '../context/AuthContext';
 import API from '../api/client';
 import { 
   User, Mail, ShieldCheck, Heart, Settings, Loader2, 
-  CheckCircle2, AlertCircle, Upload, Clock, XCircle, FileText, Camera, 
-  ArrowRight, Building2, Sparkles, Shield, ExternalLink, Calendar
+  Check, AlertCircle, Upload, Clock, FileText, Camera, 
+  ArrowRight, Building2, Shield, Calendar
 } from 'lucide-react';
 import PropertyCard from '../components/PropertyCard';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
@@ -75,258 +75,233 @@ const Profile = () => {
     }
   };
 
+  const getInitials = () => {
+    if (!user) return 'SS';
+    const first = user.firstName ? user.firstName[0].toUpperCase() : '';
+    const last = user.lastName ? user.lastName[0].toUpperCase() : '';
+    return `${first}${last}` || 'SS';
+  };
+
   if (loading) return (
-    <div className="flex h-screen w-full items-center justify-center bg-[#141414]">
-      <Loader2 className="animate-spin text-primary" size={40} />
+    <div className="flex h-screen w-full items-center justify-center bg-[#0d0d0d]">
+      <Loader2 className="animate-spin text-[#E50914]" size={40} />
     </div>
   );
 
   if (!user) return (
-    <div className="max-w-md mx-auto my-20 p-8 bg-[#181818] border border-[#2a2a2a] rounded-3xl text-center space-y-4">
+    <div className="max-w-md mx-auto my-20 p-8 bg-[#141414] border border-neutral-800 rounded-3xl text-center space-y-4 shadow-2xl">
       <p className="text-lg font-black text-white">Please log in to view your profile</p>
-      <Link to="/login" className="btn-netflix inline-block px-6 py-2.5 rounded-xl text-sm font-bold">
+      <Link to="/login" className="btn-red-glow inline-block px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shadow">
         Sign In
       </Link>
     </div>
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 min-h-screen text-white">
-      <div className="flex flex-col lg:flex-row gap-8">
+    <div className="pt-2 px-2 sm:px-4 md:px-8 max-w-5xl mx-auto space-y-6 text-white pb-20">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
         
-        {/* 1. LEFT SIDEBAR USER PROFILE CARD */}
-        <aside className="lg:w-1/3 shrink-0">
-          <div className="bg-[#181818] p-8 rounded-[2.5rem] shadow-2xl border border-[#2a2a2a] text-center relative overflow-hidden">
-            {/* Ambient Red Glow in Corner */}
-            <div className="absolute right-[-60px] top-[-60px] w-44 h-44 bg-primary/15 rounded-full blur-[80px] pointer-events-none"></div>
-
-            {/* Profile Avatar */}
-            <div className="relative inline-block mb-5">
+        {/* Left Card: Avatar & Quick Protocol */}
+        <aside className="md:col-span-4 bg-[#141414] border border-neutral-800 rounded-3xl p-6 text-center space-y-5 shadow-2xl">
+          <div className="relative w-24 h-24 mx-auto">
+            {user.avatar ? (
               <img 
-                src={user.avatar || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=E50914&color=fff`} 
-                className="w-28 h-28 rounded-3xl object-cover border-2 border-[#333333] shadow-2xl" 
-                alt="Avatar"
+                src={user.avatar} 
+                alt="Profile Avatar"
+                className="w-full h-full rounded-2xl object-cover border-2 border-[#E50914]/40 shadow-lg"
               />
-              {user.kycStatus === 'VERIFIED' && (
-                <div 
-                  className="absolute -bottom-2 -right-2 bg-emerald-500 p-1.5 rounded-xl border-2 border-[#181818] shadow-md"
-                  title="Verified Resident Identity"
-                >
-                  <CheckCircle2 size={16} className="text-white" />
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="w-full h-full rounded-2xl bg-[#E50914] flex items-center justify-center text-white text-3xl font-black shadow-lg">
+                {getInitials()}
+              </div>
+            )}
             
-            {/* User Name & Role Pill */}
-            <h2 className="text-2xl font-black italic tracking-tight text-white leading-tight">
+            {user.kycStatus === 'VERIFIED' ? (
+              <div 
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-emerald-500 border-2 border-[#141414] text-black flex items-center justify-center shadow"
+                title="Verified Identity"
+              >
+                <Check className="w-4 h-4 stroke-[3]" />
+              </div>
+            ) : (
+              <div 
+                className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-amber-500 border-2 border-[#141414] text-black flex items-center justify-center shadow"
+                title="Verification Pending"
+              >
+                <Clock className="w-3.5 h-3.5 stroke-[3]" />
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h2 className="text-xl font-black text-white italic tracking-wide">
               {user.firstName} {user.lastName}
             </h2>
-            
-            <div className="mt-2.5 flex items-center justify-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-[#242424] text-gray-300 border border-[#333333] flex items-center gap-1.5 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
-                {user.role} ACCOUNT
+            <div className="flex items-center justify-center gap-1.5 mt-2 flex-wrap">
+              <span className="bg-red-950/80 border border-[#E50914]/50 text-[#E50914] text-[9px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#E50914]"></span> {user.role} ACCOUNT
               </span>
-              {user.kycStatus === 'VERIFIED' && (
-                <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
-                  VERIFIED
-                </span>
-              )}
+              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                user.kycStatus === 'VERIFIED'
+                  ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-400'
+                  : 'bg-amber-950/80 border-amber-500/50 text-amber-400'
+              }`}>
+                {user.kycStatus || 'NOT VERIFIED'}
+              </span>
             </div>
+            <p className="text-xs text-neutral-400 mt-2 truncate">{user.email}</p>
+          </div>
 
-            <p className="text-xs text-gray-400 font-medium truncate mt-2">
-              {user.email}
-            </p>
-
-            {/* Navigation Tab Switchers */}
-            <div className="mt-8 space-y-2 border-t border-[#262626] pt-6 text-left">
+          <div className="space-y-2 pt-2 text-left">
+            <button 
+              onClick={() => setActiveTab('details')}
+              className={`w-full text-xs uppercase py-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer font-extrabold ${
+                activeTab === 'details' 
+                  ? 'btn-red-glow text-white shadow' 
+                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-800'
+              }`}
+            >
+              <User className="w-4 h-4" /> PROFILE DETAILS
+            </button>
+            <button 
+              onClick={() => setActiveTab('kyc')}
+              className={`w-full text-xs uppercase py-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer font-extrabold ${
+                activeTab === 'kyc' 
+                  ? 'btn-red-glow text-white shadow' 
+                  : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-800'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" /> IDENTITY VERIFICATION
+            </button>
+            {user.role === 'TENANT' && (
               <button 
-                onClick={() => setActiveTab('details')} 
-                className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'details' 
-                    ? 'btn-netflix shadow-lg text-white' 
-                    : 'text-gray-400 hover:text-white hover:bg-[#242424]'
+                onClick={() => setActiveTab('wishlist')}
+                className={`w-full text-xs uppercase py-3 rounded-xl flex items-center justify-center gap-2 transition cursor-pointer font-extrabold ${
+                  activeTab === 'wishlist' 
+                    ? 'btn-red-glow text-white shadow' 
+                    : 'bg-neutral-900/80 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-800'
                 }`}
               >
-                <User size={18} /> Profile Details
+                <Heart className="w-4 h-4" /> SAVED STAYS
               </button>
+            )}
+          </div>
 
-              <button 
-                onClick={() => setActiveTab('kyc')} 
-                className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  activeTab === 'kyc' 
-                    ? 'btn-netflix shadow-lg text-white' 
-                    : 'text-gray-400 hover:text-white hover:bg-[#242424]'
-                }`}
-              >
-                <ShieldCheck size={18} /> Identity Verification
-              </button>
-              
-              {user.role === 'TENANT' && (
-                <button 
-                  onClick={() => setActiveTab('wishlist')} 
-                  className={`w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                    activeTab === 'wishlist' 
-                      ? 'btn-netflix shadow-lg text-white' 
-                      : 'text-gray-400 hover:text-white hover:bg-[#242424]'
-                  }`}
-                >
-                  <Heart size={18} /> Saved Stays
-                </button>
-              )}
+          <div className="bg-black/50 border border-neutral-800/80 rounded-2xl p-4 text-left flex items-start gap-3">
+            <Shield className="w-5 h-5 text-[#E50914] flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-xs font-bold text-white">Direct Landlord Protocol</h4>
+              <p className="text-[10px] text-neutral-400 mt-0.5 leading-relaxed">
+                Your credentials and tenancy contracts are protected by 256-bit encryption.
+              </p>
             </div>
-
-            {/* Platform Security Assurance Card */}
-            <div className="mt-8 pt-6 border-t border-[#262626] text-left flex items-start gap-3 bg-[#141414] p-4 rounded-2xl border border-[#262626]">
-              <Shield size={20} className="text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-white">Direct Landlord Protocol</p>
-                <p className="text-[11px] text-gray-400 mt-0.5 font-medium leading-relaxed">
-                  Your credentials and tenancy contracts are protected by 256-bit encryption.
-                </p>
-              </div>
-            </div>
-
           </div>
         </aside>
 
-        {/* 2. MAIN CONTENT AREA */}
-        <main className="lg:w-2/3">
+        {/* Right Content Area */}
+        <main className="md:col-span-8 space-y-6">
           
           {/* TAB 1: DETAILS */}
           {activeTab === 'details' && (
-            <div className="bg-[#181818] p-8 sm:p-10 rounded-[2.5rem] shadow-2xl border border-[#2a2a2a] space-y-8 animate-in fade-in duration-300">
-              
-              {/* Card Header */}
-              <div className="flex justify-between items-center border-b border-[#282828] pb-6">
+            <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl animate-in fade-in duration-200">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-primary">Resident Profile</span>
-                  <h3 className="text-2xl sm:text-3xl font-black italic tracking-tight text-white mt-0.5">
-                    Account Information
-                  </h3>
-                  <p className="text-xs text-gray-400 font-medium mt-1">
-                    Manage your credentials, trust status, and coliving preferences.
-                  </p>
+                  <span className="text-[10px] font-black uppercase text-[#E50914] tracking-widest block">RESIDENT PROFILE</span>
+                  <h1 className="text-2xl sm:text-3xl font-black text-white italic tracking-wide mt-0.5">Account Information</h1>
+                  <p className="text-xs text-neutral-400 mt-1">Manage your credentials, trust status, and coliving preferences.</p>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-[#242424] border border-[#333333] flex items-center justify-center text-gray-300">
-                  <Settings size={20} />
+                <div className="w-9 h-9 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-400 flex items-center justify-center">
+                  <Settings className="w-4 h-4" />
                 </div>
               </div>
 
-              {/* Information Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">First Name</p>
-                  <div className="p-4 bg-[#202020] rounded-2xl text-white font-bold text-sm border border-[#2e2e2e] flex items-center gap-3">
-                    <User size={18} className="text-primary shrink-0" />
-                    <span>{user.firstName}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase text-neutral-400">FIRST NAME</label>
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-[#E50914]" />
+                    <span className="font-bold">{user.firstName}</span>
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Last Name</p>
-                  <div className="p-4 bg-[#202020] rounded-2xl text-white font-bold text-sm border border-[#2e2e2e] flex items-center gap-3">
-                    <User size={18} className="text-primary shrink-0" />
-                    <span>{user.lastName}</span>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase text-neutral-400">LAST NAME</label>
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-[#E50914]" />
+                    <span className="font-bold">{user.lastName}</span>
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Email Address</p>
-                  <div className="p-4 bg-[#202020] rounded-2xl text-white font-bold text-sm border border-[#2e2e2e] flex items-center justify-between gap-3 truncate">
-                    <div className="flex items-center gap-3 truncate">
-                      <Mail size={18} className="text-primary shrink-0" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase text-neutral-400">EMAIL ADDRESS</label>
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white flex items-center justify-between">
+                    <div className="flex items-center gap-2 truncate">
+                      <Mail className="w-3.5 h-3.5 text-[#E50914] flex-shrink-0" />
                       <span className="truncate">{user.email}</span>
                     </div>
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 shrink-0">
-                      Active
-                    </span>
+                    <span className="bg-emerald-950/80 text-emerald-400 text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase">ACTIVE</span>
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Identity & Trust Status</p>
-                  <div className={`p-4 rounded-2xl font-black text-sm flex items-center justify-between gap-3 border ${
-                    user.kycStatus === 'VERIFIED' 
-                      ? 'bg-emerald-950/40 border-emerald-800/50 text-emerald-400' 
-                      : user.kycStatus === 'PENDING'
-                      ? 'bg-amber-950/40 border-amber-800/50 text-amber-400'
-                      : 'bg-rose-950/40 border-rose-800/50 text-rose-400'
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase text-neutral-400">IDENTITY & TRUST STATUS</label>
+                  <div className={`rounded-xl px-3.5 py-3 text-xs font-bold flex items-center justify-between border ${
+                    user.kycStatus === 'VERIFIED'
+                      ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-400'
+                      : 'bg-amber-950/30 border-amber-500/40 text-amber-400'
                   }`}>
-                    <div className="flex items-center gap-2.5">
-                      <ShieldCheck size={18} />
-                      <span>{user.kycStatus || 'NOT STARTED'}</span>
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>{user.kycStatus || 'NOT VERIFIED'}</span>
                     </div>
                     {user.kycStatus !== 'VERIFIED' && (
                       <button 
                         onClick={() => setActiveTab('kyc')} 
-                        className="text-[10px] uppercase font-black underline hover:text-white"
+                        className="text-[10px] uppercase font-black underline hover:text-white cursor-pointer"
                       >
                         Verify Now
                       </button>
                     )}
                   </div>
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Account Role</p>
-                  <div className="p-4 bg-[#202020] rounded-2xl text-white font-bold text-sm border border-[#2e2e2e] flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <Building2 size={18} className="text-primary shrink-0" />
-                      <span>{user.role}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase text-neutral-400">ACCOUNT ROLE</label>
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-3.5 h-3.5 text-[#E50914]" />
+                      <span className="font-bold">{user.role}</span>
                     </div>
-                    <span className="text-[10px] text-gray-400 font-medium">Standard Access</span>
+                    <span className="text-[10px] text-neutral-500">Standard Access</span>
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Member Since</p>
-                  <div className="p-4 bg-[#202020] rounded-2xl text-white font-bold text-sm border border-[#2e2e2e] flex items-center gap-3">
-                    <Calendar size={18} className="text-primary shrink-0" />
+                <div className="space-y-1">
+                  <label className="text-[10px] font-extrabold uppercase text-neutral-400">MEMBER SINCE</label>
+                  <div className="bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-[#E50914]" />
                     <span>
-                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '2026'}
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Mar 2026'}
                     </span>
                   </div>
                 </div>
-
               </div>
 
-              {/* Quick Navigation Banners based on Role */}
-              <div className="pt-4 border-t border-[#282828]">
-                {user.role === 'TENANT' && (
-                  <div className="bg-gradient-to-r from-primary/10 via-[#202020] to-[#202020] p-6 rounded-2xl border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                      <h4 className="font-black text-sm text-white">Active Residency & Rent Extensions</h4>
-                      <p className="text-xs text-gray-400 mt-0.5 font-medium">
-                        View current stay agreements, download tax invoices, or extend your move-out date.
-                      </p>
-                    </div>
-                    <Link 
-                      to="/my-bookings" 
-                      className="btn-netflix px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shrink-0 flex items-center gap-1.5"
-                    >
-                      My Bookings <ArrowRight size={14} />
-                    </Link>
-                  </div>
-                )}
-
-                {user.role === 'OWNER' && (
-                  <div className="bg-gradient-to-r from-primary/10 via-[#202020] to-[#202020] p-6 rounded-2xl border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                      <h4 className="font-black text-sm text-white">Landlord Command Center</h4>
-                      <p className="text-xs text-gray-400 mt-0.5 font-medium">
-                        Monitor room occupancy, tenant extensions, rent payouts, and list new properties.
-                      </p>
-                    </div>
-                    <Link 
-                      to="/owner/dashboard" 
-                      className="btn-netflix px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider shrink-0 flex items-center gap-1.5"
-                    >
-                      Dashboard <ArrowRight size={14} />
-                    </Link>
-                  </div>
-                )}
+              {/* Banner at Bottom of Profile: Active Residency */}
+              <div className="bg-black/50 border border-neutral-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-6">
+                <div>
+                  <h4 className="text-sm font-bold text-white">Active Residency & Rent Extensions</h4>
+                  <p className="text-xs text-neutral-400 mt-0.5">
+                    View current stay agreements, download tax invoices, or extend your move-out date.
+                  </p>
+                </div>
+                <Link 
+                  to="/my-bookings" 
+                  className="btn-red-glow text-white font-extrabold text-xs uppercase px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow flex-shrink-0"
+                >
+                  MY BOOKINGS <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
 
             </div>
@@ -334,150 +309,139 @@ const Profile = () => {
 
           {/* TAB 2: KYC & IDENTITY VERIFICATION */}
           {activeTab === 'kyc' && (
-            <div className="bg-[#181818] p-8 sm:p-10 rounded-[2.5rem] shadow-2xl border border-[#2a2a2a] space-y-8 animate-in fade-in duration-300">
-              
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-primary">Trust & Governance</span>
-                <h3 className="text-2xl sm:text-3xl font-black italic tracking-tight text-white mt-0.5">
+            <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl animate-in fade-in duration-200">
+              <div className="border-b border-neutral-800 pb-4">
+                <span className="text-[10px] font-black uppercase text-[#E50914] tracking-widest block">TRUST & COMPLIANCE</span>
+                <h2 className="text-2xl sm:text-3xl font-black text-white italic tracking-wide mt-0.5">
                   Identity Verification Center
-                </h3>
-                <p className="text-xs text-gray-400 font-medium mt-1">
-                  Nestify enforces physical and digital verification to protect residents and landlords against fraudulent listings.
+                </h2>
+                <p className="text-xs text-neutral-400 mt-1">
+                  Nestify enforces digital and physical verification to protect residents and landlords against fraudulent listings.
                 </p>
               </div>
-              
-              {/* STATUS BANNER */}
-              <div className={`p-6 rounded-2xl flex items-start gap-4 border ${
-                user.kycStatus === 'VERIFIED' ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-400' :
-                user.kycStatus === 'PENDING' ? 'bg-amber-950/40 border-amber-800/60 text-amber-400' :
-                user.kycStatus === 'REJECTED' ? 'bg-rose-950/40 border-rose-800/60 text-rose-400' : 
-                'bg-[#222222] border-[#333333] text-gray-300'
+
+              {/* Status Banner */}
+              <div className={`p-4 sm:p-5 rounded-2xl flex items-start gap-4 border ${
+                user.kycStatus === 'VERIFIED' ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-400' :
+                user.kycStatus === 'PENDING' ? 'bg-amber-950/30 border-amber-500/40 text-amber-400' :
+                user.kycStatus === 'REJECTED' ? 'bg-rose-950/30 border-rose-500/40 text-rose-400' :
+                'bg-neutral-900 border-neutral-800 text-neutral-300'
               }`}>
-                {user.kycStatus === 'VERIFIED' ? <CheckCircle2 size={24} className="shrink-0 mt-0.5" /> : 
-                 user.kycStatus === 'PENDING' ? <Clock size={24} className="shrink-0 mt-0.5 animate-spin" /> : 
-                 <AlertCircle size={24} className="shrink-0 mt-0.5" />}
+                {user.kycStatus === 'VERIFIED' ? <Check className="w-6 h-6 stroke-[3] shrink-0 mt-0.5 text-emerald-400" /> :
+                 user.kycStatus === 'PENDING' ? <Clock className="w-6 h-6 shrink-0 mt-0.5 text-amber-400 animate-spin" /> :
+                 <AlertCircle className="w-6 h-6 shrink-0 mt-0.5 text-neutral-400" />}
                 <div>
-                  <p className="font-black text-sm uppercase tracking-wide">
-                    {user.kycStatus || 'ACTION REQUIRED'}
-                  </p>
-                  <p className="text-xs font-medium mt-1 opacity-90 leading-relaxed">
-                    {user.kycStatus === 'VERIFIED' 
-                      ? 'Your identity is fully verified. You have instant move-in escrow privileges and priority booking verification.' 
-                      : user.kycStatus === 'PENDING' 
-                      ? 'Your verification documents are under review by our audit team. Reviews are completed within 12-24 hours.' 
+                  <h4 className="font-black text-sm uppercase tracking-wide">
+                    {user.kycStatus === 'VERIFIED' ? 'IDENTITY VERIFIED ✅' :
+                     user.kycStatus === 'PENDING' ? 'AUDIT IN PROGRESS ⏳' : 
+                     user.kycStatus === 'REJECTED' ? 'VERIFICATION REJECTED ❌' : 'VERIFICATION REQUIRED'}
+                  </h4>
+                  <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                    {user.kycStatus === 'VERIFIED'
+                      ? 'Your profile is authenticated with full Move-in Escrow Protection and verified lease privileges.'
+                      : user.kycStatus === 'PENDING'
+                      ? 'Your verification documents are being reviewed by the compliance desk. Reviews finish in 12-24 hours.'
                       : user.kycStatus === 'REJECTED'
-                      ? (user.kycRejectionReason || 'Previous verification was rejected. Please re-upload a clear, government-issued photo ID.')
-                      : 'Please upload a clear government photo ID (Aadhaar, PAN, or Passport) to complete your verification.'}
+                      ? (user.kycRejectionReason || 'Previous document was declined. Please submit a valid Aadhaar, PAN, or Passport.')
+                      : 'Upload a government photo ID to enable one-click reservations and zero-brokerage guarantees.'}
                   </p>
                 </div>
               </div>
 
-              {/* UPLOAD FORM (Shown if not verified & not pending) */}
+              {/* Upload Form */}
               {user.kycStatus !== 'VERIFIED' && user.kycStatus !== 'PENDING' && (
-                <form onSubmit={handleKYCUpload} className="space-y-6 pt-2">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                        Document Type
-                      </label>
+                <form onSubmit={handleKYCUpload} className="space-y-4 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-extrabold uppercase text-neutral-400">DOCUMENT TYPE</label>
                       <select 
                         value={docType} 
                         onChange={(e) => setDocType(e.target.value)} 
-                        className="w-full bg-[#202020] border border-[#333333] p-4 rounded-2xl outline-none font-bold text-sm text-white focus:border-primary transition"
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white outline-none focus:border-[#E50914] font-semibold"
                       >
-                        <option value="AADHAAR" className="bg-[#202020] text-white">Aadhaar Card (Front/Back)</option>
-                        <option value="PAN" className="bg-[#202020] text-white">Permanent Account Number (PAN)</option>
-                        <option value="PASSPORT" className="bg-[#202020] text-white">Government Passport</option>
+                        <option value="AADHAAR">Government Aadhaar Card</option>
+                        <option value="PAN">Permanent Account Number (PAN)</option>
+                        <option value="PASSPORT">International Passport</option>
                       </select>
                     </div>
 
-                    <div className="space-y-2">
-                       <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">
-                         Upload Document Image
-                       </label>
-                       <div className="relative h-[56px] flex items-center px-4 bg-[#202020] rounded-2xl border-2 border-dashed border-[#3e3e3e] hover:border-primary transition group cursor-pointer">
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            onChange={(e) => setKycFile(e.target.files[0])} 
-                            className="absolute inset-0 opacity-0 cursor-pointer" 
-                          />
-                          <span className="text-xs font-bold text-gray-300 truncate">
-                            {kycFile ? kycFile.name : 'Choose JPG, PNG or Photo'}
-                          </span>
-                          <Camera size={18} className="ml-auto text-primary group-hover:scale-110 transition-transform shrink-0" />
-                       </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-extrabold uppercase text-neutral-400">UPLOAD ID PHOTO</label>
+                      <div className="relative h-[46px] flex items-center px-4 bg-neutral-900 rounded-xl border border-dashed border-neutral-700 hover:border-[#E50914] transition cursor-pointer">
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          onChange={(e) => setKycFile(e.target.files[0])} 
+                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                        />
+                        <span className="text-xs font-bold text-neutral-300 truncate">
+                          {kycFile ? kycFile.name : 'Choose JPG, PNG or PDF'}
+                        </span>
+                        <Camera className="w-4 h-4 ml-auto text-[#E50914] shrink-0" />
+                      </div>
                     </div>
-
                   </div>
 
                   <button 
                     type="submit" 
                     disabled={uploading} 
-                    className="btn-netflix w-full py-4 rounded-2xl font-black text-xs uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    className="w-full btn-red-glow py-3 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {uploading ? (
                       <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Encrypting & Submitting...
+                        <Loader2 className="w-4 h-4 animate-spin" /> Submitting Documents...
                       </>
                     ) : (
                       <>
-                        <Upload size={16} /> Submit Documents for Audit
+                        <Upload className="w-4 h-4" /> SUBMIT DOCUMENTS FOR AUDIT
                       </>
                     )}
                   </button>
                 </form>
               )}
 
-              {/* DOCUMENT GALLERY / AUDIT HISTORY */}
+              {/* Uploaded Documents */}
               {(user.kycDocuments || []).length > 0 && (
-                <div className="pt-6 border-t border-[#282828] space-y-4">
-                  <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
-                    Verification Audit History
-                  </p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                <div className="pt-4 border-t border-neutral-800 space-y-3">
+                  <h4 className="text-[10px] font-extrabold uppercase text-neutral-400 tracking-wider">
+                    UPLOADED CREDENTIALS
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {user.kycDocuments.map((doc, idx) => (
-                      <div key={idx} className="relative group rounded-2xl overflow-hidden border border-[#2e2e2e] h-28 bg-[#202020]">
-                        <img src={doc.fileUrl} className="w-full h-full object-cover" alt="Verification Document" />
-                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-all p-2 text-center">
-                          <FileText size={20} className="text-primary mb-1" />
-                          <span className="text-[10px] font-black uppercase text-white">{doc.docType}</span>
+                      <div key={idx} className="relative rounded-xl overflow-hidden border border-neutral-800 h-24 bg-neutral-900 group">
+                        <img src={doc.fileUrl} className="w-full h-full object-cover" alt="ID Document" />
+                        <div className="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition p-2 text-center">
+                          <FileText className="w-5 h-5 text-[#E50914] mb-1" />
+                          <span className="text-[9px] font-bold text-white uppercase">{doc.docType}</span>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
             </div>
           )}
 
           {/* TAB 3: WISHLIST */}
           {activeTab === 'wishlist' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              
-              <div className="flex justify-between items-center bg-[#181818] p-6 rounded-2xl border border-[#2a2a2a]">
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-4 flex items-center justify-between shadow-2xl">
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-primary">Saved Stays</span>
-                  <h3 className="text-2xl font-black italic tracking-tight text-white mt-0.5">
-                    Your Wishlist
-                  </h3>
+                  <span className="text-[10px] font-black uppercase text-[#E50914] tracking-wider block">SAVED STAYS</span>
+                  <h2 className="text-xl font-black text-white italic">Your Wishlist</h2>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-[#242424] px-3.5 py-1.5 rounded-full border border-[#333333]">
-                  <Heart size={14} className="text-primary fill-primary" />
-                  <span>{wishlistItems.length} Stays Saved</span>
-                </div>
+                <span className="bg-red-950/80 border border-[#E50914]/40 text-[#E50914] text-xs font-black px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <Heart className="w-3.5 h-3.5 fill-current" /> {wishlistItems.length} Stays Saved
+                </span>
               </div>
 
               {dataLoading ? (
-                <div className="py-20 text-center">
-                  <Loader2 className="animate-spin text-primary mx-auto" size={40}/>
-                  <p className="text-xs text-gray-400 mt-2 font-bold">Loading your saved stays...</p>
+                <div className="py-20 text-center bg-[#141414] rounded-2xl border border-neutral-800">
+                  <Loader2 className="animate-spin text-[#E50914] mx-auto" size={36}/>
+                  <p className="text-xs text-neutral-400 mt-2 font-bold">Loading your saved stays...</p>
                 </div>
               ) : wishlistItems.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {wishlistItems.map(item => (
                     <PropertyCard 
                       key={item._id} 
@@ -491,23 +455,22 @@ const Profile = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-20 bg-[#181818] rounded-[2.5rem] border border-[#2a2a2a] space-y-4 px-6">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mx-auto">
-                    <Heart size={28} />
+                <div className="text-center py-16 bg-[#141414] rounded-3xl border border-neutral-800 space-y-4 px-6 shadow-2xl">
+                  <div className="w-14 h-14 rounded-2xl bg-[#E50914]/10 border border-[#E50914]/20 text-[#E50914] flex items-center justify-center mx-auto">
+                    <Heart size={26} />
                   </div>
-                  <h4 className="text-lg font-black text-white">Your wishlist is empty</h4>
-                  <p className="text-xs text-gray-400 max-w-sm mx-auto font-medium leading-relaxed">
+                  <h4 className="text-base font-black text-white italic">Your wishlist is empty</h4>
+                  <p className="text-xs text-neutral-400 max-w-sm mx-auto font-medium leading-relaxed">
                     Explore top audited rooms, student housing, and luxury coliving suites across India and save your favorites.
                   </p>
                   <Link 
                     to="/search" 
-                    className="btn-netflix inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider"
+                    className="btn-red-glow inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-wider shadow"
                   >
                     Browse Stays <ArrowRight size={14} />
                   </Link>
                 </div>
               )}
-
             </div>
           )}
 

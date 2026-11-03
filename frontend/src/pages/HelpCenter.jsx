@@ -1,10 +1,9 @@
 import { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Search, MessageSquare, Headphones, ShieldCheck, 
-  HelpCircle, ChevronDown, ChevronUp, FileText, 
-  CreditCard, Wrench, Shield, Award, Clock, ArrowRight,
-  Phone, Mail, CheckCircle2, AlertCircle, Sparkles, Building
+  Search, Headphones, ShieldCheck, 
+  HelpCircle, ChevronDown, ChevronUp, Wrench, ArrowRight,
+  Mail, Sparkles
 } from 'lucide-react';
 import { useChat } from '../context/ChatContext';
 import { AuthContext } from '../context/AuthContext';
@@ -53,12 +52,11 @@ const FAQ_DATA = [
 ];
 
 const CATEGORIES = [
-  { id: 'all', label: 'All Queries' },
-  { id: 'Bookings & Escrow', label: 'Bookings & Escrow' },
-  { id: 'Rent Extension', label: 'Rent Extension' },
-  { id: 'Maintenance', label: 'Maintenance & Tickets' },
-  { id: 'KYC & Safety', label: 'KYC & Safety' },
-  { id: 'Payments & Receipts', label: 'Payments & Invoices' }
+  { id: 'all', label: 'ALL QUERIES' },
+  { id: 'Bookings & Escrow', label: 'BOOKINGS & ESCROW' },
+  { id: 'Rent Extension', label: 'RENT EXTENSION' },
+  { id: 'Maintenance', label: 'MAINTENANCE & TICKETS' },
+  { id: 'KYC & Safety', label: 'KYC & SAFETY' }
 ];
 
 const HelpCenter = () => {
@@ -76,6 +74,7 @@ const HelpCenter = () => {
       return;
     }
     openChatWithAdmin();
+    setIsChatOpen(true);
   };
 
   const filteredFaqs = FAQ_DATA.filter(item => {
@@ -86,148 +85,121 @@ const HelpCenter = () => {
   });
 
   return (
-    <div className="min-h-screen text-white pb-20 selection:bg-primary selection:text-white">
-      {/* 1. HERO SECTION */}
-      <section className="relative rounded-[3rem] bg-gradient-to-b from-[#1c1c1c] to-[#141414] border border-[#2a2a2a] p-8 sm:p-14 overflow-hidden shadow-2xl text-center">
-        {/* Ambient red backlight */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-48 bg-primary/15 blur-[120px] pointer-events-none rounded-full" />
+    <div className="pt-2 px-2 sm:px-4 md:px-8 max-w-5xl mx-auto space-y-8 text-white pb-20">
+      
+      {/* 1. TOP HERO CARD */}
+      <section className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-10 text-center space-y-4 shadow-2xl relative overflow-hidden">
+        <span className="bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/30 text-[10px] font-black uppercase px-2.5 py-0.5 rounded tracking-wider inline-flex items-center gap-1">
+          <Headphones size={12} className="text-[#E50914]" /> NESTIFY CARE & SUPPORT DESK
+        </span>
 
-        <div className="relative z-10 max-w-3xl mx-auto space-y-4">
-          <div className="inline-flex items-center gap-2 bg-primary/20 text-primary border border-primary/30 px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md">
-            <Sparkles size={12} className="text-primary" /> Nestify Care & Support Desk
-          </div>
+        <h1 className="text-3xl sm:text-5xl font-black text-white italic tracking-wide">
+          How can we help your stay?
+        </h1>
+        <p className="text-xs sm:text-sm text-neutral-400 max-w-xl mx-auto leading-relaxed">
+          Search answers to common questions about bookings, rent extensions, move-in guarantees, or chat live with an administrator.
+        </p>
 
-          <h1 className="text-4xl sm:text-6xl font-black italic tracking-tighter leading-tight text-white drop-shadow-md">
-            How can we help your stay?
-          </h1>
-
-          <p className="text-gray-400 text-sm sm:text-base font-medium max-w-xl mx-auto leading-relaxed">
-            Search answers to common questions about bookings, rent extensions, move-in guarantees, or chat live with an administrator.
-          </p>
-
-          {/* Search Box */}
-          <div className="pt-4 max-w-xl mx-auto">
-            <div className="relative">
-              <Search size={18} className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search queries e.g. extend rent, refund, maintenance..."
-                className="w-full bg-[#202020] pl-12 pr-4 py-4 rounded-2xl text-xs sm:text-sm font-semibold text-white outline-none border border-[#303030] focus:border-primary transition shadow-xl placeholder:text-gray-500"
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white cursor-pointer"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Support Action Pill */}
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-            <button
-              onClick={handleAdminChatClick}
-              className="btn-netflix px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl hover:scale-105 active:scale-95 transition cursor-pointer"
+        {/* Search Box */}
+        <div className="max-w-xl mx-auto relative pt-2">
+          <Search size={16} className="w-4 h-4 text-neutral-500 absolute left-4 top-5" />
+          <input 
+            type="text" 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search queries e.g. extend rent, refund, maintenance..." 
+            className="w-full bg-black/60 border border-neutral-800 rounded-2xl pl-11 pr-4 py-3 text-xs text-white outline-none focus:border-neutral-600 transition"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 top-5 text-xs text-neutral-400 hover:text-white cursor-pointer"
             >
-              <Headphones size={16} /> Chat with Admin
+              Clear
             </button>
-            <Link
-              to="/my-bookings"
-              className="btn-netflix-secondary px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer"
-            >
-              <Wrench size={16} /> Raise Issue Ticket
-            </Link>
-          </div>
+          )}
+        </div>
+
+        {/* Quick Buttons */}
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button 
+            onClick={handleAdminChatClick}
+            className="btn-red-glow text-white font-extrabold text-xs uppercase px-4 py-2.5 rounded-xl flex items-center gap-2 shadow cursor-pointer"
+          >
+            <Headphones className="w-4 h-4" /> CHAT WITH ADMIN
+          </button>
+          <Link 
+            to="/my-bookings"
+            className="bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-700 text-xs font-bold uppercase px-4 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer"
+          >
+            <Wrench className="w-4 h-4 text-[#E50914]" /> RAISE ISSUE TICKET
+          </Link>
         </div>
       </section>
 
-      {/* 2. LIVE SUPPORT & CONTACT CHANNELS */}
-      <section className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Chat with Admin Card */}
+      {/* 2. 3 QUICK CARDS */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Card 1 */}
         <div 
           onClick={handleAdminChatClick}
-          className="bg-[#181818] hover:bg-[#202020] p-7 rounded-[2.5rem] border border-[#2a2a2a] hover:border-primary/50 transition duration-300 shadow-xl group cursor-pointer space-y-4"
+          className="bg-[#141414] border border-neutral-800 hover:border-neutral-700 rounded-2xl p-5 space-y-2 transition shadow-xl cursor-pointer group"
         >
-          <div className="w-12 h-12 rounded-2xl bg-primary/20 text-primary border border-primary/30 flex items-center justify-center group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition">
-            <Headphones size={22} />
-          </div>
-          <div>
-            <h3 className="text-xl font-black italic tracking-tight text-white group-hover:text-primary transition">
-              Live Admin Chat
-            </h3>
-            <p className="text-xs text-gray-400 font-medium leading-relaxed mt-1">
-              Connect directly with a dedicated platform administrator for dispute resolution, refunds, and stay assistance.
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs font-black uppercase text-primary tracking-wider group-hover:translate-x-1 transition-transform">
-            <span>Open Chat Drawer</span>
-            <ArrowRight size={14} />
-          </div>
+          <Headphones className="w-6 h-6 text-[#E50914] group-hover:scale-110 transition-transform" />
+          <h3 className="text-sm font-black text-white italic">Live Admin Chat</h3>
+          <p className="text-xs text-neutral-400 leading-relaxed">
+            Connect directly with a dedicated platform administrator for dispute resolution, refunds, and stay assistance.
+          </p>
+          <span className="text-[#E50914] text-xs font-bold group-hover:underline pt-1 block">
+            OPEN CHAT DRAWER &gt;
+          </span>
         </div>
 
-        {/* Maintenance Ticket Desk */}
+        {/* Card 2 */}
         <Link 
           to="/my-bookings"
-          className="bg-[#181818] hover:bg-[#202020] p-7 rounded-[2.5rem] border border-[#2a2a2a] hover:border-primary/50 transition duration-300 shadow-xl group cursor-pointer space-y-4 block"
+          className="bg-[#141414] border border-neutral-800 hover:border-neutral-700 rounded-2xl p-5 space-y-2 transition shadow-xl block group"
         >
-          <div className="w-12 h-12 rounded-2xl bg-amber-950/60 text-amber-400 border border-amber-800/40 flex items-center justify-center group-hover:scale-110 transition">
-            <Wrench size={22} />
-          </div>
-          <div>
-            <h3 className="text-xl font-black italic tracking-tight text-white group-hover:text-amber-400 transition">
-              Property Issue Hub
-            </h3>
-            <p className="text-xs text-gray-400 font-medium leading-relaxed mt-1">
-              Raise maintenance tickets for Wi-Fi, plumbing, cleaning, or electrical repairs directly to building owners.
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs font-black uppercase text-amber-400 tracking-wider group-hover:translate-x-1 transition-transform">
-            <span>Manage My Tickets</span>
-            <ArrowRight size={14} />
-          </div>
+          <Wrench className="w-6 h-6 text-amber-500 group-hover:scale-110 transition-transform" />
+          <h3 className="text-sm font-black text-white italic">Property Issue Hub</h3>
+          <p className="text-xs text-neutral-400 leading-relaxed">
+            Raise maintenance tickets for Wi-Fi, plumbing, cleaning, or electrical repairs directly to building owners.
+          </p>
+          <span className="text-amber-400 text-xs font-bold group-hover:underline pt-1 block">
+            MANAGE MY TICKETS &gt;
+          </span>
         </Link>
 
-        {/* Move-in Guarantee & Escrow */}
-        <div className="bg-[#181818] p-7 rounded-[2.5rem] border border-[#2a2a2a] shadow-xl space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-950/60 text-emerald-400 border border-emerald-800/40 flex items-center justify-center">
-            <ShieldCheck size={22} />
-          </div>
-          <div>
-            <h3 className="text-xl font-black italic tracking-tight text-white">
-              Escrow Protection
-            </h3>
-            <p className="text-xs text-gray-400 font-medium leading-relaxed mt-1">
-              Every booking is protected by zero-brokerage escrow. 100% refund guaranteed if the property does not match descriptions.
-            </p>
-          </div>
-          <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest font-bold">
-            Audit Standard • Verified 24/7
+        {/* Card 3 */}
+        <div className="bg-[#141414] border border-neutral-800 rounded-2xl p-5 space-y-2 shadow-xl">
+          <ShieldCheck className="w-6 h-6 text-emerald-400" />
+          <h3 className="text-sm font-black text-white italic">Escrow Protection</h3>
+          <p className="text-xs text-neutral-400 leading-relaxed">
+            Every booking is protected by zero-brokerage escrow. 100% refund guaranteed if the property does not match descriptions.
           </p>
+          <span className="text-[10px] text-neutral-500 block pt-1 uppercase font-bold tracking-wider">
+            AUDIT STANDARD • VERIFIED 24/7
+          </span>
         </div>
       </section>
 
-      {/* 3. CATEGORY FILTER TABS & FAQ ACCORDION */}
-      <section className="mt-14 space-y-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      {/* 3. FAQ ACCORDION */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <span className="text-primary text-[10px] font-black uppercase tracking-[0.25em]">Knowledge Base</span>
-            <h2 className="text-3xl font-black italic tracking-tighter text-white mt-1">Frequently Asked Questions</h2>
+            <span className="text-[10px] font-black uppercase text-[#E50914] tracking-wider block">KNOWLEDGE BASE</span>
+            <h2 className="text-2xl font-black text-white italic">Frequently Asked Questions</h2>
           </div>
-
+          
           {/* Category Chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] font-bold no-scrollbar">
             {CATEGORIES.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition shrink-0 cursor-pointer ${
+                className={`px-3 py-1 rounded-full transition cursor-pointer shrink-0 ${
                   selectedCategory === cat.id
-                    ? 'btn-netflix shadow-md'
-                    : 'bg-[#202020] text-gray-400 hover:text-white border border-[#2c2c2c]'
+                    ? 'bg-[#E50914] text-white shadow'
+                    : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
                 }`}
               >
                 {cat.label}
@@ -236,75 +208,67 @@ const HelpCenter = () => {
           </div>
         </div>
 
-        {/* FAQs List */}
-        <div className="space-y-3">
-          {filteredFaqs.length > 0 ? (
-            filteredFaqs.map((faq, idx) => {
-              const isOpen = expandedFaq === idx;
-              return (
+        <div className="space-y-2">
+          {filteredFaqs.map((faq, idx) => {
+            const isOpen = expandedFaq === idx;
+            return (
+              <div 
+                key={idx}
+                className="bg-[#141414] border border-neutral-800 rounded-xl overflow-hidden shadow-md"
+              >
                 <div 
-                  key={idx}
-                  className="bg-[#181818] border border-[#2a2a2a] rounded-2xl overflow-hidden transition-all duration-200"
+                  onClick={() => setExpandedFaq(isOpen ? null : idx)} 
+                  className="p-4 flex items-center justify-between cursor-pointer hover:bg-neutral-900/50 transition"
                 >
-                  <button
-                    onClick={() => setExpandedFaq(isOpen ? null : idx)}
-                    className="w-full p-5 text-left flex items-center justify-between gap-4 cursor-pointer hover:bg-[#202020]/60 transition"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
-                      <span className="font-bold text-sm sm:text-base text-white">{faq.q}</span>
-                    </div>
-                    {isOpen ? <ChevronUp size={18} className="text-primary shrink-0" /> : <ChevronDown size={18} className="text-gray-400 shrink-0" />}
-                  </button>
-
-                  {isOpen && (
-                    <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-gray-400 font-medium leading-relaxed border-t border-[#262626] bg-[#151515]/50">
-                      {faq.a}
-                    </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2 h-2 rounded-full bg-[#E50914] shrink-0" />
+                    <h4 className="text-xs font-bold text-white">{faq.q}</h4>
+                  </div>
+                  {isOpen ? (
+                    <ChevronUp className="w-4 h-4 text-[#E50914] shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-neutral-400 shrink-0" />
                   )}
                 </div>
-              );
-            })
-          ) : (
-            <div className="text-center py-16 bg-[#181818] rounded-3xl border border-[#262626] space-y-2">
-              <HelpCircle size={40} className="mx-auto text-gray-600 mb-1" />
-              <p className="text-xs font-black uppercase text-gray-300">No questions found</p>
-              <p className="text-xs text-gray-500">Try a different search term or connect with live admin support.</p>
-            </div>
-          )}
+
+                {isOpen && (
+                  <div className="px-4 pb-4 pt-1 text-xs text-neutral-400 leading-relaxed border-t border-neutral-800/60 bg-black/30">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* 4. EMERGENCY & GRIEVANCE DIRECTORY */}
-      <section className="mt-14 bg-[#181818] p-8 sm:p-10 rounded-[3rem] border border-[#2a2a2a] shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <span className="text-primary text-[10px] font-black uppercase tracking-[0.25em]">Direct Channels</span>
-            <h3 className="text-2xl font-black italic text-white">Still have an unresolved query?</h3>
-            <p className="text-gray-400 text-xs sm:text-sm font-medium max-w-lg">
-              Our platform grievance officers and support team are available 24/7 to resolve disputes, review audits, and guarantee resident safety.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={handleAdminChatClick}
-              className="btn-netflix px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl cursor-pointer"
-            >
-              <Headphones size={16} /> Open Chat with Admin
-            </button>
-            <a
-              href="mailto:care@nestify.com"
-              className="btn-netflix-secondary px-5 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer"
-            >
-              <Mail size={16} /> care@nestify.com
-            </a>
-          </div>
+      {/* 4. BOTTOM DIRECT CHANNELS */}
+      <section className="bg-[#141414] border border-neutral-800 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xl">
+        <div className="space-y-1">
+          <span className="text-[10px] font-black uppercase text-[#E50914] tracking-wider block">DIRECT CHANNELS</span>
+          <h3 className="text-lg font-black text-white italic">Still have an unresolved query?</h3>
+          <p className="text-xs text-neutral-400 max-w-xl">
+            Our platform grievance officers and support team are available 24/7 to resolve disputes, review audits, and guarantee resident safety.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button 
+            onClick={handleAdminChatClick}
+            className="btn-red-glow text-white text-xs font-bold uppercase px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow cursor-pointer"
+          >
+            <Headphones className="w-4 h-4" /> OPEN CHAT WITH ADMIN
+          </button>
+          <a 
+            href="mailto:care@nestify.com" 
+            className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-700 text-neutral-300 text-xs font-bold uppercase px-4 py-2.5 rounded-xl flex items-center gap-1.5 transition"
+          >
+            <Mail className="w-4 h-4" /> CARE@NESTIFY.COM
+          </a>
         </div>
       </section>
+
     </div>
   );
 };
 
 export default HelpCenter;
-

@@ -122,54 +122,51 @@ const Notifications = () => {
     if (type === 'MAINTENANCE' || title.toLowerCase().includes('ticket') || title.toLowerCase().includes('maintenance')) {
       if (title.toLowerCase().includes('solved') || title.toLowerCase().includes('resolved')) {
         return {
-          icon: <CheckCircle size={16} />,
-          badgeClass: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+          icon: <CheckCircle className="w-5 h-5 text-emerald-400" />,
+          boxClass: 'bg-emerald-950/40 border border-emerald-500/40',
           category: 'MAINTENANCE',
         };
       }
       return {
-        icon: <Wrench size={16} />,
-        badgeClass: 'bg-amber-500/10 text-amber-400 border border-amber-500/20',
+        icon: <Wrench className="w-5 h-5 text-amber-400" />,
+        boxClass: 'bg-amber-950/40 border border-amber-500/40',
         category: 'MAINTENANCE',
       };
     }
 
     if (title.toLowerCase().includes('approved') || title.toLowerCase().includes('verified') || type === 'KYC_UPDATE') {
       return {
-        icon: <ShieldCheck size={16} />,
-        badgeClass: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
+        icon: <ShieldCheck className="w-5 h-5 text-emerald-400" />,
+        boxClass: 'bg-emerald-950/40 border border-emerald-500/40',
         category: 'BOOKINGS',
       };
     }
 
     if (type === 'BOOKING' || title.toLowerCase().includes('booking') || title.toLowerCase().includes('extend')) {
       return {
-        icon: <CalendarCheck size={16} />,
-        badgeClass: 'bg-primary/10 text-primary border border-primary/20',
+        icon: <CalendarCheck className="w-5 h-5 text-[#E50914]" />,
+        boxClass: 'bg-red-950/40 border border-[#E50914]/40',
         category: 'BOOKINGS',
       };
     }
 
     if (title.toLowerCase().includes('rejected') || title.toLowerCase().includes('failed') || title.toLowerCase().includes('blocked')) {
       return {
-        icon: <XCircle size={16} />,
-        badgeClass: 'bg-red-500/10 text-red-400 border border-red-500/20',
+        icon: <XCircle className="w-5 h-5 text-[#E50914]" />,
+        boxClass: 'bg-red-950/40 border border-[#E50914]/40',
         category: 'SYSTEM',
       };
     }
 
     return {
-      icon: <Bell size={16} />,
-      badgeClass: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
+      icon: <Bell className="w-5 h-5 text-neutral-300" />,
+      boxClass: 'bg-neutral-900 border border-neutral-700',
       category: 'SYSTEM',
     };
   };
 
-  // Role-aware action navigation that prevents any 404 unauthorized errors
   const handleActionClick = (n, e) => {
     e?.stopPropagation();
-
-    // Mark as read when navigating
     if (!n.isRead) {
       markSingleRead(n._id);
     }
@@ -213,7 +210,6 @@ const Notifications = () => {
   };
 
   const handleCardClick = (n) => {
-    // Clicking the card marks it as read immediately and removes the red unread border
     if (!n.isRead) {
       markSingleRead(n._id);
     }
@@ -242,56 +238,54 @@ const Notifications = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#0d0d0d]">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="animate-spin text-primary" size={36} />
-          <p className="text-xs font-semibold text-gray-400 tracking-wider uppercase">Loading Notifications...</p>
+          <Loader2 className="animate-spin text-[#E50914]" size={36} />
+          <p className="text-xs font-bold text-neutral-400 tracking-wider uppercase">Loading Notifications...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-6 py-8 sm:py-12 text-white">
-      {/* Subtle Ambient Red Glow */}
-      <div className="relative">
-        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-80 h-32 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
-      </div>
+    <div className="pt-2 px-2 sm:px-4 md:px-8 max-w-4xl mx-auto space-y-6 text-white pb-20">
+      
+      {/* Back button */}
+      <button 
+        onClick={() => navigate(-1)} 
+        className="text-neutral-400 hover:text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+      >
+        <ArrowLeft className="w-4 h-4" /> Back
+      </button>
 
-      {/* Top Header Navigation */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
         <div>
-          <button 
-            onClick={() => navigate(-1)} 
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors cursor-pointer mb-2"
-          >
-            <ArrowLeft size={14} /> Back
-          </button>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
-              <span>Activity & Notifications</span>
+            <h1 className="text-3xl font-black text-white italic tracking-wide">
+              Activity & Notifications
             </h1>
             {unreadCount > 0 && (
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-primary/20 text-primary border border-primary/30">
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/30">
                 {unreadCount} unread
               </span>
             )}
           </div>
-          <p className="text-xs sm:text-sm text-gray-400 mt-1">
+          <p className="text-xs text-neutral-400 mt-0.5">
             Stay updated with lease updates, grievance tickets, and resident alerts.
           </p>
         </div>
 
-        {/* Global Action Buttons */}
+        {/* Global Controls */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
               disabled={actionLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#202020] hover:bg-[#282828] border border-[#333333] text-xs font-bold text-gray-200 hover:text-white transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-xs font-bold text-neutral-200 hover:text-white transition cursor-pointer"
               title="Mark all notifications as read"
             >
-              <CheckCheck size={14} className="text-primary" />
+              <CheckCheck className="w-3.5 h-3.5 text-[#E50914]" />
               <span>Mark all read</span>
             </button>
           )}
@@ -300,21 +294,21 @@ const Notifications = () => {
             <button
               onClick={clearAll}
               disabled={actionLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#202020] hover:bg-red-950/30 border border-[#333333] hover:border-red-900/40 text-xs font-bold text-gray-400 hover:text-red-400 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-400 hover:text-white text-xs font-bold transition cursor-pointer"
               title="Clear all notifications"
             >
-              <Trash2 size={13} />
-              <span className="hidden sm:inline">Clear all</span>
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear all</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-6 border-b border-[#222222]">
+      {/* Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto text-xs font-bold no-scrollbar pb-1">
         {[
-          { id: 'ALL', label: 'All Activity', count: notifications.length },
-          { id: 'UNREAD', label: 'Unread', count: unreadCount },
+          { id: 'ALL', label: `All Activity (${notifications.length})` },
+          { id: 'UNREAD', label: `Unread (${unreadCount})` },
           { id: 'MAINTENANCE', label: 'Grievance & Tickets' },
           { id: 'BOOKINGS', label: 'Bookings & KYC' },
         ].map((tab) => {
@@ -323,27 +317,20 @@ const Notifications = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3.5 py-1.5 rounded-full whitespace-nowrap transition cursor-pointer ${
                 isActive
-                  ? 'bg-primary text-white shadow-md shadow-red-950/40'
-                  : 'bg-[#1a1a1a] text-gray-400 hover:text-gray-200 hover:bg-[#242424] border border-[#2a2a2a]'
+                  ? 'bg-[#E50914] text-white shadow'
+                  : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
               }`}
             >
-              <span>{tab.label}</span>
-              {tab.count !== undefined && tab.count > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                  isActive ? 'bg-black/30 text-white' : 'bg-[#2a2a2a] text-gray-300'
-                }`}>
-                  {tab.count}
-                </span>
-              )}
+              {tab.label}
             </button>
           );
         })}
       </div>
 
       {/* Notifications List */}
-      <div className="space-y-2.5">
+      <div className="space-y-3">
         {filteredNotifications.length > 0 ? (
           filteredNotifications.map((n) => {
             const config = getNotificationConfig(n);
@@ -353,100 +340,75 @@ const Notifications = () => {
               <div
                 key={n._id}
                 onClick={() => handleCardClick(n)}
-                className={`group relative flex items-start gap-3.5 p-3.5 sm:p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
+                className={`bg-[#141414] border rounded-2xl p-4 sm:p-5 flex items-start gap-4 shadow-xl transition cursor-pointer group ${
                   isUnread
-                    ? 'bg-[#1c1c1c] border-primary/50 hover:border-primary/80 shadow-lg shadow-black/40 ring-1 ring-primary/30'
-                    : 'bg-[#161616] border-[#262626] hover:bg-[#1a1a1a] hover:border-[#383838]'
+                    ? 'border-[#E50914]/50 shadow-[0_0_15px_rgba(229,9,20,0.15)] ring-1 ring-[#E50914]/30'
+                    : 'border-neutral-800 hover:border-neutral-700'
                 }`}
               >
-                {/* Visual Unread Glow Indicator */}
-                {isUnread && (
-                  <span className="absolute top-4 left-2 w-1.5 h-1.5 rounded-full bg-primary ring-2 ring-primary/40 animate-pulse"></span>
-                )}
-
-                {/* Compact Icon Badge */}
-                <div className={`p-2.5 rounded-xl shrink-0 ${config.badgeClass} transition-transform group-hover:scale-105 ml-1`}>
+                {/* Icon Container */}
+                <div className={`w-10 h-10 rounded-xl ${config.boxClass} flex items-center justify-center shrink-0`}>
                   {config.icon}
                 </div>
 
-                {/* Main Content */}
-                <div className="flex-1 min-w-0 pr-1">
-                  <div className="flex items-center justify-between gap-2 mb-1">
+                {/* Details */}
+                <div className="flex-1 space-y-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <h3 className={`text-xs sm:text-sm font-bold truncate ${
-                        isUnread ? 'text-white' : 'text-gray-200'
-                      }`}>
+                      <h3 className="text-sm font-bold text-white truncate">
                         {n.title}
                       </h3>
                       {isUnread && (
-                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-primary/20 text-primary border border-primary/30 shrink-0">
-                          New
-                        </span>
+                        <span className="w-2 h-2 rounded-full bg-[#E50914] shrink-0" />
                       )}
                     </div>
-                    
-                    <span className="text-[10px] sm:text-xs font-medium text-gray-500 flex items-center gap-1 shrink-0">
-                      <Clock size={11} /> {formatTimeAgo(n.createdAt)}
+                    <span className="text-xs text-neutral-500 flex items-center gap-1 shrink-0">
+                      <Clock size={12} /> {formatTimeAgo(n.createdAt)}
                     </span>
                   </div>
 
-                  <p className="text-xs text-gray-400 font-medium leading-relaxed line-clamp-2 sm:line-clamp-none">
+                  <p className="text-xs text-neutral-400 leading-relaxed">
                     {n.message}
                   </p>
 
-                  {/* Contextual Action Pill */}
-                  <div className="flex items-center justify-between gap-3 mt-2.5 pt-2 border-t border-[#242424]">
+                  <div className="pt-2 flex items-center justify-between">
                     <button
                       type="button"
                       onClick={(e) => handleActionClick(n, e)}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:text-red-400 group-hover:translate-x-0.5 transition-transform cursor-pointer"
+                      className="text-[#E50914] text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <span>
                         {user?.role === 'OWNER'
-                          ? (n.title.includes('Rejected') ? 'Fix Listing Now' : 'Open Owner Portal')
+                          ? 'Open Owner Portal'
                           : user?.role === 'ADMIN'
                           ? 'Review in Admin Matrix'
-                          : (n.type === 'MAINTENANCE' || n.title.includes('Ticket') ? 'View in My Bookings' : 'View Booking Details')}
+                          : (n.type === 'MAINTENANCE' || n.title.includes('Ticket') ? 'View in My Bookings' : 'View Stay Details')}
                       </span>
                       <ChevronRight size={12} />
                     </button>
 
-                    {/* Inline Quick Actions */}
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {isUnread && (
-                        <button
-                          type="button"
-                          onClick={(e) => markSingleRead(n._id, e)}
-                          title="Mark as read"
-                          className="p-1 rounded-lg text-gray-400 hover:text-white hover:bg-[#282828] transition cursor-pointer"
-                        >
-                          <CheckCheck size={13} />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => deleteNotification(n._id, e)}
-                        title="Delete notification"
-                        className="p-1 rounded-lg text-gray-400 hover:text-red-400 hover:bg-[#282828] transition cursor-pointer"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => deleteNotification(n._id, e)}
+                      title="Delete notification"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-neutral-800 text-neutral-400 hover:text-rose-400 transition cursor-pointer"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
               </div>
             );
           })
         ) : (
-          /* Sleek Empty State */
-          <div className="py-16 sm:py-20 text-center bg-[#181818] rounded-3xl border border-[#262626] px-4 flex flex-col items-center">
-            <div className="w-14 h-14 rounded-2xl bg-[#222222] border border-[#333333] flex items-center justify-center text-gray-400 mb-4 shadow-inner">
-              <Inbox size={26} className="text-gray-500" />
+          <div className="py-16 text-center bg-[#141414] rounded-3xl border border-neutral-800 px-4 flex flex-col items-center shadow-xl">
+            <div className="w-14 h-14 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-500 mb-3">
+              <Inbox size={26} />
             </div>
-            <h3 className="text-base font-bold text-white mb-1">
+            <h3 className="text-sm font-black text-white uppercase tracking-wider mb-1">
               {activeTab === 'UNREAD' ? 'All Caught Up!' : 'No Notifications Yet'}
             </h3>
-            <p className="text-xs text-gray-400 max-w-sm">
+            <p className="text-xs text-neutral-500 max-w-sm">
               {activeTab === 'UNREAD' 
                 ? 'You have read all your recent notifications. New alerts will show up here.'
                 : 'There is no recorded activity in this category. Important updates will appear right here.'}
@@ -454,6 +416,7 @@ const Notifications = () => {
           </div>
         )}
       </div>
+
     </div>
   );
 };

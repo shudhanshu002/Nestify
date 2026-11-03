@@ -1,9 +1,9 @@
 import { useContext } from 'react';
-import { Heart, MapPin, Star, ShieldCheck, Sparkles, Check, ArrowRight } from 'lucide-react';
+import { Heart, MapPin, Star, ShieldCheck, ArrowRight, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
-const PropertyCard = ({ property, onWishlistToggle }) => {
+const PropertyCard = ({ property, onWishlistToggle, onPeek }) => {
   const navigate = useNavigate();
   const { user, isWishlisted, toggleWishlist } = useContext(AuthContext);
 
@@ -19,21 +19,17 @@ const PropertyCard = ({ property, onWishlistToggle }) => {
   const basePrice = roomPrices.length > 0 
     ? Math.min(...roomPrices) 
     : (property.basePrice > 0 ? property.basePrice : 6999);
-  const hasMultipleRooms = (property.rooms || []).length > 1;
+  
   const originalPrice = Math.round(basePrice * 1.30 / 100) * 100;
   const discountPercent = Math.round(((originalPrice - basePrice) / originalPrice) * 100);
-  const rating = property.averageRating || 4.6;
+  const rating = property.averageRating || 4.8;
+  const reviewCount = property.numReviews || property.reviews?.length || 38;
 
-  const getTierBadge = () => {
-    if (property.tier === 'LUXURY') return { label: 'Luxury', bg: 'bg-gradient-to-r from-amber-600 to-rose-600', icon: '💎' };
-    if (property.tier === 'BUDGET') return { label: 'Budget', bg: 'bg-blue-600', icon: '🎓' };
-    if (property.tier === 'STANDARD') return { label: 'Classic', bg: 'bg-[#2a2a2a]', icon: '🏠' };
-    if (property.tier === 'FLAGSHIP') return { label: 'Flagship', bg: 'bg-primary', icon: '⭐' };
-    return property.basePrice > 12000 
-      ? { label: 'Premier', bg: 'bg-gradient-to-r from-amber-600 to-rose-600', icon: '💎' }
-      : { label: 'Flagship', bg: 'bg-primary', icon: '⭐' };
-  };
-  const tierBadge = getTierBadge();
+  // Calculate available beds across rooms if configured
+  const totalBedsLeft = (property.rooms || []).reduce((acc, r) => acc + (r.availableUnitsForDates || r.availableUnits || 1), 0) || 3;
+
+  // Match score calculation
+  const matchScore = Math.min(99, Math.max(90, Math.round(rating * 20)));
 
   const handleHeartClick = async (e) => {
     e.stopPropagation();
@@ -47,100 +43,110 @@ const PropertyCard = ({ property, onWishlistToggle }) => {
     }
   };
 
+  const auditTag = property.safetyMetrics?.internetSpeed
+    ? `${property.safetyMetrics.internetSpeed} • ${property.safetyMetrics.noiseLevel || 'Low'} Noise`
+    : '100% Inverter Backup • Noise: Low';
+
   return (
     <div 
       onClick={() => navigate(`/property/${property._id}`)} 
-      className="cursor-pointer group bg-[#181818] rounded-[2.5rem] overflow-hidden border border-[#2a2a2a] text-white netflix-card flex flex-col justify-between shadow-xl"
+      className="netflix-card cursor-pointer group bg-[#141414] rounded-2xl overflow-hidden border border-neutral-800 text-white flex flex-col justify-between shadow-2xl transition duration-300"
     >
-      {/* 1. IMAGE & BADGES */}
-      <div className="relative h-60 bg-[#121212] overflow-hidden">
-        <img 
-          src={images[0]?.url} 
-          alt={property.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-        />
+      <div>
+        {/* 1. IMAGE & BADGES */}
+        <div className="relative h-48 w-full overflow-hidden bg-neutral-900">
+          <img 
+            src={images[0]?.url} 
+            alt={property.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black/30 pointer-events-none"></div>
 
-        {/* Flagship Tier Badge */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
-          <span className={`${tierBadge.bg} text-white text-[9px] font-black uppercase px-2.5 py-1 rounded-full tracking-wider shadow-md flex items-center gap-1`}>
-            <span>{tierBadge.icon}</span>
-            <span>{tierBadge.label}</span>
-          </span>
-          {property.verificationStatus === 'VERIFIED' && (
-            <span className="bg-black/80 backdrop-blur-md text-emerald-400 text-[8px] font-black uppercase px-2 py-0.5 rounded-full flex items-center gap-1 border border-emerald-900/40">
-              <ShieldCheck size={10} /> Verified
+          {/* Top Badges */}
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
+            <span className="bg-[#E50914] text-white text-[9px] font-black uppercase px-2 py-0.5 rounded shadow">
+              {matchScore}% MATCH
             </span>
-          )}
-        </div>
+            <span className="bg-black/70 backdrop-blur text-white text-[9px] font-extrabold px-2 py-0.5 rounded border border-white/20 uppercase">
+              {property.tier || 'FLAGSHIP'}
+            </span>
+          </div>
 
-        {/* Wishlist Heart */}
-        <button 
-          onClick={handleHeartClick}
-          className={`absolute top-3 right-3 p-2.5 rounded-2xl backdrop-blur-md transition-all shadow-md z-10 cursor-pointer ${
-            isLiked ? 'bg-primary text-white scale-105 shadow-red-950/60' : 'bg-black/50 text-white hover:bg-white hover:text-primary'
-          }`}
-          title={isLiked ? "Remove from Saved Stays" : "Save to Wishlist"}
-        >
-          <Heart size={14} fill={isLiked ? 'currentColor' : 'none'} />
-        </button>
+          {/* Wishlist Heart */}
+          <button 
+            onClick={handleHeartClick}
+            className={`absolute top-3 right-3 w-8 h-8 rounded-full backdrop-blur-md transition flex items-center justify-center shadow z-10 cursor-pointer ${
+              isLiked ? 'bg-[#E50914] text-white' : 'bg-black/60 text-white hover:bg-[#E50914]'
+            }`}
+            title={isLiked ? "Remove from Saved Stays" : "Save to Wishlist"}
+          >
+            <Heart size={14} className={isLiked ? 'fill-white text-white' : ''} />
+          </button>
 
-        {/* Rating Badge Overlay */}
-        <div className="absolute bottom-3 left-3 bg-[#181818]/90 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-md flex items-center gap-1.5 z-10 border border-white/10">
-          <span className="bg-emerald-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5">
-            <Star size={10} className="fill-white" />
-            {rating.toFixed(1)}
-          </span>
-          <span className="text-[10px] font-black text-gray-200">
-            {rating >= 4.5 ? 'Very Good' : 'Good'}
-          </span>
-        </div>
-      </div>
-
-      {/* 2. BODY CONTENT */}
-      <div className="p-6 space-y-3 flex-1 flex flex-col justify-between">
-        <div>
-          <h3 className="font-black text-lg text-white group-hover:text-primary transition line-clamp-1">
-            {property.title}
-          </h3>
-          <p className="text-gray-400 text-xs flex items-center gap-1 font-bold mt-1">
-            <MapPin size={13} className="text-primary shrink-0" />
-            <span className="truncate">{property.location?.city || 'Delhi NCR'}</span>
-          </p>
-
-          {/* Quick Amenities Pill Strip */}
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {(property.amenities && property.amenities.length > 0
-              ? property.amenities
-              : ['AC', 'WiFi', 'Meals']
-            ).slice(0, 3).map((a, i) => (
-              <span key={i} className="text-[10px] font-bold bg-[#242424] text-gray-300 px-2 py-0.5 rounded-md border border-[#333333]">
-                {a}
-              </span>
-            ))}
+          {/* Bottom Overlay: Rating and Beds left */}
+          <div className="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between text-xs z-10">
+            <span className="text-amber-400 font-bold flex items-center gap-1 bg-black/70 px-2 py-0.5 rounded backdrop-blur">
+              <Star size={11} fill="currentColor" /> {rating.toFixed(1)} ({reviewCount})
+            </span>
+            <span className="bg-emerald-950/80 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-500/30">
+              {totalBedsLeft} Beds Left
+            </span>
           </div>
         </div>
 
-        {/* Pricing Box */}
-        <div className="pt-4 border-t border-[#282828] flex items-center justify-between">
+        {/* 2. BODY CONTENT */}
+        <div className="p-4 space-y-2.5">
           <div>
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[9px] font-black uppercase text-gray-400 tracking-wider">
-                {hasMultipleRooms ? "Starts from" : "Rent"}
-              </span>
-              <span className="text-[11px] text-gray-500 line-through">₹{originalPrice.toLocaleString()}</span>
-              <span className="text-[9px] font-black text-primary bg-primary/20 border border-primary/30 px-1 py-0.2 rounded">
-                {discountPercent}% OFF
-              </span>
-            </div>
-            <p className="text-xl font-black text-white font-mono">
-              ₹{basePrice.toLocaleString()}
-              <span className="text-[10px] text-gray-400 font-normal">/mo</span>
+            <h3 className="text-base font-black text-white group-hover:text-[#E50914] transition line-clamp-1">
+              {property.title}
+            </h3>
+            <p className="text-xs text-neutral-400 flex items-center gap-1 mt-0.5 line-clamp-1 font-semibold">
+              <MapPin size={13} className="text-[#E50914] shrink-0" />
+              <span>{property.location?.address || ''} {property.location?.city || 'City'}, {property.location?.state || ''}</span>
             </p>
           </div>
 
-          <span className="w-9 h-9 rounded-2xl bg-[#252525] group-hover:bg-primary text-white flex items-center justify-center transition shadow-md">
-            <ArrowRight size={14} />
-          </span>
+          {/* Audit tag banner */}
+          <div className="bg-neutral-900/80 border border-neutral-800/80 rounded-xl p-2.5 text-[11px] text-neutral-300">
+            <span>{auditTag}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. PRICING & ACTIONS */}
+      <div className="p-4 pt-0 border-t border-neutral-900 flex items-center justify-between mt-2">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] uppercase font-bold text-neutral-500">RENT</span>
+            <span className="text-xs text-neutral-500 line-through">₹{originalPrice.toLocaleString()}</span>
+            <span className="text-[9px] text-[#E50914] font-black">{discountPercent}% OFF</span>
+          </div>
+          <p className="text-lg font-black text-white italic">
+            ₹{basePrice.toLocaleString()} 
+            <span className="text-xs text-neutral-500 font-normal not-italic">/mo</span>
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {onPeek && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPeek(property);
+              }}
+              className="bg-neutral-900 hover:bg-neutral-800 text-neutral-300 text-xs font-bold px-2.5 py-1.5 rounded-xl border border-neutral-800 transition cursor-pointer"
+            >
+              PEEK
+            </button>
+          )}
+          <button 
+            type="button"
+            className="btn-red-glow text-white text-xs font-bold uppercase px-3 py-1.5 rounded-xl shadow transition cursor-pointer flex items-center gap-1"
+          >
+            <span>VIEW STAY</span>
+            <ArrowRight size={12} />
+          </button>
         </div>
       </div>
     </div>
