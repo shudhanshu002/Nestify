@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import API from '../api/client';
+import { useToast } from '../context/ToastContext';
 import { 
   CheckCircle2, XCircle, FileText, Loader2, ShieldCheck, 
   User, Building, MapPin, ExternalLink, X, Eye, AlertCircle,
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 
 const AdminKYC = () => {
+  const toast = useToast();
   const [view, setView] = useState('users'); // 'users' or 'properties'
   const [userQueue, setUserQueue] = useState([]);
   const [propQueue, setPropQueue] = useState([]);
@@ -48,11 +50,12 @@ const AdminKYC = () => {
 
       await API.put(endpoint, { status, reason });
       
-      setActionSuccessMsg(
-        status === 'VERIFIED' 
-          ? `Successfully approved ${type === 'user' ? 'user identity' : 'property listing'}!` 
-          : `Item marked as rejected with reason provided.`
-      );
+      const successMessage = status === 'VERIFIED' 
+        ? `Successfully approved ${type === 'user' ? 'user identity' : 'property listing'}!` 
+        : `Item marked as rejected with reason provided.`;
+      
+      setActionSuccessMsg(successMessage);
+      toast.success(successMessage);
       setTimeout(() => setActionSuccessMsg(''), 4000);
 
       setSelectedReview(null);
@@ -60,7 +63,7 @@ const AdminKYC = () => {
       setRejectionReason('');
       fetchData(); // Refresh counts and queues
     } catch (err) {
-      alert(err.response?.data?.message || "Action failed. Please verify network connection.");
+      toast.error(err.response?.data?.message || "Action failed. Please verify network connection.");
     } finally {
       setActionInProgress(false);
     }
@@ -266,11 +269,13 @@ const AdminKYC = () => {
               </div>
             </div>
           ) : (
-            <div className="py-20 text-center bg-[#181818] rounded-2xl border border-[#2a2a2a] p-8">
-              <ShieldCheck size={44} className="mx-auto text-emerald-500 mb-3" />
-              <h3 className="text-xl font-black text-white tracking-tight">Identity Queue is Clear</h3>
-              <p className="font-bold text-gray-400 text-xs mt-1 uppercase tracking-widest max-w-md mx-auto">
-                No user KYC submissions are currently pending approval.
+            <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-16 sm:p-24 text-center space-y-3 shadow-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center">
+                <ShieldCheck className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-white italic">Identity Queue is Clear</h3>
+              <p className="text-xs text-neutral-500 uppercase font-extrabold tracking-wider">
+                NO USER KYC SUBMISSIONS ARE CURRENTLY PENDING APPROVAL.
               </p>
             </div>
           )}
@@ -365,11 +370,13 @@ const AdminKYC = () => {
               })}
             </div>
           ) : (
-            <div className="py-20 text-center bg-[#181818] rounded-2xl border border-[#2a2a2a] p-8">
-              <Building size={44} className="mx-auto text-emerald-500 mb-3" />
-              <h3 className="text-xl font-black text-white tracking-tight">Property Queue is Clear</h3>
-              <p className="font-bold text-gray-400 text-xs mt-1 uppercase tracking-widest max-w-md mx-auto">
-                No pending property listings waiting for verification.
+            <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-16 sm:p-24 text-center space-y-3 shadow-2xl">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 mx-auto flex items-center justify-center">
+                <Building className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-black text-white italic">Property Queue is Clear</h3>
+              <p className="text-xs text-neutral-500 uppercase font-extrabold tracking-wider">
+                NO PENDING PROPERTY LISTINGS WAITING FOR VERIFICATION.
               </p>
             </div>
           )}
