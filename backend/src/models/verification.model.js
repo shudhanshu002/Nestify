@@ -4,7 +4,7 @@ const verificationSchema = new mongoose.Schema({
   userId: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
-    required: true 
+    required: false 
   },
   type: { 
     type: String, 
@@ -17,7 +17,10 @@ const verificationSchema = new mongoose.Schema({
   },
   target: { 
     type: String, 
-    required: true // Store the email or phone number here
+    required: true,
+    lowercase: true,
+    trim: true,
+    index: true
   },
   createdAt: { 
     type: Date, 

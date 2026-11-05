@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import generateToken from "../utils/generateToken.js";
 import * as userService from '../services/user.service.js';
 import * as otpService from '../services/otp.service.js';
+import { sendVerificationEmail } from '../services/email.service.js';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
@@ -11,30 +12,95 @@ import Property from '../models/property.model.js';
 const googleClientId = process.env.CLIENT_ID_GOOGLE || process.env.GOOGLE_CLIENT_ID;
 const client = new OAuth2Client(googleClientId);
 
-// @desc Register user
+// @desc    Send Registration OTP to Email
+// @route   POST /api/v1/auth/send-register-otp
+export const sendRegisterOTP = async (req, res, next) => {
+  try {
+    const { email, firstName } = req.body;
+
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, message: 'A valid email address is required.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    // 1. Check if user already exists
+    const userExists = await User.findOne({ email: cleanEmail });
+    if (userExists) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'An account with this email already exists. Please sign in instead.' 
+      });
+    }
+
+    // 2. Generate and store OTP in database
+    const otp = await otpService.sendOTP(null, cleanEmail, 'EMAIL_VERIFICATION');
+
+    // 3. Dispatch verification email via Nodemailer (or simulation if credentials missing)
+    const emailResult = await sendVerificationEmail(cleanEmail, otp, firstName || 'Resident');
+
+    const response = {
+      success: true,
+      message: `A 6-digit verification code has been dispatched to ${cleanEmail}.`
+    };
+
+    // If simulated in dev/local mode, attach devOtp for seamless developer experience
+    if (emailResult.simulated || process.env.NODE_ENV !== 'production') {
+      response.devOtp = otp;
+    }
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc Register user with verified email OTP
 // @route POST /api/v1/auth/register
 export const registerUser = async (req, res, next) => {
   try {
-    const { firstName, lastName, email, password, role } = req.body;
+    const { firstName, lastName, email, password, role, otp } = req.body;
 
-    // 1. Check for existing user
-    const userExists = await User.findOne({ email: email.toLowerCase() });
-    if (userExists) {
-      res.status(400);
-      throw new Error('User already exists with this email');
+    if (!email || !password || !firstName) {
+      return res.status(400).json({ success: false, message: 'First name, email, and password are required.' });
     }
 
-    // 2. SECURITY LOCK: Role Sanitization
+    const cleanEmail = email.toLowerCase().trim();
+
+    // 1. Check for existing user
+    const userExists = await User.findOne({ email: cleanEmail });
+    if (userExists) {
+      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    }
+
+    // 2. Verify Email OTP
+    if (!otp) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email verification code is required to complete registration.' 
+      });
+    }
+
+    const isValid = await otpService.verifyOTP(cleanEmail, otp, 'EMAIL_VERIFICATION');
+    if (!isValid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid or expired verification code. Please request a new one.' 
+      });
+    }
+
+    // 3. SECURITY LOCK: Role Sanitization
     const publicRoles = ['TENANT', 'OWNER'];
     const sanitizedRole = publicRoles.includes(role) ? role : 'TENANT';
 
-    // 3. Create the User
+    // 4. Create the User with verified email
     const user = await User.create({
-      firstName,
-      lastName: lastName || '',
-      email: email.toLowerCase(),
+      firstName: firstName.trim(),
+      lastName: (lastName || '').trim(),
+      email: cleanEmail,
       password,
       role: sanitizedRole,
+      isEmailVerified: true
     });
 
     if (user) {
@@ -45,6 +111,7 @@ export const registerUser = async (req, res, next) => {
         email: user.email,
         role: user.role,
         isSuperAdmin: !!user.isSuperAdmin,
+        isEmailVerified: true,
         avatar: user.avatar || user.profile?.avatar || '',
       };
       res.status(201).json({
@@ -274,6 +341,48 @@ export const checkReviewEligibility = async (req, res, next) => {
       eligible: true,
       message: "Eligibility confirmed."
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Send verification OTP for existing unverified user
+// @route   POST /api/v1/auth/send-verify-email-otp
+export const sendVerifyEmailOTP = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ success: false, message: 'Email is already verified.' });
+    }
+
+    const otp = await otpService.sendOTP(user._id, user.email, 'EMAIL_VERIFICATION');
+    await sendVerificationEmail(user.email, otp, user.firstName);
+
+    res.status(200).json({ success: true, message: `Verification code sent to ${user.email}.` });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify email for existing user
+// @route   POST /api/v1/auth/verify-email
+export const verifyEmail = async (req, res, next) => {
+  try {
+    const { otp } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const isValid = await otpService.verifyOTP(user.email, otp, 'EMAIL_VERIFICATION');
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired verification code.' });
+    }
+
+    user.isEmailVerified = true;
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'Email verified successfully!' });
   } catch (error) {
     next(error);
   }
