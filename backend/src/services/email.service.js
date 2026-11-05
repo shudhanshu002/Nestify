@@ -115,3 +115,4 @@ export const sendVerificationEmail = async (toEmail, otp, name = 'Resident') => 
     throw new Error(`Failed to deliver verification email: ${err.message}`);
   }
 };
+
