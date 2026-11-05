@@ -2,6 +2,9 @@ import rateLimit from 'express-rate-limit';
 
 const isTest = process.env.NODE_ENV === 'test';
 
+// Configuration for reverse proxies (Render, Vercel, Cloudflare)
+const proxyValidation = { xForwardedForHeader: false };
+
 /**
  * Global API Rate Limiter (Anti-DDoS)
  * Restricts excessive traffic from a single IP to protect server resources
@@ -11,6 +14,7 @@ export const globalLimiter = rateLimit({
   max: isTest ? 10000 : 300, // Limit each IP to 300 requests per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
+  validate: proxyValidation,
   message: {
     success: false,
     message: 'Too many requests from this IP address. Anti-DDoS protection triggered. Please retry in 15 minutes.'
@@ -26,6 +30,7 @@ export const authLimiter = rateLimit({
   max: isTest ? 10000 : 15, // Limit each IP to 15 authentication attempts per 15 minutes
   standardHeaders: true,
   legacyHeaders: false,
+  validate: proxyValidation,
   message: {
     success: false,
     message: 'Too many authentication attempts. Account access throttled for 15 minutes to protect against brute-force attacks.'
@@ -41,6 +46,7 @@ export const transactionLimiter = rateLimit({
   max: isTest ? 10000 : 60, // Limit sensitive state mutations
   standardHeaders: true,
   legacyHeaders: false,
+  validate: proxyValidation,
   message: {
     success: false,
     message: 'Too many transaction requests detected. Please wait a moment before trying again.'
@@ -55,6 +61,7 @@ export const searchLimiter = rateLimit({
   max: isTest ? 10000 : 90, // 90 queries per minute per IP
   standardHeaders: true,
   legacyHeaders: false,
+  validate: proxyValidation,
   message: {
     success: false,
     message: 'High search volume detected. Please wait a moment before searching again.'
@@ -69,6 +76,7 @@ export const chatLimiter = rateLimit({
   max: isTest ? 10000 : 60, // 60 messages per minute
   standardHeaders: true,
   legacyHeaders: false,
+  validate: proxyValidation,
   message: {
     success: false,
     message: 'You are sending messages too quickly. Please pause for a moment.'
@@ -83,6 +91,7 @@ export const interactionLimiter = rateLimit({
   max: isTest ? 10000 : 40,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: proxyValidation,
   message: {
     success: false,
     message: 'Action rate limit exceeded. Please wait before submitting more requests.'
@@ -97,6 +106,7 @@ export const uploadLimiter = rateLimit({
   max: isTest ? 10000 : 30,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: proxyValidation,
   message: {
     success: false,
     message: 'Upload quota reached for this window. Please wait before uploading more files.'

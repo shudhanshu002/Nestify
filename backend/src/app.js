@@ -25,6 +25,10 @@ import { errorHandler, notFound } from './middlewares/error.middleware.js';
 
 const app = express();
 
+// Trust reverse proxy (Render, Vercel, Cloudflare, AWS ALB)
+// Essential for express-rate-limit to accurately identify client IPs via X-Forwarded-For
+app.set('trust proxy', 1);
+
 // 1. HTTP Security Headers (Anti-Clickjacking, XSS Filter, Sniff Protection)
 app.use(helmet({
   contentSecurityPolicy: false, // Allows cross-origin assets (maps, Cloudinary, fonts)
@@ -35,23 +39,32 @@ app.use(helmet({
 app.use('/api/v1', globalLimiter);
 
 // 3. CORS Configuration
+const cleanFrontendUrl = process.env.FRONTEND_URL?.trim().replace(/\/+$/, '');
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  cleanFrontendUrl,
   'http://localhost:5173',
   'http://127.0.0.1:5173'
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
+    // allow requests with no origin (like mobile apps, curl, postman, render health checks)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+
+    const normalizedOrigin = origin.trim().replace(/\/+$/, '');
+    if (
+      allowedOrigins.includes(normalizedOrigin) || 
+      (cleanFrontendUrl && normalizedOrigin === cleanFrontendUrl) ||
+      normalizedOrigin.endsWith('.vercel.app') || 
+      process.env.NODE_ENV !== 'production'
+    ) {
       return callback(null, true);
     }
-    return callback(new Error('CORS blocked: Origin not authorized by Nestify security policy'));
+    return callback(new Error(`CORS blocked: Origin ${origin} not authorized by Nestify security policy`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Idempotency-Key']
 }));
 
 // 4. Payload Size Limits (Anti-Buffer Exhaustion DoS)

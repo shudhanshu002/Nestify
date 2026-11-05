@@ -11,10 +11,24 @@ import { initSocket } from './socket.js';
 // 1. Create HTTP server (wraps Express)
 const server = http.createServer(app);
 
-// 2. Initialize Socket.IO
+// 2. Initialize Socket.IO with resilient CORS for Vercel & local environments
+const cleanFrontendUrl = process.env.FRONTEND_URL?.trim().replace(/\/+$/, '');
 const io = new Server(server, {
   cors: { 
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const normalized = origin.trim().replace(/\/+$/, '');
+      if (
+        !cleanFrontendUrl || 
+        normalized === cleanFrontendUrl || 
+        normalized.endsWith('.vercel.app') || 
+        normalized.includes('localhost') || 
+        process.env.NODE_ENV !== 'production'
+      ) {
+        return callback(null, true);
+      }
+      return callback(new Error('Socket CORS blocked'));
+    },
     credentials: true
   }
 });
@@ -43,7 +57,7 @@ const startServer = async () => {
 
 startServer();
 
-// 5. Handle unhandled promise rejections (same as before)
+// 5. Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.log(`❌ Error: ${err.message}`);
   server.close(() => process.exit(1));
