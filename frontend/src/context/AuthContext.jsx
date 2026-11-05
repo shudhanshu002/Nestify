@@ -83,18 +83,6 @@ export const AuthProvider = ({ children }) => {
     return userData;
   }, [fetchWishlistIds]);
 
-  const facebookLogin = useCallback(async (authData, role = 'TENANT') => {
-    const payload = typeof authData === 'string'
-      ? { accessToken: authData, role }
-      : { ...authData, role };
-    const { data } = await API.post('/auth/facebook', payload);
-    localStorage.setItem('token', data.token);
-    const userData = data.user || data;
-    setUser(userData);
-    fetchWishlistIds();
-    return userData;
-  }, [fetchWishlistIds]);
-
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     setUser(null);
@@ -150,7 +138,6 @@ export const AuthProvider = ({ children }) => {
       setUser, 
       login, 
       googleLogin,
-      facebookLogin,
       logout, 
       loading,
       wishlistIds,

@@ -44,7 +44,6 @@ const userSchema = new mongoose.Schema({
     phone: { type: String, sparse: true },
     avatar: { type: String, default: '' },
     googleId: { type: String, sparse: true },
-    facebookId: { type: String, sparse: true },
     isEmailVerified: { type: Boolean, default: false },
     isPhoneVerified: { type: Boolean, default: false },
     

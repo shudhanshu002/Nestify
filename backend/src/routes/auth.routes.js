@@ -5,7 +5,6 @@ import {
   requestOTP, 
   verifyOTPAndLogin,
   googleLogin,
-  facebookLogin,
   checkReviewEligibility
 } from '../controllers/auth.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
@@ -17,7 +16,6 @@ const router = express.Router();
 router.post('/register', authLimiter, registerUser);
 router.post('/login', authLimiter, loginUser);
 router.post('/google', authLimiter, googleLogin);
-router.post('/facebook', authLimiter, facebookLogin);
 router.post('/otp/request', authLimiter, requestOTP);
 router.post('/otp/verify', authLimiter, verifyOTPAndLogin);
 

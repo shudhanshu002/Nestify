@@ -23,17 +23,8 @@ export const GoogleIcon = ({ size = 20, className = "" }) => (
   </svg>
 );
 
-export const FacebookIcon = ({ size = 20, className = "" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
-    <path
-      d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
-      fill="#1877F2"
-    />
-  </svg>
-);
-
 const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
-  const [loadingProvider, setLoadingProvider] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   // Helper to load Google Identity Services client script
   const ensureGoogleSDK = () => {
@@ -57,33 +48,6 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
     });
   };
 
-  // Helper to load Facebook SDK
-  const ensureFacebookSDK = (appId) => {
-    return new Promise((resolve, reject) => {
-      if (window.FB) return resolve(window.FB);
-
-      window.fbAsyncInit = function() {
-        window.FB.init({
-          appId: appId,
-          cookie: true,
-          xfbml: true,
-          version: 'v19.0'
-        });
-        resolve(window.FB);
-      };
-
-      const existing = document.querySelector('script[src*="connect.facebook.net"]');
-      if (existing) return;
-
-      const script = document.createElement('script');
-      script.src = 'https://connect.facebook.net/en_US/sdk.js';
-      script.async = true;
-      script.defer = true;
-      script.onerror = () => reject(new Error('Unable to connect to Facebook SDK'));
-      document.head.appendChild(script);
-    });
-  };
-
   // Real Google OAuth 2.0 Popup
   const handleGooglePopup = async () => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
@@ -93,7 +57,7 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
       return;
     }
 
-    setLoadingProvider('google');
+    setLoading(true);
     try {
       const googleOAuth = await ensureGoogleSDK();
 
@@ -106,7 +70,7 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
         scope: 'email profile openid',
         callback: async (tokenResponse) => {
           if (tokenResponse.error) {
-            setLoadingProvider(null);
+            setLoading(false);
             onError && onError(tokenResponse.error_description || tokenResponse.error || 'Google sign-in was cancelled');
             return;
           }
@@ -121,7 +85,7 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
           } catch (err) {
             onError && onError(err.response?.data?.message || err.message || 'Google account verification failed');
           } finally {
-            setLoadingProvider(null);
+            setLoading(false);
           }
         },
       });
@@ -129,87 +93,26 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
       // Opens Google's native OAuth 2.0 popup dialog
       tokenClient.requestAccessToken({ prompt: 'select_account' });
     } catch (err) {
-      setLoadingProvider(null);
+      setLoading(false);
       onError && onError(err.message || 'Failed to open Google login popup');
     }
   };
 
-  // Real Facebook OAuth Popup
-  const handleFacebookPopup = async () => {
-    const fbAppId = import.meta.env.VITE_FACEBOOK_APP_ID?.trim();
-
-    if (!fbAppId) {
-      onError && onError('Facebook App ID is not configured. Please paste your Facebook App ID in frontend/.env (VITE_FACEBOOK_APP_ID).');
-      return;
-    }
-
-    setLoadingProvider('facebook');
-    try {
-      const FB = await ensureFacebookSDK(fbAppId);
-
-      if (!FB) {
-        throw new Error('Facebook SDK is unavailable');
-      }
-
-      FB.login((response) => {
-        if (response.authResponse?.accessToken) {
-          API.post('/auth/facebook', {
-            accessToken: response.authResponse.accessToken,
-            role
-          })
-          .then(({ data }) => {
-            localStorage.setItem('token', data.token);
-            onSuccess && onSuccess(data.user || data);
-          })
-          .catch((err) => {
-            onError && onError(err.response?.data?.message || err.message || 'Facebook account verification failed');
-          })
-          .finally(() => {
-            setLoadingProvider(null);
-          });
-        } else {
-          setLoadingProvider(null);
-          if (response.status !== 'connected') {
-            onError && onError('Facebook sign-in was cancelled or closed');
-          }
-        }
-      }, { scope: 'email,public_profile' });
-    } catch (err) {
-      setLoadingProvider(null);
-      onError && onError(err.message || 'Failed to open Facebook login popup');
-    }
-  };
-
   return (
-    <div className="grid grid-cols-2 gap-3.5">
+    <div className="w-full">
       <button
         type="button"
         onClick={handleGooglePopup}
-        disabled={loadingProvider !== null}
-        className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-[#202020] hover:bg-[#282828] border border-[#333333] hover:border-gray-500/50 text-gray-200 hover:text-white font-bold text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer disabled:opacity-60 shadow-sm"
-        title="Sign in with Google OAuth 2.0 Popup"
+        disabled={loading}
+        className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-2xl bg-[#202020] hover:bg-[#282828] border border-[#333333] hover:border-gray-500/50 text-gray-200 hover:text-white font-bold text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer disabled:opacity-60 shadow-sm"
+        title="Sign in with Google OAuth 2.0"
       >
-        {loadingProvider === 'google' ? (
+        {loading ? (
           <Loader2 size={18} className="animate-spin text-primary" />
         ) : (
           <GoogleIcon size={18} />
         )}
-        <span>Google</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={handleFacebookPopup}
-        disabled={loadingProvider !== null}
-        className="flex items-center justify-center gap-2.5 py-3 px-4 rounded-2xl bg-[#202020] hover:bg-[#282828] border border-[#333333] hover:border-gray-500/50 text-gray-200 hover:text-white font-bold text-xs sm:text-sm transition-all duration-150 active:scale-98 cursor-pointer disabled:opacity-60 shadow-sm"
-        title="Sign in with Facebook OAuth Popup"
-      >
-        {loadingProvider === 'facebook' ? (
-          <Loader2 size={18} className="animate-spin text-[#1877F2]" />
-        ) : (
-          <FacebookIcon size={18} />
-        )}
-        <span>Facebook</span>
+        <span>Continue with Google</span>
       </button>
     </div>
   );

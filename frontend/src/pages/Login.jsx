@@ -59,7 +59,7 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Direct Social Authentication: Google & Facebook */}
+        {/* Direct Social Authentication: Google */}
         <div className="space-y-2">
           <SocialAuthButtons 
             role="TENANT"

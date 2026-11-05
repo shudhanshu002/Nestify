@@ -126,7 +126,7 @@ const Register = () => {
           </button>
         </div>
 
-        {/* Social Authentication: Google & Facebook */}
+        {/* Social Authentication: Google */}
         <div className="space-y-2">
           <SocialAuthButtons 
             role={role}
