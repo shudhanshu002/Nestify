@@ -105,20 +105,8 @@ const FAQS = [
   }
 ];
 
-const Home = () => {
-    const { user } = useContext(AuthContext);
-
-    // 1. OWNER ROLE: Render customized Owner Home Page
-    if (user?.role === 'OWNER') {
-        return <OwnerHome user={user} />;
-    }
-
-    // 2. ADMIN ROLE: Render customized Admin Home Page with all owners and verified PGs
-    if (user?.role === 'ADMIN') {
-        return <AdminHome user={user} />;
-    }
-
-    // 3. TENANT / GUEST ROLE: Public Discovery Experience
+const TenantDiscoveryHome = ({ user }) => {
+    // Public & Resident Discovery Experience
     const [properties, setProperties] = useState([]);
     const [category, setCategory] = useState('all');
     const [loading, setLoading] = useState(true);
@@ -945,6 +933,23 @@ const Home = () => {
 
         </div>
     );
+};
+
+const Home = () => {
+    const { user, activeMode } = useContext(AuthContext);
+
+    // 1. ADMIN ROLE: Render customized Admin Command Console
+    if (user?.role === 'ADMIN') {
+        return <AdminHome user={user} />;
+    }
+
+    // 2. OWNER IN OWNER CONSOLE MODE: Render customized Owner Home
+    if (user?.role === 'OWNER' && activeMode === 'OWNER') {
+        return <OwnerHome user={user} />;
+    }
+
+    // 3. TENANT / RESIDENT / OWNER IN RESIDENT MODE: Public Discovery Experience
+    return <TenantDiscoveryHome user={user} />;
 };
 
 export default Home;

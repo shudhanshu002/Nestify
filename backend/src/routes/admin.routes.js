@@ -5,7 +5,7 @@ import User from '../models/user.model.js';
 import Maintenance from '../models/maintenance.model.js';
 import Notification from '../models/notification.model.js';
 import { resolveDispute, getSystemActivity } from '../services/admin.service.js';
-import { protect, authorize } from '../middlewares/auth.middleware.js';
+import { protect, authorize, isSuperAdmin } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -266,6 +266,216 @@ router.put('/owners/:id/deal', async (req, res, next) => {
   // Delegate to same handler
   req.url = `/owners/${req.params.id}/deal`;
   router.handle(req, res, next);
+});
+
+// ============================================================
+// MAJOR ADMIN (SUPER ADMIN) GOVERNANCE & ALLOTMENT ENDPOINTS
+// ============================================================
+
+// @desc    Get all platform administrators (Only accessible by Major Admin)
+// @route   GET /api/v1/admin/manage-admins
+router.get('/manage-admins', isSuperAdmin, async (req, res, next) => {
+  try {
+    const admins = await User.find({ role: 'ADMIN' })
+      .select('firstName lastName email role isSuperAdmin adminSuspended isActive createdAt managedByAdmin')
+      .populate('managedByAdmin', 'firstName lastName email')
+      .sort('-createdAt');
+
+    res.status(200).json({
+      success: true,
+      count: admins.length,
+      data: admins
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Create a new Admin or Promote an existing user to ADMIN
+// @route   POST /api/v1/admin/manage-admins
+router.post('/manage-admins', isSuperAdmin, async (req, res, next) => {
+  try {
+    const { email, firstName, lastName, password, mode } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required." });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    let targetUser = await User.findOne({ email: cleanEmail });
+
+    if (mode === 'CREATE_NEW' || !targetUser) {
+      if (!firstName || !password) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "First name and password are required to create a new Administrator." 
+        });
+      }
+
+      if (targetUser) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "A user with this email already exists. Use promote option instead." 
+        });
+      }
+
+      targetUser = await User.create({
+        firstName,
+        lastName: lastName || '',
+        email: cleanEmail,
+        password,
+        role: 'ADMIN',
+        isSuperAdmin: false,
+        isEmailVerified: true,
+        managedByAdmin: req.user._id,
+        adminSuspended: false
+      });
+    } else {
+      // Promote existing user to ADMIN
+      targetUser.role = 'ADMIN';
+      targetUser.isSuperAdmin = false;
+      targetUser.adminSuspended = false;
+      targetUser.managedByAdmin = req.user._id;
+      await targetUser.save();
+    }
+
+    // Trigger notification
+    await Notification.create({
+      recipient: targetUser._id,
+      title: 'Platform Administrator Privilege Granted 🛡️',
+      message: `You have been allotted Administrator privileges by Major Admin ${req.user.firstName} ${req.user.lastName}.`,
+      type: 'SYSTEM'
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Admin privileges granted to ${targetUser.email}`,
+      data: {
+        _id: targetUser._id,
+        firstName: targetUser.firstName,
+        lastName: targetUser.lastName,
+        email: targetUser.email,
+        role: targetUser.role,
+        isSuperAdmin: targetUser.isSuperAdmin,
+        adminSuspended: targetUser.adminSuspended
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Close / Suspend an Admin account
+// @route   PATCH /api/v1/admin/manage-admins/:id/close
+router.patch('/manage-admins/:id/close', isSuperAdmin, async (req, res, next) => {
+  try {
+    const targetId = req.params.id;
+
+    if (targetId === req.user._id.toString()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Action Prohibited: Major Admin cannot suspend or close their own account." 
+      });
+    }
+
+    const targetAdmin = await User.findById(targetId);
+    if (!targetAdmin) {
+      return res.status(404).json({ success: false, message: "Admin user not found." });
+    }
+
+    if (targetAdmin.isSuperAdmin) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Action Prohibited: Another Major Admin cannot be suspended." 
+      });
+    }
+
+    targetAdmin.adminSuspended = true;
+    await targetAdmin.save();
+
+    await Notification.create({
+      recipient: targetAdmin._id,
+      title: 'Administrator Access Closed ⚠️',
+      message: `Your administrator account privileges were closed by Major Admin ${req.user.firstName}.`,
+      type: 'SYSTEM'
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Administrator ${targetAdmin.email} has been closed/suspended.`,
+      data: {
+        _id: targetAdmin._id,
+        email: targetAdmin.email,
+        adminSuspended: true
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Reactivate a closed Admin account
+// @route   PATCH /api/v1/admin/manage-admins/:id/activate
+router.patch('/manage-admins/:id/activate', isSuperAdmin, async (req, res, next) => {
+  try {
+    const targetAdmin = await User.findById(req.params.id);
+    if (!targetAdmin) {
+      return res.status(404).json({ success: false, message: "Admin user not found." });
+    }
+
+    targetAdmin.adminSuspended = false;
+    await targetAdmin.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Administrator ${targetAdmin.email} has been reactivated.`,
+      data: {
+        _id: targetAdmin._id,
+        email: targetAdmin.email,
+        adminSuspended: false
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @desc    Revoke Admin privileges completely (Demote to TENANT or OWNER)
+// @route   PATCH /api/v1/admin/manage-admins/:id/demote
+router.patch('/manage-admins/:id/demote', isSuperAdmin, async (req, res, next) => {
+  try {
+    const targetId = req.params.id;
+
+    if (targetId === req.user._id.toString()) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Action Prohibited: Major Admin cannot demote their own account." 
+      });
+    }
+
+    const targetAdmin = await User.findById(targetId);
+    if (!targetAdmin) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    const fallbackRole = req.body.targetRole === 'OWNER' ? 'OWNER' : 'TENANT';
+    targetAdmin.role = fallbackRole;
+    targetAdmin.isSuperAdmin = false;
+    targetAdmin.adminSuspended = false;
+    await targetAdmin.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Admin privileges revoked for ${targetAdmin.email}. Role transitioned to ${fallbackRole}.`,
+      data: {
+        _id: targetAdmin._id,
+        email: targetAdmin.email,
+        role: targetAdmin.role
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;

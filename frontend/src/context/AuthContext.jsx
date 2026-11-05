@@ -7,6 +7,23 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [wishlistIds, setWishlistIds] = useState(new Set());
+  const [activeMode, setActiveModeState] = useState(() => {
+    return localStorage.getItem('nestify_active_mode') || 'OWNER';
+  });
+
+  const setActiveMode = useCallback((mode) => {
+    const validMode = mode === 'TENANT' ? 'TENANT' : 'OWNER';
+    setActiveModeState(validMode);
+    localStorage.setItem('nestify_active_mode', validMode);
+  }, []);
+
+  const toggleActiveMode = useCallback(() => {
+    setActiveModeState(prev => {
+      const nextMode = prev === 'OWNER' ? 'TENANT' : 'OWNER';
+      localStorage.setItem('nestify_active_mode', nextMode);
+      return nextMode;
+    });
+  }, []);
 
   // Fetch and sync user's wishlist IDs
   const fetchWishlistIds = useCallback(async () => {
@@ -139,7 +156,10 @@ export const AuthProvider = ({ children }) => {
       wishlistIds,
       toggleWishlist,
       isWishlisted,
-      refreshWishlist: fetchWishlistIds
+      refreshWishlist: fetchWishlistIds,
+      activeMode,
+      setActiveMode,
+      toggleActiveMode
     }}>
       {children}
     </AuthContext.Provider>

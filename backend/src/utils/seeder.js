@@ -36,7 +36,7 @@ const seedData = async () => {
     const platformAdmin = await User.create({
       firstName: "Shudhanshu", lastName: "Singh",
       email: "admin@pgfinder.com", password: "password123",
-      role: "ADMIN", isEmailVerified: true
+      role: "ADMIN", isSuperAdmin: true, isEmailVerified: true
     });
 
     const individualOwner = await User.create({

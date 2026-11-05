@@ -69,7 +69,7 @@ function App() {
                 <Route path="/verify-identity" element={<KYCVerification />} />
               </Route>
 
-              <Route element={<ProtectedRoute allowedRoles={['TENANT']} />}>
+              <Route element={<ProtectedRoute allowedRoles={['TENANT', 'OWNER']} />}>
                 <Route path="/my-bookings" element={<MyBookings />} />
                 <Route path="/booking/confirm/:propertyId" element={<BookingConfirmation />} />
                 <Route path="/booking/success" element={<PaymentSuccess />} />

@@ -11,7 +11,7 @@ import API from '../api/client';
 import Logo from './Logo';
 
 const Navbar = () => {
-  const { user, logout, wishlistIds } = useContext(AuthContext);
+  const { user, logout, wishlistIds, activeMode, toggleActiveMode } = useContext(AuthContext);
   const { isChatOpen, setIsChatOpen, socket, openChatWithAdmin } = useChat();
   const navigate = useNavigate();
   const location = useLocation();
@@ -141,7 +141,7 @@ const Navbar = () => {
 
         {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-4 lg:gap-6 text-xs lg:text-sm font-semibold text-neutral-300">
-          {(!user || user.role === 'TENANT') && (
+          {(!user || user.role === 'TENANT' || (user.role === 'OWNER' && activeMode === 'TENANT')) && (
             <>
               <Link 
                 to="/search" 
@@ -180,15 +180,6 @@ const Navbar = () => {
                   )}
                 </Link>
               )}
-              {user && (
-                <Link 
-                  to="/profile" 
-                  onClick={handleMenuClick}
-                  className={`transition-colors ${isActive('/profile') && !location.search.includes('wishlist') ? 'text-white font-extrabold border-b-2 border-[#E50914] pb-1' : 'hover:text-white'}`}
-                >
-                  Profile
-                </Link>
-              )}
               <Link 
                 to="/help" 
                 onClick={handleMenuClick}
@@ -199,7 +190,7 @@ const Navbar = () => {
             </>
           )}
 
-          {user && user.role === 'OWNER' && (
+          {user && user.role === 'OWNER' && activeMode === 'OWNER' && (
             <>
               <Link 
                 to="/owner/my-properties" 
@@ -262,6 +253,18 @@ const Navbar = () => {
 
       {/* Right Controls: Concierge, Notifications, Avatar Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Owner Dual-Mode Switcher Pill */}
+        {user && user.role === 'OWNER' && (
+          <button
+            onClick={toggleActiveMode}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition bg-neutral-900 border-neutral-800 hover:border-neutral-600 text-neutral-200 cursor-pointer shadow-sm"
+            title={activeMode === 'OWNER' ? "Switch to Resident Mode to browse and book stays" : "Switch back to Owner Console"}
+          >
+            <span className={`w-2 h-2 rounded-full ${activeMode === 'OWNER' ? 'bg-[#46D369]' : 'bg-[#E50914]'}`}></span>
+            <span>{activeMode === 'OWNER' ? 'Resident Mode' : 'Owner Console'}</span>
+          </button>
+        )}
+
         {/* Concierge Chat Trigger */}
         <button 
           onClick={() => setIsChatOpen(!isChatOpen)}
@@ -373,12 +376,34 @@ const Navbar = () => {
 
                   {user.role === 'OWNER' && (
                     <>
+                      <button
+                        onClick={() => {
+                          toggleActiveMode();
+                          setIsOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-amber-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Building2 size={15} />
+                          <span>{activeMode === 'OWNER' ? 'Switch to Resident Mode' : 'Switch to Owner Console'}</span>
+                        </div>
+                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                          {activeMode}
+                        </span>
+                      </button>
                       <Link 
                         to="/owner/dashboard" 
                         onClick={handleMenuClick} 
                         className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-neutral-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition"
                       >
                         <LayoutDashboard size={15} className="text-neutral-400" /> Owner Console
+                      </Link>
+                      <Link 
+                        to="/my-bookings" 
+                        onClick={handleMenuClick} 
+                        className="flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-neutral-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition"
+                      >
+                        <HomeIcon size={15} className="text-neutral-400" /> My Personal Stays
                       </Link>
                       <Link 
                         to="/verify-identity" 
@@ -455,7 +480,22 @@ const Navbar = () => {
       {mobileMenuOpen && (
         <div className="md:hidden fixed top-[60px] left-0 right-0 bg-[#0d0d0d] border-b border-neutral-800 p-5 space-y-3 shadow-2xl z-50 animate-in slide-in-from-top-2 duration-200">
           <div className="flex flex-col space-y-2 text-sm font-semibold">
-            {(!user || user.role === 'TENANT') && (
+            {user && user.role === 'OWNER' && (
+              <button
+                onClick={() => {
+                  toggleActiveMode();
+                  handleMenuClick();
+                }}
+                className="w-full text-left py-2.5 px-3 rounded-xl bg-neutral-900 border border-neutral-800 text-amber-300 font-bold text-xs flex items-center justify-between transition cursor-pointer mb-2"
+              >
+                <span>Current Mode: {activeMode === 'OWNER' ? 'Owner Console' : 'Resident Mode'}</span>
+                <span className="text-[10px] bg-neutral-800 px-2 py-0.5 rounded text-white border border-neutral-700">
+                  Switch to {activeMode === 'OWNER' ? 'Resident' : 'Owner'}
+                </span>
+              </button>
+            )}
+
+            {(!user || user.role === 'TENANT' || (user.role === 'OWNER' && activeMode === 'TENANT')) && (
               <>
                 <Link to="/search" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
                   Browse Stays
@@ -473,18 +513,13 @@ const Navbar = () => {
                     Wishlist ({wishlistIds ? wishlistIds.size : 0})
                   </Link>
                 )}
-                {user && (
-                  <Link to="/profile" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
-                    Profile
-                  </Link>
-                )}
                 <Link to="/help" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
                   Help Centre
                 </Link>
               </>
             )}
 
-            {user && user.role === 'OWNER' && (
+            {user && user.role === 'OWNER' && activeMode === 'OWNER' && (
               <>
                 <Link to="/owner/my-properties" onClick={handleMenuClick} className="py-2 px-3 rounded-lg hover:bg-neutral-900 text-neutral-200">
                   Portfolio

@@ -43,6 +43,7 @@ export const registerUser = async (req, res, next) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        isSuperAdmin: !!user.isSuperAdmin,
         avatar: user.avatar || user.profile?.avatar || '',
       };
       res.status(201).json({
@@ -71,6 +72,7 @@ export const loginUser = async (req, res, next) => {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        isSuperAdmin: !!user.isSuperAdmin,
         avatar: user.avatar || user.profile?.avatar || '',
       };
       res.json({
@@ -232,6 +234,7 @@ export const googleLogin = async (req, res, next) => {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
+      isSuperAdmin: !!user.isSuperAdmin,
       avatar: user.avatar || user.profile?.avatar || '',
     };
 
@@ -309,6 +312,7 @@ export const facebookLogin = async (req, res, next) => {
       lastName: user.lastName,
       email: user.email,
       role: user.role,
+      isSuperAdmin: !!user.isSuperAdmin,
       avatar: user.avatar || user.profile?.avatar || '',
     };
 

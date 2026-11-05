@@ -72,9 +72,22 @@ const userSchema = new mongoose.Schema({
         paymentStatus: 'NOT_APPLICABLE'
       }) 
     },
+    // Major Admin & Governance Fields
+    isSuperAdmin: { type: Boolean, default: false },
+    adminSuspended: { type: Boolean, default: false },
+    managedByAdmin: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
     isActive: { type: Boolean, default: true },
     wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Property' }],
 }, { timestamps: true });
+
+// Anti-Data-Leakage: Strip password hash automatically when serialized to JSON
+userSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    return ret;
+  }
+});
 
 userSchema.pre('save', async function(next) {
     if(!this.isModified('password')) return next();

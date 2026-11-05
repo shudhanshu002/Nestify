@@ -1,6 +1,6 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import jwt from 'jsonwebtoken';
-import { protect, authorize, isAdmin } from '../src/middlewares/auth.middleware.js';
+import { protect, authorize, isAdmin, isSuperAdmin } from '../src/middlewares/auth.middleware.js';
 import User from '../src/models/user.model.js';
 
 describe('Auth Middleware Suite (protect, authorize, isAdmin)', () => {
@@ -126,6 +126,49 @@ describe('Auth Middleware Suite (protect, authorize, isAdmin)', () => {
       expect(res.status).toHaveBeenCalledWith(403);
       const error = next.mock.calls[0][0];
       expect(error.message).toMatch(/Matrix access denied/i);
+    });
+
+    it('should deny access (403) if admin is suspended/closed', () => {
+      req.user = { role: 'ADMIN', adminSuspended: true };
+      isAdmin(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      const error = next.mock.calls[0][0];
+      expect(error.message).toMatch(/suspended or closed/i);
+    });
+  });
+
+  describe('isSuperAdmin (Major Admin) middleware', () => {
+    it('should grant access if user is Major Admin (role ADMIN and isSuperAdmin true)', () => {
+      req.user = { role: 'ADMIN', isSuperAdmin: true };
+      isSuperAdmin(req, res, next);
+
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('should deny access (403) to regular ADMIN without isSuperAdmin flag', () => {
+      req.user = { role: 'ADMIN', isSuperAdmin: false };
+      isSuperAdmin(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      const error = next.mock.calls[0][0];
+      expect(error.message).toMatch(/Major Admin authorization required/i);
+    });
+
+    it('should deny access (403) if Major Admin is suspended', () => {
+      req.user = { role: 'ADMIN', isSuperAdmin: true, adminSuspended: true };
+      isSuperAdmin(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      const error = next.mock.calls[0][0];
+      expect(error.message).toMatch(/Major Admin authorization required/i);
+    });
+
+    it('should deny access (403) if user is TENANT or OWNER', () => {
+      req.user = { role: 'OWNER', isSuperAdmin: false };
+      isSuperAdmin(req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(403);
     });
   });
 });
