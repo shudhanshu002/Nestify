@@ -9,15 +9,19 @@ import {
   checkReviewEligibility
 } from '../controllers/auth.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
+import { authLimiter } from '../middlewares/security.middleware.js';
 
 const router = express.Router();
 
-router.post('/register', registerUser);
-router.post('/login', loginUser);
-router.post('/google', googleLogin);
-router.post('/facebook', facebookLogin);
-router.post('/otp/request', requestOTP);
-router.post('/otp/verify', verifyOTPAndLogin);
+// Apply anti-brute-force limiter to authentication endpoints
+router.post('/register', authLimiter, registerUser);
+router.post('/login', authLimiter, loginUser);
+router.post('/google', authLimiter, googleLogin);
+router.post('/facebook', authLimiter, facebookLogin);
+router.post('/otp/request', authLimiter, requestOTP);
+router.post('/otp/verify', authLimiter, verifyOTPAndLogin);
+
+// Review eligibility check
 router.get('/review-eligibility/:propertyId', protect, checkReviewEligibility);
 
 export default router;
