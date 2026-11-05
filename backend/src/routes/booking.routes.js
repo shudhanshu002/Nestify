@@ -11,13 +11,14 @@ import {
   extendStay
 } from '../controllers/booking.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
+import { transactionLimiter } from '../middlewares/security.middleware.js';
 
 const router = express.Router();
 
 router.use(protect); 
 
-router.post('/', createBooking); 
-router.post('/initiate', initiateBooking);
+router.post('/', transactionLimiter, createBooking); 
+router.post('/initiate', transactionLimiter, initiateBooking);
 router.get('/my-bookings', getMyBookings);
 router.get('/owner-bookings', getOwnerBookings);
 router.get('/owner-occupancy', getOwnerOccupancyMatrix);
@@ -30,6 +31,6 @@ router.get('/:id/check-extend', checkExtensionAvailability);
 router.post('/:id/check-extend', checkExtensionAvailability);
 router.get('/:id/check-extension', checkExtensionAvailability);
 router.post('/:id/check-extension', checkExtensionAvailability);
-router.post('/:id/extend', extendStay);
+router.post('/:id/extend', transactionLimiter, extendStay);
 
 export default router;

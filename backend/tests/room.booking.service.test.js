@@ -2,7 +2,15 @@ import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import mongoose from 'mongoose';
 import Room from '../src/models/room.model.js';
 import Booking from '../src/models/booking.model.js';
-import { lockRoomForBooking, confirmBooking } from '../src/services/booking.service.js';
+import { 
+  lockRoomForBooking, 
+  confirmBooking, 
+  roomMutex, 
+  checkUserDualBookingConflict, 
+  acquireIdempotencyLock, 
+  completeIdempotency, 
+  releaseIdempotencyLock 
+} from '../src/services/booking.service.js';
 
 describe('Room Model & Booking Concurrency Lock Service Suite', () => {
   const dummyPropId = new mongoose.Types.ObjectId();
@@ -142,6 +150,97 @@ describe('Room Model & Booking Concurrency Lock Service Suite', () => {
           $set: { isLocked: false, lockTimeout: null }
         })
       );
+    });
+  });
+
+  describe('High-Performance Resource Mutex & Atomic Concurrency', () => {
+    it('should serialize concurrent executions for the same room resource key', async () => {
+      const order = [];
+      const key = `room:${dummyRoomId}`;
+
+      const task1 = roomMutex.acquire(key, async () => {
+        await new Promise(r => setTimeout(r, 15));
+        order.push('task1');
+        return 'res1';
+      });
+
+      const task2 = roomMutex.acquire(key, async () => {
+        order.push('task2');
+        return 'res2';
+      });
+
+      const [r1, r2] = await Promise.all([task1, task2]);
+
+      expect(r1).toBe('res1');
+      expect(r2).toBe('res2');
+      expect(order).toEqual(['task1', 'task2']);
+    });
+  });
+
+  describe('Dual Booking Conflict Detection', () => {
+    it('should detect an existing overlapping reservation for the same tenant', async () => {
+      const mockConflict = {
+        _id: new mongoose.Types.ObjectId(),
+        status: 'CONFIRMED',
+        checkInDate: new Date('2026-04-01'),
+        checkOutDate: new Date('2026-04-30')
+      };
+
+      jest.spyOn(Booking, 'findOne').mockReturnValue({
+        select: jest.fn().mockResolvedValue(mockConflict)
+      });
+
+      const conflict = await checkUserDualBookingConflict(
+        dummyTenantId,
+        dummyRoomId,
+        '2026-04-10',
+        '2026-05-10'
+      );
+
+      expect(conflict).toBeDefined();
+      expect(conflict._id).toEqual(mockConflict._id);
+    });
+
+    it('should return null if no overlapping booking exists for the tenant', async () => {
+      jest.spyOn(Booking, 'findOne').mockReturnValue({
+        select: jest.fn().mockResolvedValue(null)
+      });
+
+      const conflict = await checkUserDualBookingConflict(
+        dummyTenantId,
+        dummyRoomId,
+        '2026-06-01',
+        '2026-06-30'
+      );
+
+      expect(conflict).toBeNull();
+    });
+  });
+
+  describe('Idempotency & Double-Click Protection', () => {
+    it('should lock an in-flight request and return cached result on completion', () => {
+      const testKey = 'test-idem-key-' + Date.now();
+
+      // First call acquires lock
+      const firstLock = acquireIdempotencyLock(testKey);
+      expect(firstLock).toBeNull();
+
+      // Second simultaneous call detects in-flight request
+      const secondLock = acquireIdempotencyLock(testKey);
+      expect(secondLock).toBeDefined();
+      expect(secondLock.status).toBe('PENDING');
+
+      // Complete the request
+      completeIdempotency(testKey, { success: true, bookingId: 'abc1234' });
+
+      // Third call receives completed result
+      const completedCall = acquireIdempotencyLock(testKey);
+      expect(completedCall.status).toBe('COMPLETED');
+      expect(completedCall.result).toEqual({ success: true, bookingId: 'abc1234' });
+
+      // Cleanup
+      releaseIdempotencyLock(testKey);
+      expect(acquireIdempotencyLock(testKey)).toBeNull();
     });
   });
 });

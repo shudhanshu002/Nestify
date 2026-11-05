@@ -3,6 +3,13 @@ import Room from '../models/room.model.js';
 import Property from '../models/property.model.js';
 import Notification from '../models/notification.model.js';
 import Payment from '../models/payment.model.js';
+import { 
+  roomMutex, 
+  checkUserDualBookingConflict, 
+  acquireIdempotencyLock, 
+  completeIdempotency, 
+  releaseIdempotencyLock 
+} from '../services/booking.service.js';
 
 /**
  * Standardized Date-Interval Conflict Utility
@@ -91,84 +98,149 @@ export const initiateBooking = async (req, res, next) => {
   }
 };
 
-// @desc    Create a new booking with conflict protection
+// @desc    Create a new booking with dual booking & concurrency conflict protection
 // @route   POST /api/v1/bookings
 export const createBooking = async (req, res, next) => {
+  const idempotencyKey = req.headers['idempotency-key'] || req.body.idempotencyKey;
   try {
     const { property, room, checkInDate, checkOutDate, totalAmount } = req.body;
 
-    // 1. Get room details
-    const roomDoc = await Room.findById(room).populate('property');
-    if (!roomDoc) return res.status(404).json({ success: false, message: "Room not found" });
-
-    // 2. Conflict Management: Check overlapping bookings
-    const availableUnits = await getAvailableCountForDates(
-      room, 
-      checkInDate, 
-      checkOutDate, 
-      roomDoc.totalInventory
-    );
-
-    // 3. Block if all units are booked (e.g. 5 total, 5 booked -> 0 available)
-    if (availableUnits <= 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Sold Out! All ${roomDoc.totalInventory} rooms of this type are already booked for the selected dates.` 
-      });
+    if (!room || !checkInDate || !checkOutDate) {
+      return res.status(400).json({ success: false, message: "Room, check-in date, and check-out date are required" });
     }
 
-    // 4. Create Booking
-    const booking = await Booking.create({
-      tenant: req.user._id,
-      property,
-      room,
-      checkInDate: new Date(checkInDate),
-      checkOutDate: new Date(checkOutDate),
-      totalAmount,
-      status: 'CONFIRMED',
-      paymentStatus: 'PAID'
-    });
-
-    // 4.1 Record Initial Ledger Payment Transaction
-    try {
-      const initTxnId = `TXN-INIT-${booking._id.toString().slice(-6).toUpperCase()}-${Date.now().toString().slice(-6)}`;
-      const platformFee = Math.round(totalAmount * 0.10);
-      await Payment.create({
-        booking: booking._id,
-        transactionId: initTxnId,
-        gateway: 'RAZORPAY',
-        amount: totalAmount,
-        currency: 'INR',
-        platformFee,
-        ownerSettlementAmount: totalAmount - platformFee,
-        status: 'COMPLETED',
-        settlementStatus: 'UNSETTLED'
-      });
-    } catch (payErr) {
-      console.warn("Could not record initial payment record:", payErr.message);
-    }
-
-    // 5. Update room snapshot
-    roomDoc.availableInventory = Math.max(0, availableUnits - 1);
-    await roomDoc.save();
-
-    // Real-time socket notification for owner inventory sync
-    try {
-      const io = req.app?.get('io');
-      const ownerId = roomDoc.property?.owner?._id || roomDoc.property?.owner;
-      if (io && ownerId) {
-        io.to(ownerId.toString()).emit('booking_inventory_updated', { 
-          bookingId: booking._id,
-          propertyId: roomDoc.property?._id || roomDoc.property,
-          roomId: roomDoc._id 
+    // 0. Idempotency Check (Anti-Double-Submission / Anti-Rapid-Click)
+    if (idempotencyKey) {
+      const cached = acquireIdempotencyLock(idempotencyKey);
+      if (cached) {
+        if (cached.status === 'COMPLETED' && cached.result) {
+          return res.status(200).json(cached.result);
+        }
+        return res.status(409).json({
+          success: false,
+          code: 'CONCURRENT_REQUEST_IN_FLIGHT',
+          message: 'A duplicate booking request is currently being processed. Please wait.'
         });
       }
-    } catch (sockErr) {
-      console.warn("Socket broadcast error:", sockErr.message);
     }
 
-    res.status(201).json({ success: true, data: booking });
+    // 1. Dual Booking Conflict Protection for Same User
+    // Checks if the user already has an active/confirmed booking on this room for overlapping dates
+    const existingConflict = await checkUserDualBookingConflict(
+      req.user._id,
+      room,
+      checkInDate,
+      checkOutDate
+    );
+
+    if (existingConflict) {
+      if (idempotencyKey) releaseIdempotencyLock(idempotencyKey);
+      return res.status(409).json({
+        success: false,
+        code: 'DUAL_BOOKING_CONFLICT',
+        message: 'Dual Booking Conflict: You already have an active reservation for this room during these selected dates.',
+        conflict: {
+          bookingId: existingConflict._id,
+          checkInDate: existingConflict.checkInDate,
+          checkOutDate: existingConflict.checkOutDate,
+          status: existingConflict.status
+        }
+      });
+    }
+
+    // 2. High-Performance Concurrency Mutex Lock per Room
+    // Serializes concurrent requests for the exact same room to guarantee ZERO overbooking race conditions
+    const result = await roomMutex.acquire(`room:${room}`, async () => {
+      // 2.1 Get room details
+      const roomDoc = await Room.findById(room).populate('property');
+      if (!roomDoc) {
+        return { status: 404, body: { success: false, message: "Room not found" } };
+      }
+
+      // 2.2 Re-verify availability inside the critical lock section
+      const availableUnits = await getAvailableCountForDates(
+        room, 
+        checkInDate, 
+        checkOutDate, 
+        roomDoc.totalInventory
+      );
+
+      // 2.3 Block if all units are booked (Return 409 Conflict)
+      if (availableUnits <= 0) {
+        return {
+          status: 409,
+          body: {
+            success: false,
+            code: 'ROOM_OVERBOOKING_CONFLICT',
+            message: `Sold Out! All ${roomDoc.totalInventory} rooms of this type are already booked for the selected dates.`
+          }
+        };
+      }
+
+      // 2.4 Create Booking atomically
+      const booking = await Booking.create({
+        tenant: req.user._id,
+        property,
+        room,
+        checkInDate: new Date(checkInDate),
+        checkOutDate: new Date(checkOutDate),
+        totalAmount,
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID'
+      });
+
+      // 2.5 Record Initial Ledger Payment Transaction
+      try {
+        const initTxnId = `TXN-INIT-${booking._id.toString().slice(-6).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+        const platformFee = Math.round(totalAmount * 0.10);
+        await Payment.create({
+          booking: booking._id,
+          transactionId: initTxnId,
+          gateway: 'RAZORPAY',
+          amount: totalAmount,
+          currency: 'INR',
+          platformFee,
+          ownerSettlementAmount: totalAmount - platformFee,
+          status: 'COMPLETED',
+          settlementStatus: 'UNSETTLED'
+        });
+      } catch (payErr) {
+        console.warn("Could not record initial payment record:", payErr.message);
+      }
+
+      // 2.6 Update room snapshot
+      roomDoc.availableInventory = Math.max(0, availableUnits - 1);
+      await roomDoc.save();
+
+      // Real-time socket notification for owner inventory sync
+      try {
+        const io = req.app?.get('io');
+        const ownerId = roomDoc.property?.owner?._id || roomDoc.property?.owner;
+        if (io && ownerId) {
+          io.to(ownerId.toString()).emit('booking_inventory_updated', { 
+            bookingId: booking._id,
+            propertyId: roomDoc.property?._id || roomDoc.property,
+            roomId: roomDoc._id 
+          });
+        }
+      } catch (sockErr) {
+        console.warn("Socket broadcast error:", sockErr.message);
+      }
+
+      return { status: 201, body: { success: true, data: booking } };
+    });
+
+    if (idempotencyKey) {
+      if (result.status === 201) {
+        completeIdempotency(idempotencyKey, result.body);
+      } else {
+        releaseIdempotencyLock(idempotencyKey);
+      }
+    }
+
+    return res.status(result.status).json(result.body);
   } catch (error) {
+    if (idempotencyKey) releaseIdempotencyLock(idempotencyKey);
     console.error("OVERLAP_PROTECTION_FAILED:", error);
     next(error);
   }
@@ -304,61 +376,73 @@ export const extendStay = async (req, res, next) => {
     const dailyRate = roomDoc.basePrice || Math.round(booking.totalAmount / 30);
     const additionalAmount = additionalDays * dailyRate;
 
-    // Strict overlap check on the extension window
-    const availableUnits = await getAvailableCountForDates(
-      roomDoc._id,
-      currentCheckOut,
-      targetCheckOut,
-      roomDoc.totalInventory,
-      booking._id
-    );
+    // Strict atomic overlap check and extension reservation inside room mutex
+    const result = await roomMutex.acquire(`room:${roomDoc._id}`, async () => {
+      const availableUnits = await getAvailableCountForDates(
+        roomDoc._id,
+        currentCheckOut,
+        targetCheckOut,
+        roomDoc.totalInventory,
+        booking._id
+      );
 
-    if (availableUnits <= 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Extension unavailable! All ${roomDoc.totalInventory} rooms of this type are booked for the requested extension period.` 
+      if (availableUnits <= 0) {
+        return {
+          status: 409,
+          body: {
+            success: false,
+            code: 'EXTENSION_CONFLICT',
+            message: `Extension unavailable! All ${roomDoc.totalInventory} rooms of this type are booked for the requested extension period.`
+          }
+        };
+      }
+
+      // 5. Generate Extension Ledger Transaction
+      const extTransactionId = `TXN-EXT-${booking._id.toString().slice(-6).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+      const platformFee = Math.round(additionalAmount * 0.10);
+      try {
+        await Payment.create({
+          booking: booking._id,
+          transactionId: extTransactionId,
+          gateway: 'RAZORPAY',
+          amount: additionalAmount,
+          currency: 'INR',
+          platformFee,
+          ownerSettlementAmount: additionalAmount - platformFee,
+          status: 'COMPLETED',
+          settlementStatus: 'UNSETTLED'
+        });
+      } catch (payErr) {
+        console.warn("Could not record extension payment transaction:", payErr.message);
+      }
+
+      // 6. Record extension in audit log
+      booking.extensions = booking.extensions || [];
+      booking.extensions.push({
+        extendedAt: new Date(),
+        previousCheckOutDate: currentCheckOut,
+        newCheckOutDate: targetCheckOut,
+        additionalDays,
+        additionalAmount,
+        paymentStatus: 'PAID',
+        transactionId: extTransactionId
       });
-    }
 
-    // 5. Generate Extension Ledger Transaction
-    const extTransactionId = `TXN-EXT-${booking._id.toString().slice(-6).toUpperCase()}-${Date.now().toString().slice(-6)}`;
-    const platformFee = Math.round(additionalAmount * 0.10);
-    try {
-      await Payment.create({
-        booking: booking._id,
-        transactionId: extTransactionId,
-        gateway: 'RAZORPAY',
-        amount: additionalAmount,
-        currency: 'INR',
-        platformFee,
-        ownerSettlementAmount: additionalAmount - platformFee,
-        status: 'COMPLETED',
-        settlementStatus: 'UNSETTLED'
-      });
-    } catch (payErr) {
-      console.warn("Could not record extension payment transaction:", payErr.message);
-    }
+      // 7. Update checkOutDate and totalAmount
+      booking.checkOutDate = targetCheckOut;
+      booking.totalAmount += additionalAmount;
+      await booking.save();
 
-    // 6. Record extension in audit log
-    booking.extensions = booking.extensions || [];
-    booking.extensions.push({
-      extendedAt: new Date(),
-      previousCheckOutDate: currentCheckOut,
-      newCheckOutDate: targetCheckOut,
-      additionalDays,
-      additionalAmount,
-      paymentStatus: 'PAID',
-      transactionId: extTransactionId
+      // 8. Update room cached inventory
+      roomDoc.availableInventory = Math.max(0, availableUnits - 1);
+      await roomDoc.save();
+
+      return { status: 200, body: null };
     });
 
-    // 7. Update checkOutDate and totalAmount
-    booking.checkOutDate = targetCheckOut;
-    booking.totalAmount += additionalAmount;
-    await booking.save();
-
-    // 8. Update room cached inventory
-    roomDoc.availableInventory = Math.max(0, availableUnits - 1);
-    await roomDoc.save();
+    if (result.status !== 200) {
+      return res.status(result.status).json(result.body);
+    }
 
     // 9. Notify Owner
     const propOwnerId = booking.property?.owner?._id || booking.property?.owner;

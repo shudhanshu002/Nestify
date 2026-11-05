@@ -8,13 +8,14 @@ import {
   respondToTicket 
 } from '../controllers/maintenance.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
+import { interactionLimiter } from '../middlewares/security.middleware.js';
 
 const router = express.Router();
 
 // All maintenance routes require login
 router.use(protect);
 
-router.post('/', createTicket);
+router.post('/', interactionLimiter, createTicket);
 router.get('/my-tickets', getMyTickets);
 router.get('/my-tickets/:propertyId', getMyTickets);
 router.patch('/:id/respond', respondToTicket);

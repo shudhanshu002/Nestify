@@ -9,12 +9,13 @@ import {
   getUnreadCount
 } from '../controllers/chat.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
+import { chatLimiter } from '../middlewares/security.middleware.js';
 
 const router = express.Router();
 router.use(protect);
 
 router.post('/access', startChat);
-router.post('/send', sendMessage);
+router.post('/send', chatLimiter, sendMessage);
 router.get('/my-chats', fetchMyChats);
 router.get('/history/:chatId', fetchMessages);
 router.patch('/read/:chatId', markAsRead);

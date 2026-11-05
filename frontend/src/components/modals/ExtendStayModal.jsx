@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import API from '../../api/client';
 import CustomDatePicker from '../common/CustomDatePicker';
+import { toast } from '../../context/ToastContext';
 
 const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
   const currentCheckOut = new Date(booking.checkOutDate);
@@ -57,11 +58,11 @@ const ExtendStayModal = ({ booking, onClose, onSuccess }) => {
         newCheckOutDate: selectedDate
       });
       const result = data?.data || data;
-      alert(`🎉 Extension Confirmed!\nYour stay has been extended until ${new Date(selectedDate).toLocaleDateString()}.\nPayment of ₹${availabilityData.additionalAmount.toLocaleString()} recorded.`);
+      toast.success(`🎉 Stay extended until ${new Date(selectedDate).toLocaleDateString()}! Payment of ₹${availabilityData.additionalAmount.toLocaleString()} confirmed.`);
       if (onSuccess) onSuccess(result);
       onClose();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to extend stay.");
+      toast.error(err.response?.data?.message || "Failed to extend stay.");
     } finally {
       setSubmitting(false);
     }
