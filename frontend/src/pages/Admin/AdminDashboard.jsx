@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import API from '../../api/client';
 import { useChat } from '../../context/ChatContext';
 import { useToast } from '../../context/ToastContext';
@@ -16,9 +16,23 @@ const AdminDashboard = () => {
   const { setSelectedChat, setIsChatOpen } = useChat();
   const toast = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  // Top Section Switcher: 'owners' | 'deals' | 'analytics'
-  const [activeTab, setActiveTab] = useState('owners');
+  // Top Section Switcher: 'owners' | 'deals' | 'analytics' | 'admins'
+  const [activeTab, setActiveTab] = useState(() => {
+    const tabParam = searchParams.get('tab');
+    if (['owners', 'deals', 'analytics', 'admins'].includes(tabParam)) {
+      return tabParam;
+    }
+    return 'owners';
+  });
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['owners', 'deals', 'analytics', 'admins'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Loading & Data States
   const [loading, setLoading] = useState(true);
@@ -1183,7 +1197,7 @@ const AdminDashboard = () => {
             </table>
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'analytics' ? (
 
         /* -------------------------------------------------------------
            TAB 3: PERFORMANCE & PLATFORM ANALYTICS
@@ -1515,7 +1529,6 @@ const AdminDashboard = () => {
             </div>
           )}
         </div>
-      )}
       ) : activeTab === 'admins' ? (
         /* -------------------------------------------------------------
            TAB 4: MAJOR ADMIN - STAFF & ADMIN GOVERNANCE
@@ -1764,6 +1777,7 @@ const AdminDashboard = () => {
             )}
           </div>
         </div>
+      ) : null}
 
       {/* =============================================================
           MODAL 1: ADJUST COMMERCIAL DEAL TERMS
