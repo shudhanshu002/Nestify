@@ -2,7 +2,8 @@ import User from "../models/user.model.js";
 import generateToken from "../utils/generateToken.js";
 import * as userService from '../services/user.service.js';
 import * as otpService from '../services/otp.service.js';
-import { sendVerificationEmail } from '../services/email.service.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service.js';
+import { validatePassword } from '../utils/passwordValidator.js';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
@@ -11,6 +12,23 @@ import Property from '../models/property.model.js';
 
 const googleClientId = process.env.CLIENT_ID_GOOGLE || process.env.GOOGLE_CLIENT_ID;
 const client = new OAuth2Client(googleClientId);
+
+/**
+ * Helper to determine if an email is restricted for admin governance
+ */
+const isAdminEmailOrAccount = (cleanEmail, existingUser) => {
+  if (existingUser && (existingUser.role === 'ADMIN' || existingUser.isSuperAdmin)) {
+    return true;
+  }
+  const reservedAdminEmails = ['admin@pgfinder.com', 'admin@nestify.in', 'sudhanshu6073@gmail.com'];
+  if (reservedAdminEmails.includes(cleanEmail)) {
+    return true;
+  }
+  if (cleanEmail.startsWith('admin@') || cleanEmail.startsWith('superadmin@')) {
+    return true;
+  }
+  return false;
+};
 
 // @desc    Send Registration OTP to Email
 // @route   POST /api/v1/auth/send-register-otp
@@ -27,16 +45,30 @@ export const sendRegisterOTP = async (req, res, next) => {
     // 1. Check if user already exists
     const userExists = await User.findOne({ email: cleanEmail });
     if (userExists) {
+      if (isAdminEmailOrAccount(cleanEmail, userExists)) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'This email is reserved for an Administrator account and cannot be registered as a standard user.' 
+        });
+      }
       return res.status(400).json({ 
         success: false, 
-        message: 'An account with this email already exists. Please sign in instead.' 
+        message: 'User with this email already exists. Please sign in instead.' 
       });
     }
 
-    // 2. Generate and store OTP in database
+    // 2. Check if email belongs to administrative reserved list
+    if (isAdminEmailOrAccount(cleanEmail, null)) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Administrative email addresses cannot be used to create standard user accounts.' 
+      });
+    }
+
+    // 3. Generate and store OTP in database
     const otp = await otpService.sendOTP(null, cleanEmail, 'EMAIL_VERIFICATION');
 
-    // 3. Dispatch verification email directly to user's inbox
+    // 4. Dispatch verification email directly to user's inbox
     await sendVerificationEmail(cleanEmail, otp, firstName || 'Resident');
 
     res.status(200).json({
@@ -64,13 +96,32 @@ export const registerUser = async (req, res, next) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // 1. Check for existing user
-    const userExists = await User.findOne({ email: cleanEmail });
-    if (userExists) {
-      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    // 1. Validate strong password policy (min 8 chars, uppercase, lowercase, number, special char)
+    const pwdValidation = validatePassword(password);
+    if (!pwdValidation.isValid) {
+      return res.status(400).json({ success: false, message: pwdValidation.message });
     }
 
-    // 2. Verify Email OTP
+    // 2. Check for existing user or admin restriction
+    const userExists = await User.findOne({ email: cleanEmail });
+    if (userExists) {
+      if (isAdminEmailOrAccount(cleanEmail, userExists)) {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'This email is reserved for an Administrator account and cannot be registered as a standard user.' 
+        });
+      }
+      return res.status(400).json({ success: false, message: 'User with this email already exists. Please sign in instead.' });
+    }
+
+    if (isAdminEmailOrAccount(cleanEmail, null)) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Administrative email addresses cannot be used to create standard user accounts.' 
+      });
+    }
+
+    // 3. Verify Email OTP
     if (!otp) {
       return res.status(400).json({ 
         success: false, 
@@ -86,11 +137,11 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
-    // 3. SECURITY LOCK: Role Sanitization
+    // 4. SECURITY LOCK: Role Sanitization
     const publicRoles = ['TENANT', 'OWNER'];
     const sanitizedRole = publicRoles.includes(role) ? role : 'TENANT';
 
-    // 4. Create the User with verified email
+    // 5. Create the User with verified email
     const user = await User.create({
       firstName: firstName.trim(),
       lastName: (lastName || '').trim(),
@@ -119,6 +170,106 @@ export const registerUser = async (req, res, next) => {
     }
   } catch (error) {
     next(error);
+  }
+};
+
+// @desc    Request Password Reset OTP
+// @route   POST /api/v1/auth/forgot-password/request
+export const forgotPasswordRequest = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ success: false, message: 'A valid email address is required.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account registered with this email address.'
+      });
+    }
+
+    // Generate and store OTP in database
+    const otp = await otpService.sendOTP(user._id, cleanEmail, 'PASSWORD_RESET');
+
+    // Dispatch authentic branded password reset email
+    await sendPasswordResetEmail(cleanEmail, otp, user.firstName || 'Resident');
+
+    res.status(200).json({
+      success: true,
+      message: `A 6-digit password reset code has been dispatched to ${cleanEmail}.`
+    });
+  } catch (error) {
+    console.error("forgotPasswordRequest error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to dispatch password reset email. Please try again.'
+    });
+  }
+};
+
+// @desc    Reset Password with OTP
+// @route   POST /api/v1/auth/forgot-password/reset
+export const forgotPasswordReset = async (req, res, next) => {
+  try {
+    const { email, otp, newPassword, confirmPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email, verification code, and new password are required.' 
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'New password and confirmation password do not match.' 
+      });
+    }
+
+    // Validate strong password policy
+    const pwdValidation = validatePassword(newPassword);
+    if (!pwdValidation.isValid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: pwdValidation.message 
+      });
+    }
+
+    // Verify OTP against PASSWORD_RESET type
+    const isValid = await otpService.verifyOTP(cleanEmail, otp, 'PASSWORD_RESET');
+    if (!isValid) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid or expired verification code. Please request a new code.' 
+      });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+
+    // Update password (pre-save hook will hash with bcrypt)
+    user.password = newPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Your password has been reset successfully. You can now sign in with your new password.'
+    });
+  } catch (error) {
+    console.error("forgotPasswordReset error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to reset password. Please try again.'
+    });
   }
 };
 

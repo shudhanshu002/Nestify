@@ -7,23 +7,41 @@ import {
   ArrowRight, Building2, Shield, Calendar, RefreshCw
 } from 'lucide-react';
 import PropertyCard from '../components/PropertyCard';
+import OwnerOnboardingModal from '../components/modals/OwnerOnboardingModal';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 
 const Profile = () => {
   const { user, loading, setUser, switchRole } = useContext(AuthContext);
   const [switchingRole, setSwitchingRole] = useState(false);
   const [roleNotice, setRoleNotice] = useState('');
+  const [showOwnerModal, setShowOwnerModal] = useState(false);
 
   const handleRoleSwitch = async () => {
     if (switchingRole || !user || user.role === 'ADMIN') return;
     setSwitchingRole(true);
     setRoleNotice('');
     try {
-      const nextRole = user.role === 'OWNER' ? 'TENANT' : 'OWNER';
+      if (user.role === 'OWNER') {
+        const res = await switchRole('TENANT');
+        if (res.success) {
+          setRoleNotice('Persona switched to Resident / Tenant!');
+          setTimeout(() => setRoleNotice(''), 4000);
+          navigate('/');
+        }
+        return;
+      }
+
+      const isOwnerOnboarded = user.isOwnerOnboarded || (user.ownerDetails?.legalAgreementAccepted && user.ownerDetails?.panNumber);
+      if (!isOwnerOnboarded) {
+        setShowOwnerModal(true);
+        return;
+      }
+      const nextRole = 'OWNER';
       const res = await switchRole(nextRole);
       if (res.success) {
         setRoleNotice(`Persona switched to ${nextRole === 'OWNER' ? 'Landlord / PG Owner' : 'Resident / Tenant'}!`);
         setTimeout(() => setRoleNotice(''), 4000);
+        navigate('/owner/dashboard');
       } else {
         alert(res.error || "Failed to switch role.");
       }
@@ -561,6 +579,19 @@ const Profile = () => {
           )}
 
         </main>
+
+        {/* Landlord Onboarding & Verification Modal */}
+        <OwnerOnboardingModal 
+          isOpen={showOwnerModal}
+          onClose={() => setShowOwnerModal(false)}
+          user={user}
+          switchRole={switchRole}
+          onSuccess={() => {
+            setRoleNotice('Landlord verification complete! Welcome to your Owner Portal.');
+            setTimeout(() => setRoleNotice(''), 4000);
+            navigate('/owner/dashboard');
+          }}
+        />
       </div>
     </div>
   );

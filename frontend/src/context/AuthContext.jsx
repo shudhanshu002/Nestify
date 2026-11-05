@@ -132,9 +132,12 @@ export const AuthProvider = ({ children }) => {
     return wishlistIds.has(propertyId.toString());
   }, [wishlistIds]);
 
-  const switchRole = useCallback(async (targetRole) => {
+  const switchRole = useCallback(async (targetRole, ownerData = null) => {
     try {
-      const payload = targetRole ? { role: targetRole } : {};
+      const payload = { 
+        ...(targetRole ? { role: targetRole } : {}),
+        ...(ownerData ? { ownerData } : {})
+      };
       const { data } = await API.patch('/users/switch-role', payload);
       const updatedUser = data.data || data.user || data;
       setUser(updatedUser);
@@ -148,7 +151,8 @@ export const AuthProvider = ({ children }) => {
       console.error('Role switch error:', err);
       return { 
         success: false, 
-        error: err.response?.data?.message || 'Failed to switch profile persona.' 
+        error: err.response?.data?.message || 'Failed to switch profile persona.',
+        requiresOnboarding: !!err.response?.data?.requiresOnboarding 
       };
     }
   }, [setActiveMode]);

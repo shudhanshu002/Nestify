@@ -9,10 +9,12 @@ import {
 } from 'lucide-react';
 import API from '../api/client';
 import Logo from './Logo';
+import OwnerOnboardingModal from './modals/OwnerOnboardingModal';
 
 const Navbar = () => {
   const { user, logout, wishlistIds, activeMode, toggleActiveMode, switchRole } = useContext(AuthContext);
   const [switchingRole, setSwitchingRole] = useState(false);
+  const [showOwnerModal, setShowOwnerModal] = useState(false);
   const { isChatOpen, setIsChatOpen, socket, openChatWithAdmin } = useChat();
   const navigate = useNavigate();
   const location = useLocation();
@@ -95,7 +97,17 @@ const Navbar = () => {
     if (switchingRole || !user || user.role === 'ADMIN') return;
     setSwitchingRole(true);
     try {
-      const nextRole = user.role === 'OWNER' ? 'TENANT' : 'OWNER';
+      if (user.role === 'OWNER') {
+        const res = await switchRole('TENANT');
+        if (res.success) navigate('/');
+        return;
+      }
+      const isOwnerOnboarded = user.isOwnerOnboarded || (user.ownerDetails?.legalAgreementAccepted && user.ownerDetails?.panNumber);
+      if (!isOwnerOnboarded) {
+        setShowOwnerModal(true);
+        return;
+      }
+      const nextRole = 'OWNER';
       const res = await switchRole(nextRole);
       if (res.success) {
         if (nextRole === 'OWNER') {
@@ -592,6 +604,16 @@ const Navbar = () => {
           </div>
         </div>
       )}
+      {/* Landlord Onboarding & Business Verification Modal */}
+      <OwnerOnboardingModal 
+        isOpen={showOwnerModal}
+        onClose={() => setShowOwnerModal(false)}
+        user={user}
+        switchRole={switchRole}
+        onSuccess={() => {
+          navigate('/owner/dashboard');
+        }}
+      />
     </header>
   );
 };

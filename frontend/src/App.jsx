@@ -16,6 +16,7 @@ import Home from './pages/Home';
 import SearchResults from './pages/SearchResults';
 import PropertyDetail from './pages/PropertyDetail';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 import Register from './pages/Register';
 import Logout from './pages/Logout';
 import NotFound from './pages/NotFound';
@@ -58,6 +59,7 @@ function App() {
               <Route path="/search" element={<SearchResults />} />
               <Route path="/property/:id" element={<PropertyDetail />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/register" element={<Register />} />
               <Route path="/logout" element={<Logout />} />
               <Route path="/help" element={<HelpCenter />} />

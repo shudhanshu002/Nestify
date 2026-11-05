@@ -35,6 +35,27 @@ const ownerDealSchema = new mongoose.Schema({
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 }, { _id: false });
 
+const ownerDetailsSchema = new mongoose.Schema({
+  entityType: { 
+    type: String, 
+    enum: ['INDIVIDUAL', 'REGISTERED_BUSINESS', 'AUTHORIZED_MANAGER'], 
+    default: 'INDIVIDUAL' 
+  },
+  businessName: { type: String, default: '' },
+  panNumber: { type: String, default: '', trim: true },
+  gstin: { type: String, default: '', trim: true },
+  bankDetails: {
+    accountHolderName: { type: String, default: '' },
+    bankName: { type: String, default: '' },
+    accountNumber: { type: String, default: '' },
+    ifscCode: { type: String, default: '' }
+  },
+  operatingCity: { type: String, default: '' },
+  legalAgreementAccepted: { type: Boolean, default: false },
+  agreementAcceptedAt: { type: Date },
+  ownershipDeclaration: { type: Boolean, default: false }
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, default: '', trim: true },
@@ -71,6 +92,14 @@ const userSchema = new mongoose.Schema({
         paymentStatus: 'NOT_APPLICABLE'
       }) 
     },
+
+    // Owner Business & Legal Onboarding
+    ownerDetails: { 
+      type: ownerDetailsSchema, 
+      default: () => ({}) 
+    },
+    isOwnerOnboarded: { type: Boolean, default: false },
+
     // Major Admin & Governance Fields
     isSuperAdmin: { type: Boolean, default: false },
     adminSuspended: { type: Boolean, default: false },

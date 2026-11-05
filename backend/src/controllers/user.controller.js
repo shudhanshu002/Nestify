@@ -370,10 +370,163 @@ export const switchRole = async (req, res, next) => {
       nextRole = user.role === 'OWNER' ? 'TENANT' : 'OWNER';
     }
 
-    user.role = nextRole;
+    // 1. LANDLORD -> RESIDENT (TENANT): Always allowed anytime with zero friction
+    if (nextRole === 'TENANT') {
+      user.role = 'TENANT';
+      await user.save();
 
-    // Initialize deal defaults if user becomes an OWNER
-    if (nextRole === 'OWNER' && (!user.deal || !user.deal.dealType)) {
+      const userObj = user.toObject();
+      delete userObj.password;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Switched to Resident (Tenant) view successfully',
+        data: userObj,
+        user: userObj
+      });
+    }
+
+    // 2. RESIDENT -> LANDLORD (OWNER): Extra validation & business onboarding gate
+    const hasExistingProperties = await Property.exists({ owner: user._id });
+    const isAlreadyOnboarded = user.isOwnerOnboarded || 
+      (user.ownerDetails?.legalAgreementAccepted && user.ownerDetails?.panNumber) || 
+      !!hasExistingProperties;
+
+    // If previously verified or onboarded as an owner, allow seamless toggle
+    if (isAlreadyOnboarded && !req.body?.ownerData) {
+      user.role = 'OWNER';
+      user.isOwnerOnboarded = true;
+
+      if (!user.deal || !user.deal.dealType) {
+        user.deal = {
+          status: user.kycStatus === 'VERIFIED' ? 'PENDING_SELECTION' : 'NOT_ELIGIBLE',
+          dealType: 'COMMISSION_PERCENTAGE',
+          annualTokenAmount: 9999,
+          commissionRate: 6,
+          paymentStatus: 'NOT_APPLICABLE'
+        };
+      }
+
+      await user.save();
+      const userObj = user.toObject();
+      delete userObj.password;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Switched to Landlord (Owner) view successfully',
+        data: userObj,
+        user: userObj
+      });
+    }
+
+    // If not onboarded and no onboarding data provided, require completion
+    const ownerData = req.body?.ownerData;
+    if (!ownerData) {
+      return res.status(403).json({
+        success: false,
+        requiresOnboarding: true,
+        message: 'Owner onboarding and legal business verification are required before activating Landlord mode.'
+      });
+    }
+
+    // Validate Owner Onboarding Data
+    const { 
+      entityType, 
+      businessName, 
+      panNumber, 
+      gstin, 
+      bankDetails, 
+      operatingCity, 
+      ownershipDeclaration, 
+      legalAgreementAccepted,
+      phone 
+    } = ownerData;
+
+    // Contact phone requirement (at user level)
+    const effectivePhone = (phone || user.phone || '').trim();
+    if (!effectivePhone || effectivePhone.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid 10-digit primary phone contact number is required to register as a Property Owner.'
+      });
+    }
+
+    // PAN validation (Permanent Account Number format: 5 letters, 4 digits, 1 letter)
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    const cleanPan = (panNumber || '').toUpperCase().trim();
+    if (!panRegex.test(cleanPan)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A valid 10-character PAN number (e.g. ABCDE1234F) is required for landlord tax and legal compliance.'
+      });
+    }
+
+    // Bank payout validation (for escrow rental settlements)
+    if (!bankDetails || !bankDetails.accountHolderName || !bankDetails.accountNumber || !bankDetails.ifscCode) {
+      return res.status(400).json({
+        success: false,
+        message: 'Complete bank payout details (Account Holder, Account Number, IFSC) are required for escrow settlements.'
+      });
+    }
+
+    const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    const cleanIfsc = (bankDetails.ifscCode || '').toUpperCase().trim();
+    if (!ifscRegex.test(cleanIfsc)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid IFSC code format (e.g. HDFC0001234).'
+      });
+    }
+
+    if (bankDetails.accountNumber.trim().length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bank account number must be at least 8 digits.'
+      });
+    }
+
+    // Legal Declarations & Affirmations
+    if (!ownershipDeclaration) {
+      return res.status(400).json({
+        success: false,
+        message: 'You must affirm that you hold legal ownership or authorized lease rights for listed properties.'
+      });
+    }
+
+    if (!legalAgreementAccepted) {
+      return res.status(400).json({
+        success: false,
+        message: 'You must accept the Nestify Landlord Terms of Service & Escrow Payout Guidelines.'
+      });
+    }
+
+    // Persist verified owner details
+    if (!user.phone && effectivePhone) {
+      user.phone = effectivePhone;
+    }
+
+    user.ownerDetails = {
+      entityType: entityType || 'INDIVIDUAL',
+      businessName: (businessName || '').trim(),
+      panNumber: cleanPan,
+      gstin: (gstin || '').toUpperCase().trim(),
+      bankDetails: {
+        accountHolderName: bankDetails.accountHolderName.trim(),
+        bankName: (bankDetails.bankName || '').trim(),
+        accountNumber: bankDetails.accountNumber.trim(),
+        ifscCode: cleanIfsc
+      },
+      operatingCity: (operatingCity || '').trim(),
+      legalAgreementAccepted: true,
+      agreementAcceptedAt: new Date(),
+      ownershipDeclaration: true
+    };
+
+    user.isOwnerOnboarded = true;
+    user.role = 'OWNER';
+
+    // Initialize deal defaults
+    if (!user.deal || !user.deal.dealType) {
       user.deal = {
         status: user.kycStatus === 'VERIFIED' ? 'PENDING_SELECTION' : 'NOT_ELIGIBLE',
         dealType: 'COMMISSION_PERCENTAGE',
@@ -384,13 +537,12 @@ export const switchRole = async (req, res, next) => {
     }
 
     await user.save();
-
     const userObj = user.toObject();
     delete userObj.password;
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: `Profile role switched to ${nextRole} successfully`,
+      message: 'Landlord profile onboarded and verified successfully! Welcome to the Owner Portal.',
       data: userObj,
       user: userObj
     });
@@ -398,4 +550,3 @@ export const switchRole = async (req, res, next) => {
     next(error);
   }
 };
-

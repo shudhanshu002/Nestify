@@ -8,7 +8,9 @@ import {
   googleLogin,
   checkReviewEligibility,
   sendVerifyEmailOTP,
-  verifyEmail
+  verifyEmail,
+  forgotPasswordRequest,
+  forgotPasswordReset
 } from '../controllers/auth.controller.js';
 import { protect } from '../middlewares/auth.middleware.js';
 import { authLimiter } from '../middlewares/security.middleware.js';
@@ -23,6 +25,11 @@ router.post('/login', authLimiter, loginUser);
 router.post('/google', authLimiter, googleLogin);
 router.post('/otp/request', authLimiter, requestOTP);
 router.post('/otp/verify', authLimiter, verifyOTPAndLogin);
+
+// Forgot Password Flow
+router.post('/forgot-password/request', authLimiter, forgotPasswordRequest);
+router.post('/forgot-password/resend', authLimiter, forgotPasswordRequest);
+router.post('/forgot-password/reset', authLimiter, forgotPasswordReset);
 
 // Existing account email verification
 router.post('/send-verify-email-otp', protect, authLimiter, sendVerifyEmailOTP);

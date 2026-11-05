@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import SocialAuthButtons from '../components/auth/SocialAuthButtons';
+import { checkPasswordStrength } from '../utils/passwordValidator';
 
 const Register = () => {
   const [step, setStep] = useState('FORM'); // 'FORM' | 'OTP'
@@ -30,6 +31,7 @@ const Register = () => {
 
   const { setUser, refreshWishlist } = useContext(AuthContext);
   const navigate = useNavigate();
+  const passwordStrength = checkPasswordStrength(formData.password);
 
   // Resend Countdown Timer
   useEffect(() => {
@@ -47,8 +49,8 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (!passwordStrength.isValid) {
+      setError('Password must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character.');
       return;
     }
 
@@ -311,6 +313,32 @@ const Register = () => {
                   />
                 </div>
               </div>
+
+              {/* Password Requirements Checklist */}
+              {formData.password && (
+                <div className="col-span-1 sm:col-span-2 p-3 bg-[#111116] border border-[#22222d] rounded-2xl space-y-1.5 animate-in fade-in">
+                  <div className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">
+                    Password Requirements (Min 8 Characters)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {passwordStrength.rules.map((rule, idx) => (
+                      <div 
+                        key={idx} 
+                        className={`flex items-center gap-1.5 text-xs transition-colors ${
+                          rule.met ? 'text-green-400 font-medium' : 'text-gray-500'
+                        }`}
+                      >
+                        {rule.met ? (
+                          <CheckCircle2 size={13} className="text-green-400 shrink-0" />
+                        ) : (
+                          <div className="w-3 h-3 rounded-full border border-gray-600 shrink-0"></div>
+                        )}
+                        <span>{rule.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Terms Agreement Checkbox */}
               <div className="col-span-1 sm:col-span-2 px-1 pt-1">

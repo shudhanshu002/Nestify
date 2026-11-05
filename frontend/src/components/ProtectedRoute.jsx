@@ -20,7 +20,13 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     const userRole = (user.role || '').toUpperCase();
     const isAllowed = allowedRoles.some(r => r.toUpperCase() === userRole);
     if (!isAllowed) {
-      return <Navigate to="/404" replace />;
+      if (userRole === 'ADMIN') {
+        return <Navigate to="/admin/dashboard" replace />;
+      }
+      if (userRole === 'OWNER') {
+        return <Navigate to="/owner/dashboard" replace />;
+      }
+      return <Navigate to="/" replace />;
     }
   }
 
