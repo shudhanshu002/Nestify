@@ -132,6 +132,27 @@ export const AuthProvider = ({ children }) => {
     return wishlistIds.has(propertyId.toString());
   }, [wishlistIds]);
 
+  const switchRole = useCallback(async (targetRole) => {
+    try {
+      const payload = targetRole ? { role: targetRole } : {};
+      const { data } = await API.patch('/users/switch-role', payload);
+      const updatedUser = data.data || data.user || data;
+      setUser(updatedUser);
+      if (updatedUser.role === 'OWNER') {
+        setActiveMode('OWNER');
+      } else if (updatedUser.role === 'TENANT') {
+        setActiveMode('TENANT');
+      }
+      return { success: true, user: updatedUser };
+    } catch (err) {
+      console.error('Role switch error:', err);
+      return { 
+        success: false, 
+        error: err.response?.data?.message || 'Failed to switch profile persona.' 
+      };
+    }
+  }, [setActiveMode]);
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -146,7 +167,8 @@ export const AuthProvider = ({ children }) => {
       refreshWishlist: fetchWishlistIds,
       activeMode,
       setActiveMode,
-      toggleActiveMode
+      toggleActiveMode,
+      switchRole
     }}>
       {children}
     </AuthContext.Provider>

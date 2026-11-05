@@ -11,7 +11,8 @@ import API from '../api/client';
 import Logo from './Logo';
 
 const Navbar = () => {
-  const { user, logout, wishlistIds, activeMode, toggleActiveMode } = useContext(AuthContext);
+  const { user, logout, wishlistIds, activeMode, toggleActiveMode, switchRole } = useContext(AuthContext);
+  const [switchingRole, setSwitchingRole] = useState(false);
   const { isChatOpen, setIsChatOpen, socket, openChatWithAdmin } = useChat();
   const navigate = useNavigate();
   const location = useLocation();
@@ -89,6 +90,24 @@ const Navbar = () => {
       socket.off('unread_notification_count_changed', handleRefreshCount);
     };
   }, [user, socket, location.pathname]);
+
+  const handleToggleRole = async () => {
+    if (switchingRole || !user || user.role === 'ADMIN') return;
+    setSwitchingRole(true);
+    try {
+      const nextRole = user.role === 'OWNER' ? 'TENANT' : 'OWNER';
+      const res = await switchRole(nextRole);
+      if (res.success) {
+        if (nextRole === 'OWNER') {
+          navigate('/owner/dashboard');
+        } else {
+          navigate('/search');
+        }
+      }
+    } finally {
+      setSwitchingRole(false);
+    }
+  };
 
   const handleMenuClick = () => {
     setIsOpen(false);
@@ -253,15 +272,18 @@ const Navbar = () => {
 
       {/* Right Controls: Concierge, Notifications, Avatar Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Owner Dual-Mode Switcher Pill */}
-        {user && user.role === 'OWNER' && (
+        {/* Dual-Persona Switcher Pill (Tenant <-> Owner) */}
+        {user && user.role !== 'ADMIN' && (
           <button
-            onClick={toggleActiveMode}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition bg-neutral-900 border-neutral-800 hover:border-neutral-600 text-neutral-200 cursor-pointer shadow-sm"
-            title={activeMode === 'OWNER' ? "Switch to Resident Mode to browse and book stays" : "Switch back to Owner Console"}
+            onClick={handleToggleRole}
+            disabled={switchingRole}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition bg-neutral-900 border-neutral-800 hover:border-neutral-600 text-neutral-200 cursor-pointer shadow-sm group"
+            title={user.role === 'OWNER' ? "Currently Landlord. Click to switch to Resident Mode (browse & book PGs)" : "Currently Resident. Click to switch to Landlord Mode (list PGs & manage rooms)"}
           >
-            <span className={`w-2 h-2 rounded-full ${activeMode === 'OWNER' ? 'bg-[#46D369]' : 'bg-[#E50914]'}`}></span>
-            <span>{activeMode === 'OWNER' ? 'Resident Mode' : 'Owner Console'}</span>
+            <span className={`w-2 h-2 rounded-full ${user.role === 'OWNER' ? 'bg-[#46D369]' : 'bg-[#E50914]'}`}></span>
+            <span className="group-hover:text-white transition">
+              {switchingRole ? 'Switching...' : user.role === 'OWNER' ? 'Landlord (Switch to Resident)' : 'Resident (Switch to Landlord)'}
+            </span>
           </button>
         )}
 
@@ -350,6 +372,22 @@ const Navbar = () => {
 
                   {user.role === 'TENANT' && (
                     <>
+                      <button
+                        onClick={() => {
+                          setIsOpen(false);
+                          handleToggleRole();
+                        }}
+                        disabled={switchingRole}
+                        className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-amber-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition cursor-pointer text-left"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Building2 size={15} className="text-amber-400" />
+                          <span>{switchingRole ? 'Switching...' : 'Switch to Landlord (List PG)'}</span>
+                        </div>
+                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          Owner
+                        </span>
+                      </button>
                       <Link 
                         to="/my-bookings" 
                         onClick={handleMenuClick} 
@@ -378,17 +416,18 @@ const Navbar = () => {
                     <>
                       <button
                         onClick={() => {
-                          toggleActiveMode();
                           setIsOpen(false);
+                          handleToggleRole();
                         }}
-                        className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-amber-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition cursor-pointer"
+                        disabled={switchingRole}
+                        className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-emerald-300 hover:text-white hover:bg-neutral-800/80 rounded-xl transition cursor-pointer text-left"
                       >
                         <div className="flex items-center gap-2.5">
-                          <Building2 size={15} />
-                          <span>{activeMode === 'OWNER' ? 'Switch to Resident Mode' : 'Switch to Owner Console'}</span>
+                          <HomeIcon size={15} className="text-emerald-400" />
+                          <span>{switchingRole ? 'Switching...' : 'Switch to Resident Mode'}</span>
                         </div>
-                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
-                          {activeMode}
+                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          Resident
                         </span>
                       </button>
                       <Link 
@@ -480,17 +519,18 @@ const Navbar = () => {
       {mobileMenuOpen && (
         <div className="md:hidden fixed top-[60px] left-0 right-0 bg-[#0d0d0d] border-b border-neutral-800 p-5 space-y-3 shadow-2xl z-50 animate-in slide-in-from-top-2 duration-200">
           <div className="flex flex-col space-y-2 text-sm font-semibold">
-            {user && user.role === 'OWNER' && (
+            {user && user.role !== 'ADMIN' && (
               <button
                 onClick={() => {
-                  toggleActiveMode();
                   handleMenuClick();
+                  handleToggleRole();
                 }}
+                disabled={switchingRole}
                 className="w-full text-left py-2.5 px-3 rounded-xl bg-neutral-900 border border-neutral-800 text-amber-300 font-bold text-xs flex items-center justify-between transition cursor-pointer mb-2"
               >
-                <span>Current Mode: {activeMode === 'OWNER' ? 'Owner Console' : 'Resident Mode'}</span>
+                <span>Profile: {user.role === 'OWNER' ? 'Landlord / Owner' : 'Resident / Tenant'}</span>
                 <span className="text-[10px] bg-neutral-800 px-2 py-0.5 rounded text-white border border-neutral-700">
-                  Switch to {activeMode === 'OWNER' ? 'Resident' : 'Owner'}
+                  {switchingRole ? 'Switching...' : user.role === 'OWNER' ? 'Switch to Resident' : 'Switch to Landlord'}
                 </span>
               </button>
             )}

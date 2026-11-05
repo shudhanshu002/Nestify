@@ -8,7 +8,8 @@ import {
   getKYCQueue,
   verifyUser,
   getOwnerDeal,
-  selectOwnerDeal
+  selectOwnerDeal,
+  switchRole
 } from '../controllers/user.controller.js';
 import { isAdmin, protect } from '../middlewares/auth.middleware.js';
 import { uploadKYC } from '../middlewares/upload.middleware.js';
@@ -17,6 +18,8 @@ const router = express.Router();
 
 router.get('/profile', protect, getUserProfile);
 router.put('/kyc', protect, updateKYC);
+router.patch('/switch-role', protect, switchRole);
+router.post('/switch-role', protect, switchRole);
 
 // Commercial Agreement / Deal routes for Owners
 router.get('/deal', protect, getOwnerDeal);

@@ -4,13 +4,33 @@ import API from '../api/client';
 import { 
   User, Mail, ShieldCheck, Heart, Settings, Loader2, 
   Check, AlertCircle, Upload, Clock, FileText, Camera, 
-  ArrowRight, Building2, Shield, Calendar
+  ArrowRight, Building2, Shield, Calendar, RefreshCw
 } from 'lucide-react';
 import PropertyCard from '../components/PropertyCard';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 
 const Profile = () => {
-  const { user, loading, setUser } = useContext(AuthContext);
+  const { user, loading, setUser, switchRole } = useContext(AuthContext);
+  const [switchingRole, setSwitchingRole] = useState(false);
+  const [roleNotice, setRoleNotice] = useState('');
+
+  const handleRoleSwitch = async () => {
+    if (switchingRole || !user || user.role === 'ADMIN') return;
+    setSwitchingRole(true);
+    setRoleNotice('');
+    try {
+      const nextRole = user.role === 'OWNER' ? 'TENANT' : 'OWNER';
+      const res = await switchRole(nextRole);
+      if (res.success) {
+        setRoleNotice(`Persona switched to ${nextRole === 'OWNER' ? 'Landlord / PG Owner' : 'Resident / Tenant'}!`);
+        setTimeout(() => setRoleNotice(''), 4000);
+      } else {
+        alert(res.error || "Failed to switch role.");
+      }
+    } finally {
+      setSwitchingRole(false);
+    }
+  };
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
@@ -150,6 +170,26 @@ const Profile = () => {
               </span>
             </div>
             <p className="text-xs text-neutral-400 mt-2 truncate">{user.email}</p>
+
+            {user.role !== 'ADMIN' && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleRoleSwitch}
+                  disabled={switchingRole}
+                  className="w-full text-[11px] font-bold py-2.5 px-3 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 text-neutral-200 hover:text-white flex items-center justify-between transition cursor-pointer group shadow"
+                  title={user.role === 'OWNER' ? "Switch to Resident Persona to browse and book stays" : "Switch to Landlord Persona to list properties and manage rooms"}
+                >
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className={`w-3.5 h-3.5 text-[#E50914] ${switchingRole ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-300'}`} />
+                    <span>{switchingRole ? 'Switching...' : user.role === 'OWNER' ? 'Switch to Resident' : 'Switch to Landlord'}</span>
+                  </div>
+                  <span className="text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300">
+                    {user.role === 'OWNER' ? 'Tenant' : 'Owner'}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2 pt-2 text-left">
@@ -200,6 +240,52 @@ const Profile = () => {
 
         {/* Right Content Area */}
         <main className="md:col-span-8 space-y-6">
+          {/* Dual Persona Protocol Banner */}
+          {user.role !== 'ADMIN' && (
+            <div className="bg-gradient-to-r from-neutral-900 via-[#181818] to-neutral-950 border border-neutral-800 rounded-3xl p-5 sm:p-6 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in duration-150">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black shrink-0 ${
+                  user.role === 'OWNER' 
+                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
+                    : 'bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/30'
+                }`}>
+                  {user.role === 'OWNER' ? <Building2 size={24} /> : <User size={24} />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-neutral-800 text-neutral-300 border border-neutral-700">
+                      DUAL-PERSONA ENABLED
+                    </span>
+                    <span className={`text-[10px] font-black uppercase ${user.role === 'OWNER' ? 'text-amber-400' : 'text-[#E50914]'}`}>
+                      {user.role === 'OWNER' ? '• Currently Landlord Console' : '• Currently Resident Mode'}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-black text-white italic mt-1">
+                    {user.role === 'OWNER' ? 'Landlord / Property Owner Persona' : 'Resident / Tenant Persona'}
+                  </h3>
+                  <p className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
+                    {user.role === 'OWNER' 
+                      ? 'You can list PGs, manage room inventory, and sign commercial deals. Switch anytime to Resident to browse and book personal stays.' 
+                      : 'You can explore verified PGs, reserve rooms, and manage personal stays. Switch anytime to Landlord to list your own buildings.'}
+                  </p>
+                  {roleNotice && (
+                    <p className="text-xs font-bold text-emerald-400 mt-1.5 flex items-center gap-1 animate-in fade-in">
+                      <Check className="w-3.5 h-3.5" /> {roleNotice}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleRoleSwitch}
+                disabled={switchingRole}
+                className="btn-red-glow text-white text-xs font-black uppercase px-5 py-3 rounded-xl shadow cursor-pointer whitespace-nowrap self-stretch sm:self-auto flex items-center justify-center gap-2 transition"
+              >
+                <RefreshCw size={14} className={switchingRole ? 'animate-spin' : ''} />
+                <span>{switchingRole ? 'Switching...' : user.role === 'OWNER' ? 'Switch to Resident' : 'Switch to Landlord'}</span>
+              </button>
+            </div>
+          )}
           
           {/* TAB 1: DETAILS */}
           {activeTab === 'details' && (

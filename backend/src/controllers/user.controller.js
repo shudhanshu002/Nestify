@@ -344,3 +344,58 @@ export const verifyProperty = async (req, res, next) => {
     res.status(200).json({ success: true, message: `Status updated to ${status}` });
   } catch (error) { next(error); }
 };
+
+// @desc    Switch user profile persona/role between TENANT and OWNER
+// @route   PATCH /api/v1/users/switch-role
+// @access  Private
+export const switchRole = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.role === 'ADMIN') {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Administrators have platform-wide access and cannot switch persona using this route.' 
+      });
+    }
+
+    const desiredRole = req.body?.role ? req.body.role.toUpperCase() : null;
+    let nextRole;
+    if (desiredRole && ['TENANT', 'OWNER'].includes(desiredRole)) {
+      nextRole = desiredRole;
+    } else {
+      nextRole = user.role === 'OWNER' ? 'TENANT' : 'OWNER';
+    }
+
+    user.role = nextRole;
+
+    // Initialize deal defaults if user becomes an OWNER
+    if (nextRole === 'OWNER' && (!user.deal || !user.deal.dealType)) {
+      user.deal = {
+        status: user.kycStatus === 'VERIFIED' ? 'PENDING_SELECTION' : 'NOT_ELIGIBLE',
+        dealType: 'COMMISSION_PERCENTAGE',
+        annualTokenAmount: 9999,
+        commissionRate: 6,
+        paymentStatus: 'NOT_APPLICABLE'
+      };
+    }
+
+    await user.save();
+
+    const userObj = user.toObject();
+    delete userObj.password;
+
+    res.status(200).json({
+      success: true,
+      message: `Profile role switched to ${nextRole} successfully`,
+      data: userObj,
+      user: userObj
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
