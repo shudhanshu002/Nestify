@@ -4,24 +4,29 @@ import nodemailer from 'nodemailer';
  * Configure Nodemailer Transporter based on environment variables
  */
 const getTransporter = () => {
-  const user = process.env.EMAIL_USER || process.env.SMTP_USER;
-  const pass = process.env.EMAIL_PASS || process.env.SMTP_PASS;
+  const user = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
+  // Strip spaces from password (common when copying 16-character Gmail App Passwords)
+  const pass = (process.env.EMAIL_PASS || process.env.SMTP_PASS || '').replace(/\s+/g, '');
 
   if (!user || !pass) {
     return null;
   }
 
-  // If host is explicitly specified (e.g. Brevo, Sendgrid, custom host)
+  // If custom SMTP host is specified (e.g. Brevo, SendGrid, Hostinger, AWS SES)
   if (process.env.SMTP_HOST) {
+    const port = Number(process.env.SMTP_PORT) || 587;
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
-      auth: { user, pass }
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+      tls: {
+        rejectUnauthorized: false
+      }
     });
   }
 
-  // Default to Gmail service
+  // Default to standard Gmail service
   return nodemailer.createTransport({
     service: 'gmail',
     auth: { user, pass }
@@ -29,7 +34,7 @@ const getTransporter = () => {
 };
 
 /**
- * Send a branded Email Verification OTP
+ * Send a branded Email Verification OTP directly to the user's inbox
  * @param {string} toEmail 
  * @param {string} otp 
  * @param {string} name 
@@ -37,20 +42,13 @@ const getTransporter = () => {
 export const sendVerificationEmail = async (toEmail, otp, name = 'Resident') => {
   const transporter = getTransporter();
 
-  // If no email credentials configured in .env, simulate in console
   if (!transporter) {
-    console.log(`\n===============================================================`);
-    console.log(`📧 [NESTIFY EMAIL SIMULATION]`);
-    console.log(`   To: ${toEmail}`);
-    console.log(`   Recipient: ${name}`);
-    console.log(`   🔑 Verification OTP: ${otp}`);
-    console.log(`   ⏰ Expires in: 10 minutes`);
-    console.log(`   ℹ️ (Configure EMAIL_USER & EMAIL_PASS in backend/.env for real dispatch)`);
-    console.log(`===============================================================\n`);
-    return { simulated: true, success: true };
+    console.error(`[EMAIL ERROR] EMAIL_USER and EMAIL_PASS are not configured in backend/.env`);
+    throw new Error('Email delivery service is not configured. Please add EMAIL_USER and EMAIL_PASS to your backend/.env file.');
   }
 
-  const sender = process.env.EMAIL_FROM || `"Nestify Support" <${process.env.EMAIL_USER || process.env.SMTP_USER}>`;
+  const senderUser = (process.env.EMAIL_USER || process.env.SMTP_USER || '').trim();
+  const sender = process.env.EMAIL_FROM || `"Nestify" <${senderUser}>`;
 
   const html = `
     <!DOCTYPE html>
@@ -104,7 +102,7 @@ export const sendVerificationEmail = async (toEmail, otp, name = 'Resident') => 
       from: sender,
       to: toEmail,
       subject: `🔐 ${otp} is your Nestify Email Verification Code`,
-      text: `Your Nestify verification code is: ${otp}. It expires in 10 minutes.`,
+      text: `Hello ${name},\n\nYour Nestify verification code is: ${otp}\n\nThis code will expire in 10 minutes.\n\nBest regards,\nNestify Team`,
       html
     });
 
@@ -112,7 +110,6 @@ export const sendVerificationEmail = async (toEmail, otp, name = 'Resident') => 
     return { success: true, messageId: info.messageId };
   } catch (err) {
     console.error(`[EMAIL ERROR] Failed to send email to ${toEmail}:`, err.message);
-    throw new Error(`Failed to deliver verification email: ${err.message}`);
+    throw new Error(`Email delivery failed: ${err.message}`);
   }
 };
-

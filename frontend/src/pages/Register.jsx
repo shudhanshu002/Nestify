@@ -23,7 +23,6 @@ const Register = () => {
   const [otp, setOtp] = useState('');
   const [resendTimer, setResendTimer] = useState(60);
   const [resending, setResending] = useState(false);
-  const [devOtpNotice, setDevOtpNotice] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(true);
   const [error, setError] = useState('');
@@ -47,7 +46,6 @@ const Register = () => {
   const handleInitiateRegistration = async (e) => {
     e.preventDefault();
     setError('');
-    setDevOtpNotice('');
 
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long.');
@@ -71,9 +69,6 @@ const Register = () => {
         firstName: formData.firstName.trim()
       });
 
-      if (data.devOtp) {
-        setDevOtpNotice(data.devOtp);
-      }
 
       setStep('OTP');
       setResendTimer(60);
@@ -95,9 +90,6 @@ const Register = () => {
         firstName: formData.firstName.trim()
       });
 
-      if (data.devOtp) {
-        setDevOtpNotice(data.devOtp);
-      }
 
       setResendTimer(60);
     } catch (err) {
@@ -390,20 +382,6 @@ const Register = () => {
               </div>
             )}
 
-            {/* Development Mode Helper Banner */}
-            {devOtpNotice && (
-              <div className="p-3.5 bg-amber-950/50 border border-amber-500/40 rounded-2xl text-center space-y-1">
-                <span className="text-[9px] uppercase tracking-wider font-black text-amber-400 block">
-                  DEVELOPMENT SIMULATION
-                </span>
-                <p className="text-xs text-amber-200 font-mono font-bold">
-                  OTP Code: <span className="text-white text-sm bg-black/60 px-2.5 py-0.5 rounded font-black tracking-widest">{devOtpNotice}</span>
-                </p>
-                <p className="text-[10px] text-amber-400/80">
-                  (In production with EMAIL_USER & EMAIL_PASS in .env, this code is delivered to your inbox)
-                </p>
-              </div>
-            )}
 
             <form onSubmit={handleVerifyOTP} className="space-y-5">
               <div className="space-y-2 text-center">

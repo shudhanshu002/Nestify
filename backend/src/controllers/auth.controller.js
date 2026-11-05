@@ -36,22 +36,19 @@ export const sendRegisterOTP = async (req, res, next) => {
     // 2. Generate and store OTP in database
     const otp = await otpService.sendOTP(null, cleanEmail, 'EMAIL_VERIFICATION');
 
-    // 3. Dispatch verification email via Nodemailer (or simulation if credentials missing)
-    const emailResult = await sendVerificationEmail(cleanEmail, otp, firstName || 'Resident');
+    // 3. Dispatch verification email directly to user's inbox
+    await sendVerificationEmail(cleanEmail, otp, firstName || 'Resident');
 
-    const response = {
+    res.status(200).json({
       success: true,
       message: `A 6-digit verification code has been dispatched to ${cleanEmail}.`
-    };
-
-    // If simulated in dev/local mode, attach devOtp for seamless developer experience
-    if (emailResult.simulated || process.env.NODE_ENV !== 'production') {
-      response.devOtp = otp;
-    }
-
-    res.status(200).json(response);
+    });
   } catch (error) {
-    next(error);
+    console.error("sendRegisterOTP error:", error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to send verification code. Please check your email configuration.'
+    });
   }
 };
 
