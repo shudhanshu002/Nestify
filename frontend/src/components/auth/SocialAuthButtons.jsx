@@ -50,10 +50,13 @@ const SocialAuthButtons = ({ role = 'TENANT', onSuccess, onError }) => {
 
   // Real Google OAuth 2.0 Popup
   const handleGooglePopup = async () => {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
+    const googleClientId = (
+      import.meta.env.CLIENT_ID_GOOGLE || 
+      import.meta.env.VITE_GOOGLE_CLIENT_ID
+    )?.trim();
 
     if (!googleClientId) {
-      onError && onError('Google Client ID is not configured. Please paste your Google OAuth 2.0 Client ID in frontend/.env (VITE_GOOGLE_CLIENT_ID).');
+      onError && onError('Google Client ID is not configured. Please paste your Google OAuth 2.0 Client ID in frontend/.env (CLIENT_ID_GOOGLE).');
       return;
     }
 

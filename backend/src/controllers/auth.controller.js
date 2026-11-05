@@ -8,7 +8,8 @@ import axios from 'axios';
 import Booking from '../models/booking.model.js';
 import Property from '../models/property.model.js';
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClientId = process.env.CLIENT_ID_GOOGLE || process.env.GOOGLE_CLIENT_ID;
+const client = new OAuth2Client(googleClientId);
 
 // @desc Register user
 // @route POST /api/v1/auth/register
@@ -166,10 +167,11 @@ export const googleLogin = async (req, res, next) => {
       }
     } else if (token) {
       // 2. If ID Token / Credential provided
-      if (process.env.GOOGLE_CLIENT_ID) {
+      const clientId = process.env.CLIENT_ID_GOOGLE || process.env.GOOGLE_CLIENT_ID;
+      if (clientId) {
         const ticket = await client.verifyIdToken({
           idToken: token,
-          audience: process.env.GOOGLE_CLIENT_ID,
+          audience: clientId,
         });
         const payload = ticket.getPayload();
         googleId = payload.sub;
