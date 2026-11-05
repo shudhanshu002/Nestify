@@ -50,8 +50,11 @@ export const ChatProvider = ({ children }) => {
     if (user) {
       refreshUnreadCount();
 
-      const newSocket = io("http://localhost:5000", {
-        transports: ["websocket"],
+      const socketBaseUrl = import.meta.env.VITE_SOCKET_URL || 
+        (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api\/v1\/?$/, '') : 'http://localhost:5000');
+
+      const newSocket = io(socketBaseUrl, {
+        transports: ["websocket", "polling"],
         reconnectionAttempts: 5
       });
 
