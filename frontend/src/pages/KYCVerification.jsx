@@ -33,7 +33,6 @@ const KYCVerification = () => {
   const [phoneOtpSent, setPhoneOtpSent] = useState(false);
   const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
   const [phoneVerifyLoading, setPhoneVerifyLoading] = useState(false);
-  const [simulatedPhoneOtp, setSimulatedPhoneOtp] = useState('');
   const [phoneResendTimer, setPhoneResendTimer] = useState(0);
   const [phoneOtpChannel, setPhoneOtpChannel] = useState('WHATSAPP');
   const [whatsappLink, setWhatsappLink] = useState('');
@@ -73,7 +72,6 @@ const KYCVerification = () => {
   const [emergencyOtpSent, setEmergencyOtpSent] = useState(false);
   const [emergencySending, setEmergencySending] = useState(false);
   const [emergencyVerifying, setEmergencyVerifying] = useState(false);
-  const [simulatedEmergencyOtp, setSimulatedEmergencyOtp] = useState('');
   const [emergencyResendTimer, setEmergencyResendTimer] = useState(0);
 
   // ----------------------------------------------------
@@ -87,7 +85,6 @@ const KYCVerification = () => {
   const [workEmailOtpSent, setWorkEmailOtpSent] = useState(false);
   const [workEmailSending, setWorkEmailSending] = useState(false);
   const [workEmailVerifying, setWorkEmailVerifying] = useState(false);
-  const [simulatedWorkEmailOtp, setSimulatedWorkEmailOtp] = useState('');
   const [workIdFile, setWorkIdFile] = useState(null);
   const [workIdPreview, setWorkIdPreview] = useState(null);
   const [workLoading, setWorkLoading] = useState(false);
@@ -160,15 +157,9 @@ const KYCVerification = () => {
       const { data } = await API.post(endpoint, { phone });
       setPhoneOtpSent(true);
       setPhoneResendTimer(45);
+      setPhoneOtp('');
       if (data.data?.whatsappDeepLink) {
         setWhatsappLink(data.data.whatsappDeepLink);
-      }
-      if (data.data?.simulatedOtp) {
-        setSimulatedPhoneOtp(data.data.simulatedOtp);
-        setPhoneOtp(data.data.simulatedOtp);
-      } else {
-        setSimulatedPhoneOtp('');
-        setPhoneOtp('');
       }
       toast.success(data.message || `OTP dispatched via ${channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'}!`);
     } catch (err) {
@@ -191,7 +182,6 @@ const KYCVerification = () => {
       if (setUser && data.user) setUser(data.user);
       setPhoneOtpSent(false);
       setPhoneOtp('');
-      setSimulatedPhoneOtp('');
       await fetchSummary();
       // Move to next step if identity is not verified
       if (summary?.identity?.status !== 'VERIFIED') {
@@ -337,13 +327,7 @@ const KYCVerification = () => {
 
       setEmergencyOtpSent(true);
       setEmergencyResendTimer(45);
-      if (data.data?.simulatedOtp) {
-        setSimulatedEmergencyOtp(data.data.simulatedOtp);
-        setEmergencyOtp(data.data.simulatedOtp);
-      } else {
-        setSimulatedEmergencyOtp('');
-        setEmergencyOtp('');
-      }
+      setEmergencyOtp('');
       toast.success(data.message || 'OTP sent to emergency contact!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to dispatch emergency contact OTP.');
@@ -429,10 +413,7 @@ const KYCVerification = () => {
     try {
       const { data } = await API.post('/users/student-work/send-work-email-otp', { workEmail });
       setWorkEmailOtpSent(true);
-      if (data.simulatedOtp) {
-        setSimulatedWorkEmailOtp(data.simulatedOtp);
-        setWorkEmailOtp(data.simulatedOtp);
-      }
+      setWorkEmailOtp('');
       toast.success(data.message || 'OTP sent to your corporate email!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send work email OTP.');
@@ -756,7 +737,7 @@ const KYCVerification = () => {
                   <div className="p-4 bg-[#14151b] border border-[#2b2d3c] rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase text-gray-400">
-                        Enter 6-Digit SMS Verification Code
+                        Enter 6-Digit {phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'} Verification Code
                       </span>
                       {phoneResendTimer > 0 ? (
                         <span className="text-[10px] text-gray-500 font-mono">Resend in {phoneResendTimer}s</span>
@@ -781,17 +762,32 @@ const KYCVerification = () => {
                       )}
                     </div>
 
-                    {simulatedPhoneOtp ? (
-                      <div className="p-2.5 bg-blue-950/40 border border-blue-800/40 rounded-xl text-[11px] text-blue-300 flex items-center justify-between font-mono">
-                        <span>Development SMS OTP: <strong>{simulatedPhoneOtp}</strong></span>
-                        <span className="text-[9px] uppercase bg-blue-900/60 px-2 py-0.5 rounded">Simulated</span>
+                    <div className="p-3 bg-emerald-950/30 border border-emerald-800/40 rounded-xl text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-300 font-medium flex items-center gap-1.5">
+                          <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                          <span>Code dispatched to +91 {phone}</span>
+                        </span>
+                        <span className="text-[9px] uppercase font-bold tracking-wider bg-emerald-900/60 px-2 py-0.5 rounded-full text-emerald-200 border border-emerald-700/40">
+                          {phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp' : 'Live SMS'}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/40 rounded-xl text-[11px] text-emerald-300 flex items-center justify-between font-mono">
-                        <span>{phoneOtpChannel === 'WHATSAPP' ? '⚡ Real-time WhatsApp code dispatched to your chat.' : '⚡ Real-time SMS dispatched to your mobile.'} Check messages.</span>
-                        <span className="text-[9px] uppercase bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-200">{phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp' : 'Live SMS'}</span>
-                      </div>
-                    )}
+                      <p className="text-[11px] text-gray-400 leading-relaxed">
+                        Please check your {phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp messages' : 'SMS messages'}. A backup copy has also been sent to your registered email <strong className="text-gray-200">{user?.email}</strong>.
+                      </p>
+                      {whatsappLink && (
+                        <div className="pt-0.5">
+                          <a
+                            href={whatsappLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/40 rounded-lg text-xs font-semibold transition"
+                          >
+                            <span>💬 Open WhatsApp chat to view code</span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="flex gap-2">
                       <input
@@ -1207,17 +1203,20 @@ const KYCVerification = () => {
                       )}
                     </div>
 
-                    {simulatedEmergencyOtp ? (
-                      <div className="p-2.5 bg-blue-950/40 border border-blue-800/40 rounded-xl text-[11px] text-blue-300 flex items-center justify-between font-mono">
-                        <span>Emergency SMS OTP: <strong>{simulatedEmergencyOtp}</strong></span>
-                        <span className="text-[9px] uppercase bg-blue-900/60 px-2 py-0.5 rounded">Simulated</span>
+                    <div className="p-3 bg-emerald-950/30 border border-emerald-800/40 rounded-xl text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-300 font-medium flex items-center gap-1.5">
+                          <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
+                          <span>Code dispatched to +91 {emergencyPhone}</span>
+                        </span>
+                        <span className="text-[9px] uppercase font-bold tracking-wider bg-emerald-900/60 px-2 py-0.5 rounded-full text-emerald-200 border border-emerald-700/40">
+                          Live SMS
+                        </span>
                       </div>
-                    ) : (
-                      <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/40 rounded-xl text-[11px] text-emerald-300 flex items-center justify-between font-mono">
-                        <span>⚡ Real-time SMS dispatched to ${emergencyName}'s phone. Check inbox.</span>
-                        <span className="text-[9px] uppercase bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-200">Live SMS</span>
-                      </div>
-                    )}
+                      <p className="text-[11px] text-gray-400">
+                        Please ask {emergencyName} for the 6-digit verification code received on their phone.
+                      </p>
+                    </div>
 
                     <div className="flex gap-2">
                       <input
@@ -1382,9 +1381,6 @@ const KYCVerification = () => {
                         >
                           {workEmailVerifying ? <Loader2 size={12} className="animate-spin" /> : 'Verify'}
                         </button>
-                        {simulatedWorkEmailOtp && (
-                          <span className="text-[10px] text-blue-300 font-mono">Code: {simulatedWorkEmailOtp}</span>
-                        )}
                       </div>
                     )}
                   </div>

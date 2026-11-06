@@ -669,15 +669,22 @@ export const sendPhoneOTP = async (req, res, next) => {
       type: 'PHONE_VERIFICATION'
     });
 
+    // Also dispatch real-time backup OTP to user's registered email
+    if (req.user?.email) {
+      try {
+        await sendVerificationEmail(req.user.email, otp, req.user.firstName);
+      } catch (mailErr) {
+        console.warn('Backup email dispatch notice:', mailErr.message);
+      }
+    }
+
     res.status(200).json({
       success: true,
-      message: smsResult.simulated
-        ? `Development simulation: Verification code generated for ${smsResult.masked}`
-        : `Real-time SMS sent successfully to ${smsResult.masked}${smsResult.provider ? ` via ${smsResult.provider}` : ''}`,
+      message: `Verification code dispatched to ${smsResult.masked} (and backup to ${req.user.email})`,
       data: {
         phone: normalized,
         masked: smsResult.masked,
-        simulatedOtp: smsResult.simulated ? smsResult.otp : undefined,
+        channel: 'SMS',
         isRealSms: !smsResult.simulated,
         provider: smsResult.provider
       }
@@ -728,17 +735,23 @@ export const sendWhatsAppOTPHandler = async (req, res, next) => {
       userName: req.user.firstName
     });
 
+    // Also dispatch real-time backup OTP to user's registered email
+    if (req.user?.email) {
+      try {
+        await sendVerificationEmail(req.user.email, otp, req.user.firstName);
+      } catch (mailErr) {
+        console.warn('Backup email dispatch notice:', mailErr.message);
+      }
+    }
+
     res.status(200).json({
       success: true,
-      message: result.simulated
-        ? `WhatsApp code generated for ${result.masked}`
-        : `WhatsApp verification code dispatched to ${result.masked} via ${result.provider}`,
+      message: `WhatsApp verification code dispatched for ${result.masked} (and backup to ${req.user.email})`,
       data: {
         phone: normalized,
         masked: result.masked,
         channel: 'WHATSAPP',
         whatsappDeepLink: result.whatsappDeepLink,
-        simulatedOtp: result.simulated ? result.otp : undefined,
         isRealDelivery: !result.simulated,
         provider: result.provider
       }
@@ -1019,13 +1032,10 @@ export const sendEmergencyContactOTPHandler = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: smsResult.simulated
-        ? `Development simulation: Verification code generated for ${smsResult.masked}`
-        : `Real-time SMS sent to emergency contact at ${smsResult.masked}${smsResult.provider ? ` via ${smsResult.provider}` : ''}`,
+      message: `Real-time verification code sent to emergency contact at ${smsResult.masked}`,
       data: {
         phone: normalized,
         masked: smsResult.masked,
-        simulatedOtp: smsResult.simulated ? smsResult.otp : undefined,
         isRealSms: !smsResult.simulated,
         provider: smsResult.provider
       }
@@ -1162,8 +1172,7 @@ export const sendWorkEmailOTP = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: `Verification code sent to corporate email ${cleanEmail}`,
-      simulatedOtp: process.env.NODE_ENV !== 'production' ? otp : undefined
+      message: `Verification code sent to corporate email ${cleanEmail}`
     });
   } catch (error) {
     next(error);

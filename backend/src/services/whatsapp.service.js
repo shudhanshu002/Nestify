@@ -160,3 +160,4 @@ export const sendWhatsAppOTP = async ({ phone, otp, userName = 'Resident' }) => 
     otp: process.env.NODE_ENV !== 'production' ? otp : undefined
   };
 };
+
