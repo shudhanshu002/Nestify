@@ -6,6 +6,7 @@ import Property from '../models/property.model.js';
 import { sendOTP, verifyOTP } from '../services/otp.service.js';
 import { normalizeIndianPhone, maskPhone, sendSmsOTP, sendEmergencyContactOTP } from '../services/sms.service.js';
 import { sendVerificationEmail } from '../services/email.service.js';
+import { sendWhatsAppOTP as dispatchWhatsAppOTP } from '../services/whatsapp.service.js';
 
 
 // @desc    Get user profile
@@ -679,6 +680,67 @@ export const sendPhoneOTP = async (req, res, next) => {
         simulatedOtp: smsResult.simulated ? smsResult.otp : undefined,
         isRealSms: !smsResult.simulated,
         provider: smsResult.provider
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+// @desc    Send OTP via WhatsApp
+// @route   POST /api/v1/users/send-whatsapp-otp
+// @access  Private
+export const sendWhatsAppOTPHandler = async (req, res, next) => {
+  try {
+    const { phone } = req.body;
+    const normalized = normalizeIndianPhone(phone);
+
+    if (!normalized) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid Indian mobile number. Please enter a valid 10-digit number starting with 6, 7, 8, or 9.'
+      });
+    }
+
+    // Duplicate Prevention: Check if this phone number is already verified on another account
+    const existing = await User.findOne({
+      phone: normalized,
+      isPhoneVerified: true,
+      _id: { $ne: req.user._id }
+    });
+
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'This mobile number is already registered and verified with another Nestify account.'
+      });
+    }
+
+    // Generate OTP & save to verification store
+    const otp = await sendOTP(req.user._id, normalized, 'PHONE_VERIFICATION');
+
+    // Dispatch WhatsApp message
+    const result = await dispatchWhatsAppOTP({
+      phone: normalized,
+      otp,
+      userName: req.user.firstName
+    });
+
+    res.status(200).json({
+      success: true,
+      message: result.simulated
+        ? `WhatsApp code generated for ${result.masked}`
+        : `WhatsApp verification code dispatched to ${result.masked} via ${result.provider}`,
+      data: {
+        phone: normalized,
+        masked: result.masked,
+        channel: 'WHATSAPP',
+        whatsappDeepLink: result.whatsappDeepLink,
+        simulatedOtp: result.simulated ? result.otp : undefined,
+        isRealDelivery: !result.simulated,
+        provider: result.provider
       }
     });
   } catch (error) {

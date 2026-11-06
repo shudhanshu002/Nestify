@@ -11,6 +11,7 @@ import {
   selectOwnerDeal,
   switchRole,
   sendPhoneOTP,
+  sendWhatsAppOTPHandler,
   verifyPhoneOTP,
   verifyIdentity,
   verifySelfie,
@@ -36,8 +37,9 @@ router.post('/switch-role', protect, switchRole);
 // ==========================================
 router.get('/verification-status', protect, getUserVerificationSummary);
 
-// 1. Phone Verification Routes
+// 1. Phone Verification Routes (SMS & WhatsApp)
 router.post('/send-phone-otp', protect, sendPhoneOTP);
+router.post('/send-whatsapp-otp', protect, sendWhatsAppOTPHandler);
 router.post('/verify-phone-otp', protect, verifyPhoneOTP);
 
 // 2. Identity / Aadhaar Verification Routes

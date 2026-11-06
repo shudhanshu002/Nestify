@@ -35,6 +35,8 @@ const KYCVerification = () => {
   const [phoneVerifyLoading, setPhoneVerifyLoading] = useState(false);
   const [simulatedPhoneOtp, setSimulatedPhoneOtp] = useState('');
   const [phoneResendTimer, setPhoneResendTimer] = useState(0);
+  const [phoneOtpChannel, setPhoneOtpChannel] = useState('WHATSAPP');
+  const [whatsappLink, setWhatsappLink] = useState('');
 
   // ----------------------------------------------------
   // 2. IDENTITY / AADHAAR STATE
@@ -146,17 +148,21 @@ const KYCVerification = () => {
   // ----------------------------------------------------
   // HANDLERS: 1. MOBILE VERIFICATION
   // ----------------------------------------------------
-  const handleSendPhoneOtp = async (e) => {
-    if (e) e.preventDefault();
+  const handleSendPhoneOtp = async (overrideChannel) => {
     if (!phone || phone.replace(/\D/g, '').length < 10) {
       return toast.warning('Please enter a valid 10-digit Indian mobile number.');
     }
 
+    const channel = overrideChannel || phoneOtpChannel;
     setPhoneOtpLoading(true);
+    const endpoint = channel === 'WHATSAPP' ? '/users/send-whatsapp-otp' : '/users/send-phone-otp';
     try {
-      const { data } = await API.post('/users/send-phone-otp', { phone });
+      const { data } = await API.post(endpoint, { phone });
       setPhoneOtpSent(true);
       setPhoneResendTimer(45);
+      if (data.data?.whatsappDeepLink) {
+        setWhatsappLink(data.data.whatsappDeepLink);
+      }
       if (data.data?.simulatedOtp) {
         setSimulatedPhoneOtp(data.data.simulatedOtp);
         setPhoneOtp(data.data.simulatedOtp);
@@ -164,9 +170,9 @@ const KYCVerification = () => {
         setSimulatedPhoneOtp('');
         setPhoneOtp('');
       }
-      toast.success(data.message || 'OTP sent successfully to your mobile number!');
+      toast.success(data.message || `OTP dispatched via ${channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'}!`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to dispatch phone OTP.');
+      toast.error(err.response?.data?.message || `Failed to dispatch ${channel} OTP.`);
     } finally {
       setPhoneOtpLoading(false);
     }
@@ -676,10 +682,38 @@ const KYCVerification = () => {
               </div>
             ) : (
               <form onSubmit={phoneOtpSent ? handleVerifyPhoneOtp : handleSendPhoneOtp} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase text-gray-400 block">
-                    Indian Mobile Number (+91)
-                  </label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase text-gray-400 block">
+                      Indian Mobile Number (+91)
+                    </label>
+                    <div className="flex items-center gap-1.5 bg-[#12131a] p-1 rounded-xl border border-[#232533]">
+                      <button
+                        type="button"
+                        onClick={() => setPhoneOtpChannel('WHATSAPP')}
+                        disabled={phoneOtpSent}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition cursor-pointer ${
+                          phoneOtpChannel === 'WHATSAPP'
+                            ? 'bg-emerald-600 text-white shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        <span>💬 WhatsApp</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPhoneOtpChannel('SMS')}
+                        disabled={phoneOtpSent}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition cursor-pointer ${
+                          phoneOtpChannel === 'SMS'
+                            ? 'bg-red-600 text-white shadow'
+                            : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        <span>📱 SMS</span>
+                      </button>
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <div className="flex items-center px-3.5 bg-[#202020] border border-[#333333] rounded-xl text-gray-400 font-mono text-xs font-bold">
                       🇮🇳 +91
@@ -695,11 +729,21 @@ const KYCVerification = () => {
                     {!phoneOtpSent && (
                       <button
                         type="button"
-                        onClick={handleSendPhoneOtp}
+                        onClick={() => handleSendPhoneOtp()}
                         disabled={phoneOtpLoading || phone.length < 10}
-                        className="btn-netflix px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer disabled:opacity-50 shrink-0"
+                        className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer disabled:opacity-50 shrink-0 transition flex items-center gap-1.5 shadow-lg ${
+                          phoneOtpChannel === 'WHATSAPP'
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/50'
+                            : 'btn-netflix'
+                        }`}
                       >
-                        {phoneOtpLoading ? <Loader2 size={14} className="animate-spin" /> : 'Send OTP'}
+                        {phoneOtpLoading ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : phoneOtpChannel === 'WHATSAPP' ? (
+                          <span>Send WhatsApp OTP</span>
+                        ) : (
+                          <span>Send SMS OTP</span>
+                        )}
                       </button>
                     )}
                   </div>
@@ -717,13 +761,23 @@ const KYCVerification = () => {
                       {phoneResendTimer > 0 ? (
                         <span className="text-[10px] text-gray-500 font-mono">Resend in {phoneResendTimer}s</span>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={handleSendPhoneOtp}
-                          className="text-[10px] font-bold text-red-400 hover:text-red-300 transition cursor-pointer"
-                        >
-                          Resend Code
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleSendPhoneOtp('WHATSAPP')}
+                            className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
+                          >
+                            Resend on WhatsApp
+                          </button>
+                          <span className="text-gray-600">•</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSendPhoneOtp('SMS')}
+                            className="text-[10px] font-bold text-red-400 hover:text-red-300 transition cursor-pointer"
+                          >
+                            Resend via SMS
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -734,8 +788,8 @@ const KYCVerification = () => {
                       </div>
                     ) : (
                       <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/40 rounded-xl text-[11px] text-emerald-300 flex items-center justify-between font-mono">
-                        <span>⚡ Real-time SMS dispatched to your mobile. Check your inbox.</span>
-                        <span className="text-[9px] uppercase bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-200">Live SMS</span>
+                        <span>{phoneOtpChannel === 'WHATSAPP' ? '⚡ Real-time WhatsApp code dispatched to your chat.' : '⚡ Real-time SMS dispatched to your mobile.'} Check messages.</span>
+                        <span className="text-[9px] uppercase bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-200">{phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp' : 'Live SMS'}</span>
                       </div>
                     )}
 
