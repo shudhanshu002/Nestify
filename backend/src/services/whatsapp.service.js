@@ -139,7 +139,82 @@ export const sendWhatsAppOTP = async ({ phone, otp, userName = 'Resident' }) => 
   }
 
   // ----------------------------------------------------
-  // 4. DEVELOPMENT SIMULATION & CLICK-TO-CHAT FALLBACK
+  // 4. ULTRAMSG AUTOMATED WHATSAPP GATEWAY (Direct Dispatch)
+  // Free trial instance at https://ultramsg.com
+  // ----------------------------------------------------
+  if (process.env.ULTRAMSG_INSTANCE_ID && process.env.ULTRAMSG_TOKEN) {
+    try {
+      const instanceId = process.env.ULTRAMSG_INSTANCE_ID.trim();
+      const token = process.env.ULTRAMSG_TOKEN.trim();
+
+      const response = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          token,
+          to: `+91${normalized}`,
+          body: messageText
+        })
+      });
+      const data = await response.json();
+
+      if (data.sent === 'true' || data.id) {
+        console.log(`[WHATSAPP SUCCESS] Delivered to +91${normalized} via UltraMsg. Message ID: ${data.id}`);
+        return {
+          success: true,
+          simulated: false,
+          provider: 'UltraMsg WhatsApp',
+          channel: 'WHATSAPP',
+          phone: normalized,
+          masked: maskPhone(normalized),
+          whatsappDeepLink
+        };
+      }
+      console.warn('UltraMsg WhatsApp API error:', data.error || data.message);
+    } catch (err) {
+      console.error('UltraMsg WhatsApp dispatch error:', err.message);
+    }
+  }
+
+  // ----------------------------------------------------
+  // 5. GREEN-API AUTOMATED WHATSAPP GATEWAY
+  // Free trial at https://green-api.com
+  // ----------------------------------------------------
+  if (process.env.GREEN_API_INSTANCE_ID && process.env.GREEN_API_TOKEN) {
+    try {
+      const id = process.env.GREEN_API_INSTANCE_ID.trim();
+      const token = process.env.GREEN_API_TOKEN.trim();
+
+      const response = await fetch(`https://api.green-api.com/waInstance${id}/sendMessage/${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: `91${normalized}@c.us`,
+          message: messageText
+        })
+      });
+      const data = await response.json();
+
+      if (data.idMessage) {
+        console.log(`[WHATSAPP SUCCESS] Delivered to +91${normalized} via Green-API ID: ${data.idMessage}`);
+        return {
+          success: true,
+          simulated: false,
+          provider: 'Green-API WhatsApp',
+          channel: 'WHATSAPP',
+          phone: normalized,
+          masked: maskPhone(normalized),
+          whatsappDeepLink
+        };
+      }
+      console.warn('Green-API WhatsApp error:', data.message);
+    } catch (err) {
+      console.error('Green-API WhatsApp dispatch error:', err.message);
+    }
+  }
+
+  // ----------------------------------------------------
+  // 6. DEVELOPMENT SIMULATION & CLICK-TO-CHAT FALLBACK
   // ----------------------------------------------------
   console.log('\n' + '='.repeat(68));
   console.log('💬 [NESTIFY WHATSAPP GATEWAY - SIMULATION & DEEP-LINK MODE]');

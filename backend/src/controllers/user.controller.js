@@ -661,7 +661,7 @@ export const sendPhoneOTP = async (req, res, next) => {
     // Generate OTP & save to verification store
     const otp = await sendOTP(req.user._id, normalized, 'PHONE_VERIFICATION');
 
-    // Dispatch SMS via provider or authentic simulation
+    // Dispatch SMS via provider
     const smsResult = await sendSmsOTP({
       phone: normalized,
       otp,
@@ -669,18 +669,9 @@ export const sendPhoneOTP = async (req, res, next) => {
       type: 'PHONE_VERIFICATION'
     });
 
-    // Also dispatch real-time backup OTP to user's registered email
-    if (req.user?.email) {
-      try {
-        await sendVerificationEmail(req.user.email, otp, req.user.firstName);
-      } catch (mailErr) {
-        console.warn('Backup email dispatch notice:', mailErr.message);
-      }
-    }
-
     res.status(200).json({
       success: true,
-      message: `Verification code dispatched to ${smsResult.masked} (and backup to ${req.user.email})`,
+      message: `Verification code dispatched to ${smsResult.masked}`,
       data: {
         phone: normalized,
         masked: smsResult.masked,
@@ -735,18 +726,9 @@ export const sendWhatsAppOTPHandler = async (req, res, next) => {
       userName: req.user.firstName
     });
 
-    // Also dispatch real-time backup OTP to user's registered email
-    if (req.user?.email) {
-      try {
-        await sendVerificationEmail(req.user.email, otp, req.user.firstName);
-      } catch (mailErr) {
-        console.warn('Backup email dispatch notice:', mailErr.message);
-      }
-    }
-
     res.status(200).json({
       success: true,
-      message: `WhatsApp verification code dispatched for ${result.masked} (and backup to ${req.user.email})`,
+      message: `WhatsApp verification code dispatched for ${result.masked}`,
       data: {
         phone: normalized,
         masked: result.masked,

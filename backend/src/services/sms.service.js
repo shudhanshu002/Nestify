@@ -52,6 +52,7 @@ export const sendSmsOTP = async ({ phone, otp, userName = 'Resident', type = 'PH
   }
 
   const message = `Your Nestify verification code is ${otp}. Valid for 10 minutes. Do not share this OTP with anyone for account security.`;
+  let lastError = null;
 
   // ----------------------------------------------------
   // 1. FAST2SMS GATEWAY (Recommended for India)
@@ -85,6 +86,12 @@ export const sendSmsOTP = async ({ phone, otp, userName = 'Resident', type = 'PH
         };
       }
 
+      if (otpData.status_code === 996 || (otpData.message && typeof otpData.message === 'string' && otpData.message.includes('website verification'))) {
+        lastError = 'Fast2SMS requires 1-time Website Verification: Log in to fast2sms.com -> "OTP Message" menu -> complete Website Verification to activate live SMS delivery, or use WhatsApp OTP.';
+      } else {
+        lastError = Array.isArray(otpData.message) ? otpData.message[0] : (otpData.message || 'Fast2SMS OTP route rejected message');
+      }
+
       // Second attempt: Quick SMS route ('q') if OTP route required DLT
       const quickResponse = await fetch('https://www.fast2sms.com/dev/bulkV2', {
         method: 'POST',
@@ -111,9 +118,10 @@ export const sendSmsOTP = async ({ phone, otp, userName = 'Resident', type = 'PH
           masked: maskPhone(normalized) 
         };
       }
-      console.warn('Fast2SMS returned error:', otpData.message || quickData.message);
+      console.warn('Fast2SMS returned notice:', otpData.message || quickData.message);
     } catch (err) {
       console.error('Fast2SMS dispatch error:', err.message);
+      if (!lastError) lastError = err.message;
     }
   }
 
@@ -187,9 +195,14 @@ export const sendSmsOTP = async ({ phone, otp, userName = 'Resident', type = 'PH
     }
   }
 
+  // If user configured real SMS gateway and it failed to deliver, alert with exact reason
+  if (process.env.NODE_ENV !== 'test' && (process.env.FAST2SMS_API_KEY || process.env.TWOFACTOR_API_KEY || process.env.TWILIO_ACCOUNT_SID)) {
+    throw new Error(lastError || 'Real SMS could not be dispatched. Please verify your telecom gateway status or use WhatsApp OTP.');
+  }
+
   // ----------------------------------------------------
   // 4. DEVELOPMENT SIMULATION FALLBACK
-  // Triggered only when no external SMS credentials are in .env
+  // Triggered only during automated testing or when no gateway keys are set
   // ----------------------------------------------------
   console.log('\n' + '='.repeat(68));
   console.log('📱 [NESTIFY SMS GATEWAY - SIMULATION MODE]');
@@ -224,6 +237,30 @@ export const sendEmergencyContactOTP = async ({ emergencyPhone, emergencyName, r
   // 1. Fast2SMS
   if (process.env.FAST2SMS_API_KEY) {
     try {
+      // First attempt: OTP Route
+      const otpRes = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+        method: 'POST',
+        headers: {
+          'authorization': process.env.FAST2SMS_API_KEY.trim(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          route: 'otp',
+          variables_values: otp,
+          numbers: normalized
+        })
+      });
+      const otpData = await otpRes.json();
+      if (otpData.return) {
+        return { 
+          success: true, 
+          simulated: false, 
+          provider: 'Fast2SMS', 
+          phone: normalized, 
+          masked: maskPhone(normalized) 
+        };
+      }
+
       const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
         method: 'POST',
         headers: {

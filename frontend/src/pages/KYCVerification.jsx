@@ -160,6 +160,12 @@ const KYCVerification = () => {
       setPhoneOtp('');
       if (data.data?.whatsappDeepLink) {
         setWhatsappLink(data.data.whatsappDeepLink);
+        // Automatically open WhatsApp chat for seamless automated OTP delivery
+        if (channel === 'WHATSAPP') {
+          try {
+            window.open(data.data.whatsappDeepLink, '_blank', 'noopener,noreferrer');
+          } catch (_) {}
+        }
       }
       toast.success(data.message || `OTP dispatched via ${channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'}!`);
     } catch (err) {
@@ -773,7 +779,7 @@ const KYCVerification = () => {
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-400 leading-relaxed">
-                        Please check your {phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp messages' : 'SMS messages'}. A backup copy has also been sent to your registered email <strong className="text-gray-200">{user?.email}</strong>.
+                        Please check your {phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp chat' : 'SMS messages'} for the 6-digit code.
                       </p>
                       {whatsappLink && (
                         <div className="pt-0.5">
