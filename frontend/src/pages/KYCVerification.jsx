@@ -160,6 +160,9 @@ const KYCVerification = () => {
       if (data.data?.simulatedOtp) {
         setSimulatedPhoneOtp(data.data.simulatedOtp);
         setPhoneOtp(data.data.simulatedOtp);
+      } else {
+        setSimulatedPhoneOtp('');
+        setPhoneOtp('');
       }
       toast.success(data.message || 'OTP sent successfully to your mobile number!');
     } catch (err) {
@@ -331,6 +334,9 @@ const KYCVerification = () => {
       if (data.data?.simulatedOtp) {
         setSimulatedEmergencyOtp(data.data.simulatedOtp);
         setEmergencyOtp(data.data.simulatedOtp);
+      } else {
+        setSimulatedEmergencyOtp('');
+        setEmergencyOtp('');
       }
       toast.success(data.message || 'OTP sent to emergency contact!');
     } catch (err) {
@@ -721,10 +727,15 @@ const KYCVerification = () => {
                       )}
                     </div>
 
-                    {simulatedPhoneOtp && (
+                    {simulatedPhoneOtp ? (
                       <div className="p-2.5 bg-blue-950/40 border border-blue-800/40 rounded-xl text-[11px] text-blue-300 flex items-center justify-between font-mono">
                         <span>Development SMS OTP: <strong>{simulatedPhoneOtp}</strong></span>
                         <span className="text-[9px] uppercase bg-blue-900/60 px-2 py-0.5 rounded">Simulated</span>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/40 rounded-xl text-[11px] text-emerald-300 flex items-center justify-between font-mono">
+                        <span>⚡ Real-time SMS dispatched to your mobile. Check your inbox.</span>
+                        <span className="text-[9px] uppercase bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-200">Live SMS</span>
                       </div>
                     )}
 
@@ -1142,10 +1153,15 @@ const KYCVerification = () => {
                       )}
                     </div>
 
-                    {simulatedEmergencyOtp && (
+                    {simulatedEmergencyOtp ? (
                       <div className="p-2.5 bg-blue-950/40 border border-blue-800/40 rounded-xl text-[11px] text-blue-300 flex items-center justify-between font-mono">
                         <span>Emergency SMS OTP: <strong>{simulatedEmergencyOtp}</strong></span>
                         <span className="text-[9px] uppercase bg-blue-900/60 px-2 py-0.5 rounded">Simulated</span>
+                      </div>
+                    ) : (
+                      <div className="p-2.5 bg-emerald-950/40 border border-emerald-800/40 rounded-xl text-[11px] text-emerald-300 flex items-center justify-between font-mono">
+                        <span>⚡ Real-time SMS dispatched to ${emergencyName}'s phone. Check inbox.</span>
+                        <span className="text-[9px] uppercase bg-emerald-900/60 px-2 py-0.5 rounded text-emerald-200">Live SMS</span>
                       </div>
                     )}
 

@@ -670,11 +670,15 @@ export const sendPhoneOTP = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: `Verification code sent via SMS to ${smsResult.masked}`,
+      message: smsResult.simulated
+        ? `Development simulation: Verification code generated for ${smsResult.masked}`
+        : `Real-time SMS sent successfully to ${smsResult.masked}${smsResult.provider ? ` via ${smsResult.provider}` : ''}`,
       data: {
         phone: normalized,
         masked: smsResult.masked,
-        simulatedOtp: smsResult.otp
+        simulatedOtp: smsResult.simulated ? smsResult.otp : undefined,
+        isRealSms: !smsResult.simulated,
+        provider: smsResult.provider
       }
     });
   } catch (error) {
@@ -953,11 +957,15 @@ export const sendEmergencyContactOTPHandler = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: `Verification code sent via SMS to emergency contact at ${smsResult.masked}`,
+      message: smsResult.simulated
+        ? `Development simulation: Verification code generated for ${smsResult.masked}`
+        : `Real-time SMS sent to emergency contact at ${smsResult.masked}${smsResult.provider ? ` via ${smsResult.provider}` : ''}`,
       data: {
         phone: normalized,
         masked: smsResult.masked,
-        simulatedOtp: smsResult.otp
+        simulatedOtp: smsResult.simulated ? smsResult.otp : undefined,
+        isRealSms: !smsResult.simulated,
+        provider: smsResult.provider
       }
     });
   } catch (error) {
