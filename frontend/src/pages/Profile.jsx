@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import PropertyCard from '../components/PropertyCard';
 import OwnerOnboardingModal from '../components/modals/OwnerOnboardingModal';
+import OwnerVerificationWarningModal from '../components/modals/OwnerVerificationWarningModal';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 
 const Profile = () => {
@@ -15,6 +16,7 @@ const Profile = () => {
   const [switchingRole, setSwitchingRole] = useState(false);
   const [roleNotice, setRoleNotice] = useState('');
   const [showOwnerModal, setShowOwnerModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
 
   const handleRoleSwitch = async () => {
     if (switchingRole || !user || user.role === 'ADMIN') return;
@@ -28,6 +30,18 @@ const Profile = () => {
           setTimeout(() => setRoleNotice(''), 4000);
           navigate('/');
         }
+        return;
+      }
+
+      // Verification Warning: User must be verified before switching to Owner
+      const isUserVerified = !!(
+        user?.isEmailVerified && 
+        (user?.isPhoneVerified || (user?.phone && user.phone.length >= 10)) && 
+        (user?.kycStatus === 'VERIFIED' || user?.kycStatus === 'PENDING' || (user?.kycDocuments && user?.kycDocuments.length > 0))
+      );
+
+      if (!isUserVerified) {
+        setShowWarningModal(true);
         return;
       }
 
@@ -452,6 +466,21 @@ const Profile = () => {
                 </div>
               </div>
 
+              {/* Comprehensive Verification Center CTA */}
+              <div className="bg-[#1a1b24] border border-[#2b2d3d] p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-red-500 tracking-wider block">5-PILLAR RESIDENT TRUST GATES</span>
+                  <h4 className="text-sm font-black text-white mt-0.5">Mobile OTP • Aadhaar • Live Selfie • Emergency Contact • Student/Work</h4>
+                  <p className="text-xs text-neutral-400 mt-0.5">Verify your mobile, government ID, live selfie, emergency contact, and college/work credentials.</p>
+                </div>
+                <Link
+                  to="/verify-identity"
+                  className="btn-red-glow text-white font-extrabold text-xs uppercase px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow shrink-0"
+                >
+                  OPEN VERIFICATION HUB <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+
               {/* Upload Form */}
               {user.kycStatus !== 'VERIFIED' && user.kycStatus !== 'PENDING' && (
                 <form onSubmit={handleKYCUpload} className="space-y-4 pt-2">
@@ -579,6 +608,14 @@ const Profile = () => {
           )}
 
         </main>
+
+        {/* Verification Warning Modal before Landlord Switch */}
+        <OwnerVerificationWarningModal
+          isOpen={showWarningModal}
+          onClose={() => setShowWarningModal(false)}
+          onProceedToOnboarding={() => setShowOwnerModal(true)}
+          user={user}
+        />
 
         {/* Landlord Onboarding & Verification Modal */}
         <OwnerOnboardingModal 

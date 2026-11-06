@@ -1,11 +1,68 @@
 import mongoose from "mongoose";
 import bcrypt from 'bcryptjs';
 
+const emergencyContactSchema = new mongoose.Schema({
+  name: { type: String, default: '', trim: true },
+  phone: { type: String, default: '', trim: true },
+  relation: { type: String, default: '', trim: true },
+  isVerified: { type: Boolean, default: false },
+  verifiedAt: { type: Date }
+}, { _id: false });
+
+const identityVerificationSchema = new mongoose.Schema({
+  docType: { 
+    type: String, 
+    enum: ['AADHAAR', 'PAN', 'PASSPORT', 'VOTER_ID', 'DRIVING_LICENSE'], 
+    default: 'AADHAAR' 
+  },
+  maskedId: { type: String, default: '' },
+  verifiedVia: { 
+    type: String, 
+    enum: ['AADHAAR_OFFLINE_QR', 'GOV_ID_CONSENT', 'DOCUMENT_UPLOAD', 'MANUAL_AUDIT'], 
+    default: 'DOCUMENT_UPLOAD' 
+  },
+  fullNameOnDoc: { type: String, default: '' },
+  nameMatchScore: { type: Number, default: 0 },
+  dobOnDoc: { type: String, default: '' },
+  dobMatched: { type: Boolean, default: false },
+  verifiedAt: { type: Date }
+}, { _id: false });
+
+const selfieVerificationSchema = new mongoose.Schema({
+  isVerified: { type: Boolean, default: false },
+  selfieUrl: { type: String, default: '' },
+  livenessScore: { type: Number, default: 0 },
+  livenessChallengePassed: { type: Boolean, default: false },
+  verifiedAt: { type: Date }
+}, { _id: false });
+
+const studentOrWorkSchema = new mongoose.Schema({
+  category: { 
+    type: String, 
+    enum: ['NONE', 'STUDENT', 'WORKING_PROFESSIONAL'], 
+    default: 'NONE' 
+  },
+  organizationName: { type: String, default: '', trim: true },
+  designationOrCourse: { type: String, default: '', trim: true },
+  workEmail: { type: String, default: '', trim: true, lowercase: true },
+  isWorkEmailVerified: { type: Boolean, default: false },
+  idCardUrl: { type: String, default: '' },
+  status: { 
+    type: String, 
+    enum: ['NOT_SUBMITTED', 'PENDING', 'VERIFIED', 'REJECTED'], 
+    default: 'NOT_SUBMITTED' 
+  },
+  verifiedAt: { type: Date }
+}, { _id: false });
+
 const profileSchema = new mongoose.Schema({
   avatar: { type: String, default: '' },
   bio: { type: String, maxLength: 500 },
   lifestylePreferences: [String],
-  emergencyContact: { name: String, phone: String, relation: String }
+  emergencyContact: {
+    type: emergencyContactSchema,
+    default: () => ({ name: '', phone: '', relation: '', isVerified: false })
+  }
 }, { _id: false });
 
 const ownerDealSchema = new mongoose.Schema({
@@ -62,26 +119,48 @@ const userSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, lowercase: true, index: true },
     password: { type: String, sparse: true },
     role: { type: String, enum: ['TENANT', 'OWNER', 'ADMIN'], default: 'TENANT' },
-    phone: { type: String, sparse: true },
+    phone: { type: String, sparse: true, index: true },
+    dateOfBirth: { type: Date },
     avatar: { type: String, default: '' },
     googleId: { type: String, sparse: true },
     isEmailVerified: { type: Boolean, default: false },
     isPhoneVerified: { type: Boolean, default: false },
+    phoneVerifiedAt: { type: Date },
     
-    // KYC Fields
+    // Core Identity & KYC Fields
     kycStatus: { 
       type: String, 
       enum: ['NOT_SUBMITTED', 'PENDING', 'VERIFIED', 'REJECTED'], 
       default: 'NOT_SUBMITTED' 
     },
+    identityVerification: { 
+      type: identityVerificationSchema, 
+      default: () => ({}) 
+    },
     kycDocuments: [{
-        docType: { type: String, enum: ['AADHAAR', 'PAN', 'PASSPORT'] },
+        docType: { type: String, enum: ['AADHAAR', 'PAN', 'PASSPORT', 'VOTER_ID', 'DRIVING_LICENSE'] },
         fileUrl: String,
         uploadedAt: { type: Date, default: Date.now }
     }],
     kycRejectionReason: { type: String, default: '' },
 
-    profile: profileSchema,
+    // Selfie & Liveness Verification
+    selfieVerification: { 
+      type: selfieVerificationSchema, 
+      default: () => ({ isVerified: false, livenessScore: 0, livenessChallengePassed: false }) 
+    },
+
+    // Student / Employment Verification (Optional)
+    studentOrWorkVerification: { 
+      type: studentOrWorkSchema, 
+      default: () => ({ category: 'NONE', status: 'NOT_SUBMITTED' }) 
+    },
+
+    profile: {
+      type: profileSchema,
+      default: () => ({})
+    },
+
     deal: { 
       type: ownerDealSchema, 
       default: () => ({ 

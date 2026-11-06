@@ -10,11 +10,13 @@ import {
 import API from '../api/client';
 import Logo from './Logo';
 import OwnerOnboardingModal from './modals/OwnerOnboardingModal';
+import OwnerVerificationWarningModal from './modals/OwnerVerificationWarningModal';
 
 const Navbar = () => {
   const { user, logout, wishlistIds, activeMode, toggleActiveMode, switchRole } = useContext(AuthContext);
   const [switchingRole, setSwitchingRole] = useState(false);
   const [showOwnerModal, setShowOwnerModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
   const { isChatOpen, setIsChatOpen, socket, openChatWithAdmin } = useChat();
   const navigate = useNavigate();
   const location = useLocation();
@@ -102,6 +104,18 @@ const Navbar = () => {
         if (res.success) navigate('/');
         return;
       }
+      // Verification Warning: User must be verified before switching to Owner
+      const isUserVerified = !!(
+        user?.isEmailVerified && 
+        (user?.isPhoneVerified || (user?.phone && user.phone.length >= 10)) && 
+        (user?.kycStatus === 'VERIFIED' || user?.kycStatus === 'PENDING' || (user?.kycDocuments && user?.kycDocuments.length > 0))
+      );
+
+      if (!isUserVerified) {
+        setShowWarningModal(true);
+        return;
+      }
+
       const isOwnerOnboarded = user.isOwnerOnboarded || (user.ownerDetails?.legalAgreementAccepted && user.ownerDetails?.panNumber);
       if (!isOwnerOnboarded) {
         setShowOwnerModal(true);
@@ -604,6 +618,14 @@ const Navbar = () => {
           </div>
         </div>
       )}
+      {/* Verification Warning Modal before Landlord Switch */}
+      <OwnerVerificationWarningModal
+        isOpen={showWarningModal}
+        onClose={() => setShowWarningModal(false)}
+        onProceedToOnboarding={() => setShowOwnerModal(true)}
+        user={user}
+      />
+
       {/* Landlord Onboarding & Business Verification Modal */}
       <OwnerOnboardingModal 
         isOpen={showOwnerModal}

@@ -3,6 +3,7 @@ import Room from '../models/room.model.js';
 import Property from '../models/property.model.js';
 import Notification from '../models/notification.model.js';
 import Payment from '../models/payment.model.js';
+import User from '../models/user.model.js';
 import { 
   roomMutex, 
   checkUserDualBookingConflict, 
@@ -121,6 +122,27 @@ export const createBooking = async (req, res, next) => {
           code: 'CONCURRENT_REQUEST_IN_FLIGHT',
           message: 'A duplicate booking request is currently being processed. Please wait.'
         });
+      }
+    }
+
+        // Resident Trust & Compliance: Check Mandatory Verification
+    if (req.user && req.user._id) {
+      const resident = await User.findById(req.user._id);
+      if (resident && resident.role === 'TENANT') {
+        const missing = [];
+        if (!resident.isPhoneVerified) missing.push('Mobile OTP Verification');
+        if (resident.kycStatus !== 'VERIFIED') missing.push('Identity / Aadhaar Verification');
+
+        if (missing.length > 0) {
+          if (idempotencyKey) releaseIdempotencyLock(idempotencyKey);
+          return res.status(403).json({
+            success: false,
+            code: 'MANDATORY_VERIFICATION_REQUIRED',
+            message: `Mandatory resident verification required before booking: ${missing.join(', ')}. Please complete your verification.`,
+            missingChecks: missing,
+            verificationUrl: '/verify-identity'
+          });
+        }
       }
     }
 

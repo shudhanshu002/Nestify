@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import API from '../../api/client';
 import { 
   Building2, ShieldCheck, CheckCircle2, AlertCircle, 
-  X, Loader2, Landmark, FileText, UserCheck, Phone 
+  X, Loader2, Landmark, FileText, UserCheck, Phone, 
+  Upload, Mail, AlertTriangle, FileSpreadsheet, Lock
 } from 'lucide-react';
 
 const INDIAN_CITIES = [
@@ -12,6 +14,8 @@ const INDIAN_CITIES = [
 
 const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) => {
   const [formData, setFormData] = useState({
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
     phone: user?.phone || '',
     entityType: 'INDIVIDUAL',
     businessName: '',
@@ -27,6 +31,11 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
     legalAgreementAccepted: false
   });
 
+  // KYC Document Upload State
+  const [kycDocType, setKycDocType] = useState('AADHAAR');
+  const [kycFile, setKycFile] = useState(null);
+  const [kycFileName, setKycFileName] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,13 +43,23 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      // Sync latest user details
+      if (user) {
+        setFormData(prev => ({
+          ...prev,
+          firstName: prev.firstName || user.firstName || '',
+          lastName: prev.lastName || user.lastName || '',
+          phone: prev.phone || user.phone || '',
+          accountHolderName: prev.accountHolderName || `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        }));
+      }
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
@@ -55,16 +74,51 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
   const isAccountValid = formData.accountNumber.trim().length >= 8 && 
     formData.accountNumber === formData.confirmAccountNumber;
 
-  const canSubmit = isPanValid && isIfscValid && isPhoneValid && isAccountValid && 
+  const isNameValid = !!formData.firstName.trim();
+  const isEmailVerified = !!user?.isEmailVerified;
+
+  const hasExistingKyc = user?.kycStatus === 'VERIFIED' || user?.kycStatus === 'PENDING' || (user?.kycDocuments && user?.kycDocuments.length > 0);
+  const isKycSatisfied = hasExistingKyc || !!kycFile;
+
+  const canSubmit = isEmailVerified && isNameValid && isPanValid && isIfscValid && 
+    isPhoneValid && isAccountValid && isKycSatisfied &&
     formData.accountHolderName.trim() && formData.ownershipDeclaration && 
     formData.legalAgreementAccepted;
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Document file size must be less than 5MB.');
+        return;
+      }
+      setKycFile(file);
+      setKycFileName(file.name);
+      setError('');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
+    if (!isEmailVerified) {
+      setError('Email verification is required before converting to a Landlord account. Please verify your email first.');
+      return;
+    }
+
+    if (!isNameValid) {
+      setError('Please provide your legal first name.');
+      return;
+    }
+
     if (!isPhoneValid) {
       setError('Please provide a valid 10-digit primary phone contact number.');
+      return;
+    }
+
+    if (!hasExistingKyc && !kycFile) {
+      setError('Government Identity Document (Aadhaar / PAN / Passport) upload is required to verify your identity.');
       return;
     }
 
@@ -90,7 +144,22 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
 
     setLoading(true);
     try {
+      // 1. Upload KYC Document if user has newly selected a document file
+      if (kycFile) {
+        const kycFormData = new FormData();
+        kycFormData.append('document', kycFile);
+        kycFormData.append('docType', kycDocType);
+        kycFormData.append('documentType', kycDocType);
+
+        await API.post('/users/kyc-upload', kycFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+
+      // 2. Prepare Verified Landlord Payload
       const ownerPayload = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
         phone: formData.phone.trim(),
         entityType: formData.entityType,
         businessName: formData.businessName.trim(),
@@ -107,6 +176,7 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
         legalAgreementAccepted: true
       };
 
+      // 3. Switch role to OWNER with complete verification data
       const res = await switchRole('OWNER', ownerPayload);
       if (res.success) {
         onSuccess(res.user);
@@ -115,7 +185,8 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
         setError(res.error || 'Failed to complete owner verification.');
       }
     } catch (err) {
-      setError(err.message || 'An unexpected error occurred during onboarding.');
+      console.error('Owner onboarding error:', err);
+      setError(err.response?.data?.message || err.message || 'An unexpected error occurred during onboarding.');
     } finally {
       setLoading(false);
     }
@@ -145,13 +216,13 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
           </div>
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-wider mb-1">
-              <ShieldCheck size={12} /> Host Verification &amp; Legal Onboarding
+              <ShieldCheck size={12} /> Host Identity &amp; Business Verification
             </div>
             <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Activate Landlord Persona
+              Convert to Landlord Account
             </h3>
             <p className="text-xs sm:text-sm text-gray-400 mt-1">
-              To list properties, manage leases, and collect escrow rental payouts, please complete your landlord verification and business registration.
+              Before converting, your user profile, government identity, and banking payout details must be fully verified.
             </p>
           </div>
         </div>
@@ -164,13 +235,173 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
           </div>
         )}
 
+        {/* Verification Warning Notice */}
+        {(!isEmailVerified || !isPhoneValid || !hasExistingKyc) && (
+          <div className="mb-5 p-4 bg-amber-950/40 border border-amber-600/50 rounded-2xl flex items-start gap-3 text-amber-200">
+            <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed">
+              <span className="font-black uppercase tracking-wider block text-amber-300 mb-0.5">
+                Warning: Verification Required Before Landlord Switch
+              </span>
+              You must verify your resident details (Email, Phone Number, and Government Identity) before switching to a Landlord account. Complete the required fields below or visit the <a href="/verify-identity" className="underline font-bold text-amber-300 hover:text-white">Verification Hub</a>.
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* Section 1: Entity & Contact */}
-          <div className="space-y-4">
+          {/* Section 1: User Level Verification Checklist & Identity */}
+          <div className="p-4 bg-[#111218] border border-[#232635] rounded-2xl space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-black uppercase tracking-wider text-gray-300 flex items-center gap-1.5">
+                <UserCheck size={14} className="text-emerald-400" />
+                Step 1: User Identity &amp; Contact Verification
+              </span>
+              <span className="text-[10px] font-bold text-gray-500">MANDATORY</span>
+            </div>
+
+            {/* Email Verification Status */}
+            <div className="flex items-center justify-between p-2.5 bg-[#181a24] rounded-xl border border-[#282b3c] text-xs">
+              <div className="flex items-center gap-2">
+                <Mail size={15} className="text-gray-400" />
+                <span className="text-gray-300 font-medium">{user?.email || 'Registered Email'}</span>
+              </div>
+              {isEmailVerified ? (
+                <span className="inline-flex items-center gap-1 text-emerald-400 font-bold text-[11px] bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  <CheckCircle2 size={12} /> Verified
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-red-400 font-bold text-[11px] bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                  <AlertTriangle size={12} /> Action Required
+                </span>
+              )}
+            </div>
+
+            {/* Name Fields */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">
+                  Legal First Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="First name"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  className="w-full rounded-xl bg-[#1d1f2b] border border-[#2e3245] py-2 px-3 text-white text-xs font-medium focus:ring-1 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">
+                  Legal Last Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="Last name"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  className="w-full rounded-xl bg-[#1d1f2b] border border-[#2e3245] py-2 px-3 text-white text-xs font-medium focus:ring-1 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-[10px] font-bold uppercase text-gray-400 ml-1 flex items-center justify-between">
+                  <span>Primary Host Contact Phone *</span>
+                  {isPhoneValid && (
+                    <span className="text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                      <CheckCircle2 size={11} /> 10 Digits Validated
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <Phone size={14} className="absolute left-3.5 top-2.5 text-gray-400" />
+                  <input
+                    type="tel"
+                    required
+                    placeholder="+91 98765 43210"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })}
+                    className="w-full rounded-xl bg-[#1d1f2b] border border-[#2e3245] py-2 pl-9 pr-3 text-white text-xs font-medium focus:ring-1 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* KYC Government Document Verification Section */}
+            <div className="pt-2 border-t border-[#232635] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-gray-300 flex items-center gap-1.5">
+                  <FileText size={13} className="text-emerald-400" />
+                  Government Identity Document (KYC)
+                </span>
+                {user?.kycStatus === 'VERIFIED' ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-400 font-bold text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    <CheckCircle2 size={11} /> KYC Cleared
+                  </span>
+                ) : user?.kycStatus === 'PENDING' ? (
+                  <span className="inline-flex items-center gap-1 text-amber-400 font-bold text-[10px] bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    ⏳ Document Under Review
+                  </span>
+                ) : (
+                  <span className="text-amber-400 font-bold text-[10px]">Upload Required</span>
+                )}
+              </div>
+
+              {user?.kycStatus !== 'VERIFIED' && (
+                <div className="p-3 bg-[#181a24] rounded-xl border border-[#282b3c] space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase text-gray-400">Document Type:</span>
+                    <select
+                      value={kycDocType}
+                      onChange={(e) => setKycDocType(e.target.value)}
+                      className="rounded-lg bg-[#222432] border border-[#33374c] py-1 px-2.5 text-white text-[11px] font-medium focus:ring-1 focus:ring-emerald-500 outline-none"
+                    >
+                      <option value="AADHAAR">Aadhaar Card (Front/Back)</option>
+                      <option value="PAN">PAN Card</option>
+                      <option value="PASSPORT">Passport</option>
+                    </select>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="owner-kyc-upload"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="owner-kyc-upload"
+                      className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-dashed border-[#3a3f57] hover:border-emerald-500/60 bg-[#14151e] hover:bg-[#1a1c29] text-gray-300 hover:text-white transition cursor-pointer text-xs font-medium"
+                    >
+                      <Upload size={14} className="text-emerald-400" />
+                      <span>{kycFileName ? `Selected: ${kycFileName}` : 'Click to Upload Aadhaar / Govt ID (Max 5MB)'}</span>
+                    </label>
+                  </div>
+                  {kycFileName && (
+                    <div className="flex items-center justify-between text-[11px] text-emerald-400 font-medium px-1">
+                      <span>✓ Document attached: {kycFileName}</span>
+                      <button
+                        type="button"
+                        onClick={() => { setKycFile(null); setKycFileName(''); }}
+                        className="text-red-400 hover:underline text-[10px]"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 2: Entity & Operations */}
+          <div className="space-y-3.5 pt-1">
             <div className="flex items-center gap-2 text-xs font-black uppercase text-gray-400 tracking-wider">
-              <UserCheck size={14} className="text-emerald-400" />
-              <span>1. Host &amp; Entity Profile</span>
+              <Building2 size={14} className="text-emerald-400" />
+              <span>Step 2: Landlord &amp; Business Profile</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -214,39 +445,25 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
                   className="w-full rounded-xl bg-[#20222e] border border-[#2e3245] py-2.5 px-3 text-white text-xs font-medium placeholder-gray-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                 />
               </div>
-
-              <div className="space-y-1 sm:col-span-2">
-                <label className="text-[10px] font-bold uppercase text-gray-400 ml-1 flex items-center justify-between">
-                  <span>Primary Host Phone Number</span>
-                  {isPhoneValid && <span className="text-emerald-400 text-[10px] font-semibold flex items-center gap-1"><CheckCircle2 size={11} /> Valid Contact</span>}
-                </label>
-                <div className="relative">
-                  <Phone size={14} className="absolute left-3.5 top-3 text-gray-400" />
-                  <input
-                    type="tel"
-                    required
-                    placeholder="+91 98765 43210"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full rounded-xl bg-[#20222e] border border-[#2e3245] py-2.5 pl-9 pr-3 text-white text-xs font-medium placeholder-gray-500 focus:ring-1 focus:ring-emerald-500 outline-none"
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Section 2: Legal & Tax Identifiers */}
-          <div className="space-y-4 pt-2 border-t border-[#232535]">
+          {/* Section 3: Legal Tax (PAN) & Escrow Banking */}
+          <div className="space-y-3.5 pt-2 border-t border-[#232535]">
             <div className="flex items-center gap-2 text-xs font-black uppercase text-gray-400 tracking-wider">
-              <FileText size={14} className="text-emerald-400" />
-              <span>2. Legal &amp; Tax Compliance</span>
+              <Landmark size={14} className="text-emerald-400" />
+              <span>Step 3: Legal Tax (PAN) &amp; Escrow Payout Banking</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-gray-400 ml-1 flex items-center justify-between">
                   <span>Permanent Account Number (PAN) *</span>
-                  {isPanValid && <span className="text-emerald-400 text-[10px] font-semibold flex items-center gap-1"><CheckCircle2 size={11} /> Valid PAN</span>}
+                  {isPanValid && (
+                    <span className="text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                      <CheckCircle2 size={11} /> Valid PAN
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -272,20 +489,10 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
                   className="w-full rounded-xl bg-[#20222e] border border-[#2e3245] py-2.5 px-3 text-white text-xs font-mono placeholder-gray-500 focus:ring-1 focus:ring-emerald-500 outline-none"
                 />
               </div>
-            </div>
-          </div>
 
-          {/* Section 3: Escrow Payout Banking */}
-          <div className="space-y-4 pt-2 border-t border-[#232535]">
-            <div className="flex items-center gap-2 text-xs font-black uppercase text-gray-400 tracking-wider">
-              <Landmark size={14} className="text-emerald-400" />
-              <span>3. Escrow Rental Payout Account</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1 sm:col-span-2">
                 <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">
-                  Beneficiary Account Holder Name
+                  Beneficiary Account Holder Name *
                 </label>
                 <input
                   type="text"
@@ -299,7 +506,7 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">
-                  Bank Name
+                  Bank Name *
                 </label>
                 <input
                   type="text"
@@ -313,8 +520,12 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-gray-400 ml-1 flex items-center justify-between">
-                  <span>IFSC Code</span>
-                  {isIfscValid && <span className="text-emerald-400 text-[10px] font-semibold flex items-center gap-1"><CheckCircle2 size={11} /> Valid IFSC</span>}
+                  <span>IFSC Code *</span>
+                  {isIfscValid && (
+                    <span className="text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                      <CheckCircle2 size={11} /> Valid IFSC
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -329,7 +540,7 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-gray-400 ml-1">
-                  Bank Account Number
+                  Bank Account Number *
                 </label>
                 <input
                   type="password"
@@ -343,8 +554,12 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold uppercase text-gray-400 ml-1 flex items-center justify-between">
-                  <span>Confirm Account Number</span>
-                  {isAccountValid && <span className="text-emerald-400 text-[10px] font-semibold flex items-center gap-1"><CheckCircle2 size={11} /> Matched</span>}
+                  <span>Confirm Account Number *</span>
+                  {isAccountValid && (
+                    <span className="text-emerald-400 text-[10px] font-semibold flex items-center gap-1">
+                      <CheckCircle2 size={11} /> Matched
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -358,8 +573,12 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
             </div>
           </div>
 
-          {/* Section 4: Legal Declarations */}
+          {/* Section 4: Legal Affirmations */}
           <div className="space-y-3 pt-2 border-t border-[#232535]">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              Step 4: Legal Declarations &amp; Lease Authority
+            </div>
+
             <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-300 select-none">
               <input
                 type="checkbox"
@@ -369,7 +588,7 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
                 className="w-4 h-4 mt-0.5 rounded border-[#333333] bg-[#222222] text-emerald-500 focus:ring-emerald-500 accent-emerald-500 cursor-pointer shrink-0"
               />
               <span className="leading-relaxed">
-                I declare that I am the legal titleholder or authorized property management agent with power of attorney for all listings I create on Nestify.
+                I confirm and declare that I hold legal property title ownership or authorized leasehold power of attorney for all co-living rooms and units I will list on Nestify.
               </span>
             </label>
 
@@ -382,7 +601,7 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
                 className="w-4 h-4 mt-0.5 rounded border-[#333333] bg-[#222222] text-emerald-500 focus:ring-emerald-500 accent-emerald-500 cursor-pointer shrink-0"
               />
               <span className="leading-relaxed">
-                I agree to the Nestify Landlord Terms, Escrow Settlement Policies (6% fee or Annual Plan), and Tenant Safety Guarantee.
+                I accept the Nestify Landlord Code of Conduct, Escrow Settlement Guidelines (6% fee or Annual Plan), and Tenant Anti-Discrimination Policy.
               </span>
             </label>
           </div>
@@ -404,7 +623,7 @@ const OwnerOnboardingModal = ({ isOpen, onClose, onSuccess, user, switchRole }) 
               className="px-6 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all flex items-center gap-2 shadow-lg shadow-emerald-950/40 cursor-pointer"
             >
               {loading ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
-              <span>Verify &amp; Activate Landlord Portal</span>
+              <span>Verify All Details &amp; Activate Landlord</span>
             </button>
           </div>
 

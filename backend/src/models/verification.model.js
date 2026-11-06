@@ -8,7 +8,14 @@ const verificationSchema = new mongoose.Schema({
   },
   type: { 
     type: String, 
-    enum: ['PHONE_VERIFICATION', 'EMAIL_VERIFICATION', 'PASSWORD_RESET', 'LOGIN_OTP'], 
+    enum: [
+      'PHONE_VERIFICATION', 
+      'EMAIL_VERIFICATION', 
+      'PASSWORD_RESET', 
+      'LOGIN_OTP',
+      'EMERGENCY_CONTACT_OTP',
+      'WORK_EMAIL_OTP'
+    ], 
     required: true 
   },
   otp: { 
