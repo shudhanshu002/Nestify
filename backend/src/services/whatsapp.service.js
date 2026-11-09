@@ -19,7 +19,46 @@ export const sendWhatsAppOTP = async ({ phone, otp, userName = 'Resident' }) => 
   const whatsappDeepLink = `https://wa.me/91${normalized}?text=${encodeURIComponent(`Hello ${userName}, your Nestify verification code is ${otp}. Valid for 10 minutes.`)}`;
 
   // ----------------------------------------------------
-  // 1. FAST2SMS WHATSAPP API (If message_id configured)
+  // 1. ULTRAMSG AUTOMATED WHATSAPP GATEWAY (Primary - Fast & Zero Approval)
+  // Free trial instance at https://ultramsg.com
+  // ----------------------------------------------------
+  if (process.env.ULTRAMSG_INSTANCE_ID && process.env.ULTRAMSG_TOKEN) {
+    try {
+      const instanceId = process.env.ULTRAMSG_INSTANCE_ID.trim();
+      const token = process.env.ULTRAMSG_TOKEN.trim();
+
+      const response = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          token,
+          to: `+91${normalized}`,
+          body: messageText
+        })
+      });
+      const data = await response.json();
+
+      if (data.sent === 'true' || data.sent === true || data.id) {
+        console.log(`[ULTRAMSG SUCCESS] Real-time OTP delivered to +91${normalized} via UltraMsg. Message ID: ${data.id}`);
+        return {
+          success: true,
+          simulated: false,
+          provider: 'UltraMsg WhatsApp',
+          channel: 'WHATSAPP',
+          messageId: data.id,
+          phone: normalized,
+          masked: maskPhone(normalized),
+          whatsappDeepLink
+        };
+      }
+      console.warn('UltraMsg WhatsApp notice:', data.error || data.message);
+    } catch (err) {
+      console.error('UltraMsg WhatsApp dispatch error:', err.message);
+    }
+  }
+
+  // ----------------------------------------------------
+  // 2. FAST2SMS WHATSAPP API (If message_id configured)
   // ----------------------------------------------------
   if (process.env.FAST2SMS_API_KEY && process.env.FAST2SMS_WHATSAPP_MESSAGE_ID) {
     try {
@@ -135,44 +174,6 @@ export const sendWhatsAppOTP = async ({ phone, otp, userName = 'Resident' }) => 
       console.warn('Meta WhatsApp API error:', data.error?.message);
     } catch (err) {
       console.error('Meta WhatsApp dispatch error:', err.message);
-    }
-  }
-
-  // ----------------------------------------------------
-  // 4. ULTRAMSG AUTOMATED WHATSAPP GATEWAY (Direct Dispatch)
-  // Free trial instance at https://ultramsg.com
-  // ----------------------------------------------------
-  if (process.env.ULTRAMSG_INSTANCE_ID && process.env.ULTRAMSG_TOKEN) {
-    try {
-      const instanceId = process.env.ULTRAMSG_INSTANCE_ID.trim();
-      const token = process.env.ULTRAMSG_TOKEN.trim();
-
-      const response = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          token,
-          to: `+91${normalized}`,
-          body: messageText
-        })
-      });
-      const data = await response.json();
-
-      if (data.sent === 'true' || data.id) {
-        console.log(`[WHATSAPP SUCCESS] Delivered to +91${normalized} via UltraMsg. Message ID: ${data.id}`);
-        return {
-          success: true,
-          simulated: false,
-          provider: 'UltraMsg WhatsApp',
-          channel: 'WHATSAPP',
-          phone: normalized,
-          masked: maskPhone(normalized),
-          whatsappDeepLink
-        };
-      }
-      console.warn('UltraMsg WhatsApp API error:', data.error || data.message);
-    } catch (err) {
-      console.error('UltraMsg WhatsApp dispatch error:', err.message);
     }
   }
 

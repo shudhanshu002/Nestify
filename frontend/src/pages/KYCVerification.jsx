@@ -34,7 +34,6 @@ const KYCVerification = () => {
   const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
   const [phoneVerifyLoading, setPhoneVerifyLoading] = useState(false);
   const [phoneResendTimer, setPhoneResendTimer] = useState(0);
-  const [phoneOtpChannel, setPhoneOtpChannel] = useState('WHATSAPP');
   const [whatsappLink, setWhatsappLink] = useState('');
 
   // ----------------------------------------------------
@@ -145,42 +144,30 @@ const KYCVerification = () => {
   // ----------------------------------------------------
   // HANDLERS: 1. MOBILE VERIFICATION
   // ----------------------------------------------------
-  const handleSendPhoneOtp = async (overrideChannel) => {
-    if (overrideChannel && typeof overrideChannel.preventDefault === 'function') {
-      overrideChannel.preventDefault();
-      overrideChannel = undefined;
+  const handleSendPhoneOtp = async (e) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
     }
     if (!phone || phone.replace(/\D/g, '').length < 10) {
       return toast.warning('Please enter a valid 10-digit Indian mobile number.');
     }
 
-    const channel = typeof overrideChannel === 'string' ? overrideChannel : phoneOtpChannel;
     setPhoneOtpLoading(true);
-    const endpoint = channel === 'WHATSAPP' ? '/users/send-whatsapp-otp' : '/users/send-phone-otp';
     try {
-      const { data } = await API.post(endpoint, { phone });
+      const { data } = await API.post('/users/send-whatsapp-otp', { phone });
       setPhoneOtpSent(true);
       setPhoneResendTimer(45);
       setPhoneOtp('');
       if (data.data?.whatsappDeepLink) {
         setWhatsappLink(data.data.whatsappDeepLink);
         // Automatically open WhatsApp chat for seamless automated OTP delivery
-        if (channel === 'WHATSAPP') {
-          try {
-            window.open(data.data.whatsappDeepLink, '_blank', 'noopener,noreferrer');
-          } catch (_) {}
-        }
+        try {
+          window.open(data.data.whatsappDeepLink, '_blank', 'noopener,noreferrer');
+        } catch (_) {}
       }
-      toast.success(data.message || `OTP dispatched via ${channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'}!`);
+      toast.success(data.message || 'WhatsApp OTP dispatched successfully!');
     } catch (err) {
-      const errMsg = err.response?.data?.message || `Failed to dispatch ${channel} OTP.`;
-      // If telecom SMS gateway is unavailable or unverified, seamlessly auto-switch to WhatsApp OTP
-      if (channel === 'SMS') {
-        toast.info('SMS gateway unverified. Switching to WhatsApp OTP for instant free delivery...');
-        setPhoneOtpChannel('WHATSAPP');
-        return handleSendPhoneOtp('WHATSAPP');
-      }
-      toast.error(errMsg);
+      toast.error(err.response?.data?.message || 'Failed to dispatch WhatsApp OTP.');
     } finally {
       setPhoneOtpLoading(false);
     }
@@ -695,32 +682,7 @@ const KYCVerification = () => {
                     <label className="text-[10px] font-black uppercase text-gray-400 block">
                       Indian Mobile Number (+91)
                     </label>
-                    <div className="flex items-center gap-1.5 bg-[#12131a] p-1 rounded-xl border border-[#232533]">
-                      <button
-                        type="button"
-                        onClick={() => setPhoneOtpChannel('WHATSAPP')}
-                        disabled={phoneOtpSent}
-                        className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
-                          phoneOtpChannel === 'WHATSAPP'
-                            ? 'bg-emerald-600 text-white shadow'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        <span>💬 WhatsApp (Free &amp; Instant)</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPhoneOtpChannel('SMS')}
-                        disabled={phoneOtpSent}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition cursor-pointer ${
-                          phoneOtpChannel === 'SMS'
-                            ? 'bg-red-600 text-white shadow'
-                            : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        <span>📱 SMS</span>
-                      </button>
-                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800/40 flex items-center gap-1.5">💬 WhatsApp Verification</span>
                   </div>
                   <div className="flex gap-2">
                     <div className="flex items-center px-3.5 bg-[#202020] border border-[#333333] rounded-xl text-gray-400 font-mono text-xs font-bold">
@@ -748,13 +710,7 @@ const KYCVerification = () => {
                             : 'btn-netflix'
                         }`}
                       >
-                        {phoneOtpLoading ? (
-                          <Loader2 size={14} className="animate-spin" />
-                        ) : phoneOtpChannel === 'WHATSAPP' ? (
-                          <span>Send WhatsApp OTP (Free)</span>
-                        ) : (
-                          <span>Send SMS OTP</span>
-                        )}
+                        {phoneOtpLoading ? <Loader2 size={14} className="animate-spin" /> : <span>Send WhatsApp OTP</span>}
                       </button>
                     )}
                   </div>
@@ -767,28 +723,12 @@ const KYCVerification = () => {
                   <div className="p-4 bg-[#14151b] border border-[#2b2d3c] rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black uppercase text-gray-400">
-                        Enter 6-Digit {phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'} Verification Code
+                        Enter 6-Digit WhatsApp Verification Code
                       </span>
                       {phoneResendTimer > 0 ? (
                         <span className="text-[10px] text-gray-500 font-mono">Resend in {phoneResendTimer}s</span>
                       ) : (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleSendPhoneOtp('WHATSAPP')}
-                            className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition cursor-pointer"
-                          >
-                            Resend on WhatsApp
-                          </button>
-                          <span className="text-gray-600">•</span>
-                          <button
-                            type="button"
-                            onClick={() => handleSendPhoneOtp('SMS')}
-                            className="text-[10px] font-bold text-red-400 hover:text-red-300 transition cursor-pointer"
-                          >
-                            Resend via SMS
-                          </button>
-                        </div>
+                        <button type="button" onClick={handleSendPhoneOtp} className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition cursor-pointer">Resend Code on WhatsApp</button>
                       )}
                     </div>
 
@@ -798,12 +738,12 @@ const KYCVerification = () => {
                           <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
                           <span>Code dispatched to +91 {phone}</span>
                         </span>
-                        <span className="text-[9px] uppercase font-bold tracking-wider bg-emerald-900/60 px-2 py-0.5 rounded-full text-emerald-200 border border-emerald-700/40">
-                          {phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp' : 'Live SMS'}
+                        <span className="text-[9px] uppercase font-bold tracking-wider bg-emerald-900/60 px-2.5 py-0.5 rounded-full text-emerald-200 border border-emerald-700/40">
+                          WhatsApp
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-400 leading-relaxed">
-                        Please check your {phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp chat' : 'SMS messages'} for the 6-digit code.
+                        Please check your WhatsApp chat for the 6-digit verification code.
                       </p>
                       {whatsappLink && (
                         <div className="pt-1">
