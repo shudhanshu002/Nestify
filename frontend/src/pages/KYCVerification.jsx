@@ -146,11 +146,15 @@ const KYCVerification = () => {
   // HANDLERS: 1. MOBILE VERIFICATION
   // ----------------------------------------------------
   const handleSendPhoneOtp = async (overrideChannel) => {
+    if (overrideChannel && typeof overrideChannel.preventDefault === 'function') {
+      overrideChannel.preventDefault();
+      overrideChannel = undefined;
+    }
     if (!phone || phone.replace(/\D/g, '').length < 10) {
       return toast.warning('Please enter a valid 10-digit Indian mobile number.');
     }
 
-    const channel = overrideChannel || phoneOtpChannel;
+    const channel = typeof overrideChannel === 'string' ? overrideChannel : phoneOtpChannel;
     setPhoneOtpLoading(true);
     const endpoint = channel === 'WHATSAPP' ? '/users/send-whatsapp-otp' : '/users/send-phone-otp';
     try {
@@ -675,7 +679,17 @@ const KYCVerification = () => {
                 </button>
               </div>
             ) : (
-              <form onSubmit={phoneOtpSent ? handleVerifyPhoneOtp : handleSendPhoneOtp} className="space-y-4">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (phoneOtpSent) {
+                    handleVerifyPhoneOtp(e);
+                  } else {
+                    handleSendPhoneOtp();
+                  }
+                }}
+                className="space-y-4"
+              >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-black uppercase text-gray-400 block">
@@ -723,7 +737,10 @@ const KYCVerification = () => {
                     {!phoneOtpSent && (
                       <button
                         type="button"
-                        onClick={() => handleSendPhoneOtp()}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleSendPhoneOtp();
+                        }}
                         disabled={phoneOtpLoading || phone.length < 10}
                         className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider cursor-pointer disabled:opacity-50 shrink-0 transition flex items-center gap-1.5 shadow-lg ${
                           phoneOtpChannel === 'WHATSAPP'
@@ -789,14 +806,14 @@ const KYCVerification = () => {
                         Please check your {phoneOtpChannel === 'WHATSAPP' ? 'WhatsApp chat' : 'SMS messages'} for the 6-digit code.
                       </p>
                       {whatsappLink && (
-                        <div className="pt-0.5">
+                        <div className="pt-1">
                           <a
                             href={whatsappLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#25D366]/20 hover:bg-[#25D366]/30 text-[#25D366] border border-[#25D366]/40 rounded-lg text-xs font-semibold transition"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#25D366] hover:bg-[#20ba5a] text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-950/40 transition hover:scale-[1.02] cursor-pointer"
                           >
-                            <span>💬 Open WhatsApp chat to view code</span>
+                            <span>💬 Open WhatsApp To View Your OTP</span>
                           </a>
                         </div>
                       )}
