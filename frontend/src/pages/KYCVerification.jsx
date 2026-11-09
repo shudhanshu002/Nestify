@@ -169,7 +169,14 @@ const KYCVerification = () => {
       }
       toast.success(data.message || `OTP dispatched via ${channel === 'WHATSAPP' ? 'WhatsApp' : 'SMS'}!`);
     } catch (err) {
-      toast.error(err.response?.data?.message || `Failed to dispatch ${channel} OTP.`);
+      const errMsg = err.response?.data?.message || `Failed to dispatch ${channel} OTP.`;
+      // If telecom SMS gateway is unavailable or unverified, seamlessly auto-switch to WhatsApp OTP
+      if (channel === 'SMS') {
+        toast.info('SMS gateway unverified. Switching to WhatsApp OTP for instant free delivery...');
+        setPhoneOtpChannel('WHATSAPP');
+        return handleSendPhoneOtp('WHATSAPP');
+      }
+      toast.error(errMsg);
     } finally {
       setPhoneOtpLoading(false);
     }
@@ -679,13 +686,13 @@ const KYCVerification = () => {
                         type="button"
                         onClick={() => setPhoneOtpChannel('WHATSAPP')}
                         disabled={phoneOtpSent}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition cursor-pointer ${
+                        className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition cursor-pointer ${
                           phoneOtpChannel === 'WHATSAPP'
                             ? 'bg-emerald-600 text-white shadow'
                             : 'text-gray-400 hover:text-white'
                         }`}
                       >
-                        <span>💬 WhatsApp</span>
+                        <span>💬 WhatsApp (Free &amp; Instant)</span>
                       </button>
                       <button
                         type="button"
@@ -727,7 +734,7 @@ const KYCVerification = () => {
                         {phoneOtpLoading ? (
                           <Loader2 size={14} className="animate-spin" />
                         ) : phoneOtpChannel === 'WHATSAPP' ? (
-                          <span>Send WhatsApp OTP</span>
+                          <span>Send WhatsApp OTP (Free)</span>
                         ) : (
                           <span>Send SMS OTP</span>
                         )}

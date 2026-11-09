@@ -195,9 +195,72 @@ export const sendSmsOTP = async ({ phone, otp, userName = 'Resident', type = 'PH
     }
   }
 
+  // ----------------------------------------------------
+  // 4. TEXTBEE GATEWAY (Free SMS Gateway - 300 SMS/mo)
+  // Free sign up at https://textbee.dev
+  // ----------------------------------------------------
+  if (process.env.TEXTBEE_API_KEY && process.env.TEXTBEE_DEVICE_ID) {
+    try {
+      const apiKey = process.env.TEXTBEE_API_KEY.trim();
+      const deviceId = process.env.TEXTBEE_DEVICE_ID.trim();
+      const response = await fetch(`https://api.textbee.dev/api/v1/gateway/devices/${deviceId}/send-sms`, {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          recipients: [`+91${normalized}`],
+          message: message
+        })
+      });
+      const data = await response.json();
+      if (data.success || data.data) {
+        console.log(`[SMS SUCCESS] Real-time OTP delivered to +91${normalized} via Textbee.dev`);
+        return {
+          success: true,
+          simulated: false,
+          provider: 'Textbee',
+          phone: normalized,
+          masked: maskPhone(normalized)
+        };
+      }
+      console.warn('Textbee returned notice:', data.message || data.error);
+    } catch (err) {
+      console.error('Textbee dispatch error:', err.message);
+    }
+  }
+
+  // ----------------------------------------------------
+  // 5. MSG91 GATEWAY (India's Leading Developer SMS Provider)
+  // Free trial credits at https://msg91.com
+  // ----------------------------------------------------
+  if (process.env.MSG91_AUTH_KEY && process.env.MSG91_TEMPLATE_ID) {
+    try {
+      const authKey = process.env.MSG91_AUTH_KEY.trim();
+      const templateId = process.env.MSG91_TEMPLATE_ID.trim();
+      const url = `https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=91${normalized}&authkey=${authKey}&otp=${otp}`;
+      const response = await fetch(url, { method: 'POST' });
+      const data = await response.json();
+      if (data.type === 'success') {
+        console.log(`[SMS SUCCESS] Real-time OTP delivered to +91${normalized} via MSG91`);
+        return {
+          success: true,
+          simulated: false,
+          provider: 'MSG91',
+          phone: normalized,
+          masked: maskPhone(normalized)
+        };
+      }
+      console.warn('MSG91 returned status:', data.message || data.type);
+    } catch (err) {
+      console.error('MSG91 dispatch error:', err.message);
+    }
+  }
+
   // If user configured real SMS gateway and it failed to deliver, alert with exact reason
-  if (process.env.NODE_ENV !== 'test' && (process.env.FAST2SMS_API_KEY || process.env.TWOFACTOR_API_KEY || process.env.TWILIO_ACCOUNT_SID)) {
-    throw new Error(lastError || 'Real SMS could not be dispatched. Please verify your telecom gateway status or use WhatsApp OTP.');
+  if (process.env.NODE_ENV !== 'test' && (process.env.FAST2SMS_API_KEY || process.env.TWOFACTOR_API_KEY || process.env.TWILIO_ACCOUNT_SID || process.env.TEXTBEE_API_KEY || process.env.MSG91_AUTH_KEY)) {
+    throw new Error(lastError || 'Real SMS could not be dispatched. Please use WhatsApp OTP (free & instant delivery) or check SMS gateway credentials.');
   }
 
   // ----------------------------------------------------
