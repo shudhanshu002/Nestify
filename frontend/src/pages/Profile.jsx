@@ -3,8 +3,9 @@ import { AuthContext } from '../context/AuthContext';
 import API from '../api/client';
 import { 
   User, Mail, ShieldCheck, Heart, Settings, Loader2, 
-  Check, AlertCircle, Upload, Clock, FileText, Camera, 
-  ArrowRight, Building2, Shield, Calendar, RefreshCw
+  Check, AlertCircle, Clock, 
+  ArrowRight, Building2, Shield, Calendar, RefreshCw,
+  Smartphone, UserCheck, PhoneCall, GraduationCap, FileText
 } from 'lucide-react';
 import PropertyCard from '../components/PropertyCard';
 import OwnerOnboardingModal from '../components/modals/OwnerOnboardingModal';
@@ -71,10 +72,27 @@ const Profile = () => {
   const [wishlistItems, setWishlistItems] = useState([]);
   const [dataLoading, setDataLoading] = useState(false);
 
-  // KYC States
-  const [kycFile, setKycFile] = useState(null);
-  const [docType, setDocType] = useState('AADHAAR');
-  const [uploading, setUploading] = useState(false);
+  // KYC & 5-Pillar Verification Summary
+  const [verificationSummary, setVerificationSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchVerificationSummary = async () => {
+      if (activeTab !== 'kyc' || !user) return;
+      setSummaryLoading(true);
+      try {
+        const { data } = await API.get('/users/verification-status');
+        if (data?.success && data?.data) {
+          setVerificationSummary(data.data);
+        }
+      } catch (err) {
+        console.error("Verification Summary Error:", err);
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
+    fetchVerificationSummary();
+  }, [activeTab, user]);
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab');
@@ -105,28 +123,7 @@ const Profile = () => {
     fetchWishlist();
   }, [activeTab, user]);
 
-  const handleKYCUpload = async (e) => {
-    e.preventDefault();
-    if (!kycFile) return alert("Please select a document image.");
-
-    setUploading(true);
-    const formData = new FormData();
-    formData.append('docType', docType);
-    formData.append('document', kycFile);
-
-    try {
-      const { data } = await API.post('/users/submit-kyc', formData);
-      setUser(data.data); 
-      alert("Documents submitted for admin review!");
-      setActiveTab('kyc');
-      setKycFile(null);
-    } catch (err) {
-      alert(err.response?.data?.message || "Upload failed. Please try again.");
-    } finally {
-      setUploading(false);
-    }
-  };
-
+  
   const getInitials = () => {
     if (!user) return 'SS';
     const first = user.firstName ? user.firstName[0].toUpperCase() : '';
@@ -428,116 +425,219 @@ const Profile = () => {
           {/* TAB 2: KYC & IDENTITY VERIFICATION */}
           {activeTab === 'kyc' && (
             <div className="bg-[#141414] border border-neutral-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl animate-in fade-in duration-200">
-              <div className="border-b border-neutral-800 pb-4">
-                <span className="text-[10px] font-black uppercase text-[#E50914] tracking-widest block">TRUST & COMPLIANCE</span>
-                <h2 className="text-2xl sm:text-3xl font-black text-white italic tracking-wide mt-0.5">
-                  Identity Verification Center
-                </h2>
-                <p className="text-xs text-neutral-400 mt-1">
-                  Nestify enforces digital and physical verification to protect residents and landlords against fraudulent listings.
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-5">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-[#E50914] tracking-widest block">TRUST & COMPLIANCE</span>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white italic tracking-wide mt-0.5">
+                    Identity Verification Center
+                  </h2>
+                  <p className="text-xs text-neutral-400 mt-1 max-w-xl">
+                    Nestify uses real-time 5-pillar verification (WhatsApp OTP, Government ID, Liveness Selfie, Emergency Contact, and Academic/Work Credential) for instant fraud prevention.
+                  </p>
+                </div>
+                {verificationSummary?.trustScore !== undefined && (
+                  <div className="bg-neutral-900 border border-neutral-800 px-4 py-2 rounded-2xl flex items-center gap-2.5 shrink-0 self-start sm:self-center">
+                    <Shield className="w-5 h-5 text-emerald-400" />
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-neutral-400 block leading-tight">Trust Score</span>
+                      <span className="text-sm font-black text-white">{verificationSummary.trustScore}% Verified</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Status Banner */}
               <div className={`p-4 sm:p-5 rounded-2xl flex items-start gap-4 border ${
-                user.kycStatus === 'VERIFIED' ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-400' :
+                (user.kycStatus === 'VERIFIED' || verificationSummary?.mandatoryPassed) ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-400' :
                 user.kycStatus === 'PENDING' ? 'bg-amber-950/30 border-amber-500/40 text-amber-400' :
                 user.kycStatus === 'REJECTED' ? 'bg-rose-950/30 border-rose-500/40 text-rose-400' :
                 'bg-neutral-900 border-neutral-800 text-neutral-300'
               }`}>
-                {user.kycStatus === 'VERIFIED' ? <Check className="w-6 h-6 stroke-[3] shrink-0 mt-0.5 text-emerald-400" /> :
-                 user.kycStatus === 'PENDING' ? <Clock className="w-6 h-6 shrink-0 mt-0.5 text-amber-400 animate-spin" /> :
-                 <AlertCircle className="w-6 h-6 shrink-0 mt-0.5 text-neutral-400" />}
+                {(user.kycStatus === 'VERIFIED' || verificationSummary?.mandatoryPassed) ? (
+                  <Check className="w-6 h-6 stroke-[3] shrink-0 mt-0.5 text-emerald-400" />
+                ) : user.kycStatus === 'PENDING' ? (
+                  <Clock className="w-6 h-6 shrink-0 mt-0.5 text-amber-400 animate-spin" />
+                ) : (
+                  <AlertCircle className="w-6 h-6 shrink-0 mt-0.5 text-amber-400" />
+                )}
                 <div>
                   <h4 className="font-black text-sm uppercase tracking-wide">
-                    {user.kycStatus === 'VERIFIED' ? 'IDENTITY VERIFIED ✅' :
-                     user.kycStatus === 'PENDING' ? 'AUDIT IN PROGRESS ⏳' : 
-                     user.kycStatus === 'REJECTED' ? 'VERIFICATION REJECTED ❌' : 'VERIFICATION REQUIRED'}
+                    {(user.kycStatus === 'VERIFIED' || verificationSummary?.mandatoryPassed)
+                      ? 'IDENTITY VERIFIED ✅'
+                      : user.kycStatus === 'PENDING'
+                      ? 'AUDIT IN PROGRESS ⏳'
+                      : user.kycStatus === 'REJECTED'
+                      ? 'VERIFICATION REJECTED ❌'
+                      : 'VERIFICATION IN PROGRESS'}
                   </h4>
                   <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
-                    {user.kycStatus === 'VERIFIED'
+                    {(user.kycStatus === 'VERIFIED' || verificationSummary?.mandatoryPassed)
                       ? 'Your profile is authenticated with full Move-in Escrow Protection and verified lease privileges.'
                       : user.kycStatus === 'PENDING'
-                      ? 'Your verification documents are being reviewed by the compliance desk. Reviews finish in 12-24 hours.'
+                      ? 'Your verification documents are being processed. Verification completes instantly in the Verification Hub.'
                       : user.kycStatus === 'REJECTED'
-                      ? (user.kycRejectionReason || 'Previous document was declined. Please submit a valid Aadhaar, PAN, or Passport.')
-                      : 'Upload a government photo ID to enable one-click reservations and zero-brokerage guarantees.'}
+                      ? (user.kycRejectionReason || 'Previous verification was declined. Please verify via the 5-Pillar Verification Hub.')
+                      : 'Complete your instant mobile and identity verification to unlock one-click bookings and zero-brokerage guarantees.'}
                   </p>
                 </div>
               </div>
 
-              {/* Comprehensive Verification Center CTA */}
-              <div className="bg-[#1a1b24] border border-[#2b2d3d] p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* 5-Pillar Verification Breakdown */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase text-neutral-400 tracking-wider">
+                    5-PILLAR VERIFICATION STATUS
+                  </span>
+                  <span className="text-[10px] text-neutral-400 font-medium">Real-time instant checks</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Pillar 1: Phone */}
+                  <div className="p-3.5 rounded-2xl bg-neutral-900/80 border border-neutral-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-neutral-800 flex items-center justify-center shrink-0 text-neutral-300">
+                        <Smartphone className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <h5 className="text-xs font-bold text-white truncate">WhatsApp / Mobile OTP</h5>
+                        <p className="text-[11px] text-neutral-400 truncate">
+                          {verificationSummary?.phone?.phone || (user.phone ? user.phone.slice(-10) : 'Mobile verification')}
+                        </p>
+                      </div>
+                    </div>
+                    {(verificationSummary?.phone?.isVerified || user.isPhoneVerified) ? (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-neutral-800 text-neutral-400 border border-neutral-700 shrink-0">
+                        Required
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Pillar 2: Govt ID */}
+                  <div className="p-3.5 rounded-2xl bg-neutral-900/80 border border-neutral-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-neutral-800 flex items-center justify-center shrink-0 text-neutral-300">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <h5 className="text-xs font-bold text-white truncate">Government ID / Aadhaar</h5>
+                        <p className="text-[11px] text-neutral-400 truncate">
+                          {verificationSummary?.identity?.maskedId || user.identityVerification?.maskedId || 'Aadhaar QR / Govt ID'}
+                        </p>
+                      </div>
+                    </div>
+                    {(verificationSummary?.identity?.status === 'VERIFIED' || user.kycStatus === 'VERIFIED') ? (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-neutral-800 text-neutral-400 border border-neutral-700 shrink-0">
+                        Required
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Pillar 3: Live Selfie */}
+                  <div className="p-3.5 rounded-2xl bg-neutral-900/80 border border-neutral-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-neutral-800 flex items-center justify-center shrink-0 text-neutral-300">
+                        <UserCheck className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <h5 className="text-xs font-bold text-white truncate">Live Facial Liveness</h5>
+                        <p className="text-[11px] text-neutral-400 truncate">Anti-spoofing camera check</p>
+                      </div>
+                    </div>
+                    {(verificationSummary?.selfie?.isVerified || user.selfieVerification?.isVerified) ? (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-neutral-800 text-neutral-400 border border-neutral-700 shrink-0">
+                        Optional
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Pillar 4: Emergency Contact */}
+                  <div className="p-3.5 rounded-2xl bg-neutral-900/80 border border-neutral-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-neutral-800 flex items-center justify-center shrink-0 text-neutral-300">
+                        <PhoneCall className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <h5 className="text-xs font-bold text-white truncate">Emergency Contact</h5>
+                        <p className="text-[11px] text-neutral-400 truncate">
+                          {user.profile?.emergencyContact?.name 
+                            ? `${user.profile.emergencyContact.name} (${user.profile.emergencyContact.relation || 'Contact'})` 
+                            : 'Family / Guardian contact'}
+                        </p>
+                      </div>
+                    </div>
+                    {(verificationSummary?.emergencyContact?.isVerified || user.profile?.emergencyContact?.isVerified) ? (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-neutral-800 text-neutral-400 border border-neutral-700 shrink-0">
+                        Optional
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Pillar 5: Student/Work */}
+                  <div className="sm:col-span-2 p-3.5 rounded-2xl bg-neutral-900/80 border border-neutral-800 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-neutral-800 flex items-center justify-center shrink-0 text-neutral-300">
+                        <GraduationCap className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <h5 className="text-xs font-bold text-white truncate">Student / Professional Badge</h5>
+                        <p className="text-[11px] text-neutral-400 truncate">
+                          {user.studentOrWorkVerification?.organizationName || 'College ID card or corporate work email'}
+                        </p>
+                      </div>
+                    </div>
+                    {verificationSummary?.studentOrWork?.status === 'VERIFIED' ? (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shrink-0">
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-neutral-800 text-neutral-400 border border-neutral-700 shrink-0">
+                        Optional Badge
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Hub CTA */}
+              <div className="bg-gradient-to-r from-red-950/30 via-neutral-900 to-neutral-900 border border-red-500/30 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <span className="text-[10px] font-black uppercase text-red-500 tracking-wider block">5-PILLAR RESIDENT TRUST GATES</span>
-                  <h4 className="text-sm font-black text-white mt-0.5">Mobile OTP • Aadhaar • Live Selfie • Emergency Contact • Student/Work</h4>
-                  <p className="text-xs text-neutral-400 mt-0.5">Verify your mobile, government ID, live selfie, emergency contact, and college/work credentials.</p>
+                  <span className="text-[10px] font-black uppercase text-red-500 tracking-wider block">
+                    INSTANT 5-PILLAR VERIFICATION
+                  </span>
+                  <h4 className="text-sm font-black text-white mt-0.5">Manage Your Identity in the Verification Hub</h4>
+                  <p className="text-xs text-neutral-400 mt-0.5">
+                    No waiting 24 hours for manual document audits. Verify your phone, Aadhaar QR, and selfie in real time.
+                  </p>
                 </div>
                 <Link
                   to="/verify-identity"
-                  className="btn-red-glow text-white font-extrabold text-xs uppercase px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow shrink-0"
+                  className="btn-red-glow text-white font-extrabold text-xs uppercase px-5 py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shrink-0"
                 >
-                  OPEN VERIFICATION HUB <ArrowRight className="w-3.5 h-3.5" />
+                  OPEN VERIFICATION HUB <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
 
-              {/* Upload Form */}
-              {user.kycStatus !== 'VERIFIED' && user.kycStatus !== 'PENDING' && (
-                <form onSubmit={handleKYCUpload} className="space-y-4 pt-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-extrabold uppercase text-neutral-400">DOCUMENT TYPE</label>
-                      <select 
-                        value={docType} 
-                        onChange={(e) => setDocType(e.target.value)} 
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-3.5 py-3 text-xs text-white outline-none focus:border-[#E50914] font-semibold"
-                      >
-                        <option value="AADHAAR">Government Aadhaar Card</option>
-                        <option value="PAN">Permanent Account Number (PAN)</option>
-                        <option value="PASSPORT">International Passport</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-extrabold uppercase text-neutral-400">UPLOAD ID PHOTO</label>
-                      <div className="relative h-[46px] flex items-center px-4 bg-neutral-900 rounded-xl border border-dashed border-neutral-700 hover:border-[#E50914] transition cursor-pointer">
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={(e) => setKycFile(e.target.files[0])} 
-                          className="absolute inset-0 opacity-0 cursor-pointer" 
-                        />
-                        <span className="text-xs font-bold text-neutral-300 truncate">
-                          {kycFile ? kycFile.name : 'Choose JPG, PNG or PDF'}
-                        </span>
-                        <Camera className="w-4 h-4 ml-auto text-[#E50914] shrink-0" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <button 
-                    type="submit" 
-                    disabled={uploading} 
-                    className="w-full btn-red-glow py-3 rounded-xl font-extrabold text-xs uppercase tracking-wider shadow flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {uploading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" /> Submitting Documents...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4" /> SUBMIT DOCUMENTS FOR AUDIT
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
-
-              {/* Uploaded Documents */}
+              {/* Uploaded Documents if any exist */}
               {(user.kycDocuments || []).length > 0 && (
                 <div className="pt-4 border-t border-neutral-800 space-y-3">
                   <h4 className="text-[10px] font-extrabold uppercase text-neutral-400 tracking-wider">
-                    UPLOADED CREDENTIALS
+                    ATTACHED CREDENTIALS
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {user.kycDocuments.map((doc, idx) => (
