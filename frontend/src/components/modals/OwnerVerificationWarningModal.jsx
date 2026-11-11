@@ -120,7 +120,7 @@ const OwnerVerificationWarningModal = ({
           }`}>
             <div className="flex items-center gap-2.5">
               <Phone size={15} className={isPhoneVerified ? 'text-emerald-400' : 'text-red-400'} />
-              <span className="font-bold">10-Digit Mobile Number (SMS OTP)</span>
+              <span className="font-bold">10-Digit Mobile Number (WhatsApp / Mobile OTP)</span>
             </div>
             <span className="text-[10px] font-black uppercase flex items-center gap-1 font-mono">
               {isPhoneVerified ? (
